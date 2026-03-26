@@ -18,10 +18,22 @@ TORTOISE_ORM = {
             'apps': {
                 'models': {
                     'models': [
+                        'models.base',
                         'models.users',
+                        'models.shops',
+                        'models.categories',
+                        'models.dining_methods',
+                        'models.ratings',
+                        'models.comments',
+                        'models.menu_items',
+                        'models.images',
+                        'models.favorites',
+                        'models.messages',
+                        'models.activities',
+                        'models.shop_edit_requests',
+                        'models.user_behavior_logs',
                         'models.roles',
                         'aerich.models',
-                        'models.activities',
                         'models.registrations',
                         'models.user_logs'
                         ],
