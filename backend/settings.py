@@ -29,13 +29,9 @@ TORTOISE_ORM = {
                         'models.images',
                         'models.favorites',
                         'models.messages',
-                        'models.activities',
                         'models.shop_edit_requests',
                         'models.user_behavior_logs',
-                        'models.roles',
                         'aerich.models',
-                        'models.registrations',
-                        'models.user_logs'
                         ],
                     'default_connection': 'default',
                 }

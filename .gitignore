@@ -2,6 +2,9 @@
 __pycache__/
 env/
 venv/
+pyproject.toml
+migrations/
+prompts/
 
 # 前端（React / admin-react）
 node_modules/
