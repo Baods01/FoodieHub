@@ -19,7 +19,7 @@ class Shops(BaseModel):
     comment_count = fields.IntField(default=0, description="讨论数（冗余字段）")
     average_rating = fields.DecimalField(max_digits=2, decimal_places=1, default=0.0, description="平均评分（冗余字段）")
     category = fields.IntField(description='店铺类别，如"中餐""咖啡"，可能需要关联表')
-    # Remove the old dining_methods field and add relationships
+    # 关联表定义
     shop_dining_methods = fields.ReverseRelation["ShopDiningMethods"]
     shop_categories = fields.ReverseRelation["ShopCategories"]
 
