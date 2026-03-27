@@ -1,6 +1,7 @@
 from tortoise.models import Model
 from tortoise import fields
 from .base import BaseModel
+from .users import Users
 
 
 class Activities(BaseModel):
@@ -8,7 +9,7 @@ class Activities(BaseModel):
     Activities 表 - 动态表
     """
     id = fields.IntField(pk=True, description="动态唯一标识")
-    user_id = fields.IntField(description="产生动态的用户")
+    user = fields.ForeignKeyField("models.Users", related_name="activities", on_delete=fields.CASCADE, description="产生动态的用户")
     type = fields.CharField(max_length=50, null=False, description="动态类型：rating、comment、question、answer、favorite、add_shop等")
     target_id = fields.IntField(null=False, description="关联目标ID（如评论ID、店铺ID等）")
     target_type = fields.CharField(max_length=50, null=False, description="目标实体类型，便于前端跳转")

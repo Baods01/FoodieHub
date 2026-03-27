@@ -1,6 +1,7 @@
 from tortoise.models import Model
 from tortoise import fields
 from .base import BaseModel
+from .users import Users
 
 
 class Messages(BaseModel):
@@ -8,8 +9,8 @@ class Messages(BaseModel):
     Messages 表 - 消息表
     """
     id = fields.IntField(pk=True, description="消息唯一标识")
-    recipient_id = fields.IntField(description="接收用户")
-    sender_id = fields.IntField(null=True, description="发送方（系统消息时为空）")
+    recipient = fields.ForeignKeyField("models.Users", related_name="received_messages", on_delete=fields.CASCADE, description="接收用户")
+    sender = fields.ForeignKeyField("models.Users", related_name="sent_messages", null=True, on_delete=fields.SET_NULL, description="发送方（系统消息时为空）")
     type = fields.CharField(max_length=50, null=False, description="类型：announcement、reply_comment、reply_answer等")
     title = fields.CharField(max_length=100, null=True, description="消息标题")
     content = fields.TextField(null=False, description="消息内容")
