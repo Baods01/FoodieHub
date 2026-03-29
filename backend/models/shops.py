@@ -13,7 +13,7 @@ class Shops(BaseModel):
     id = fields.IntField(pk=True, description="店铺唯一标识")
     name = fields.CharField(max_length=100, null=False, description="店铺名称")
     description = fields.TextField(null=True, description="店铺描述")
-    is_oncampus = fields.BooleanField(null=True, description="校内校外")
+    campus_status = fields.CharField(max_length=20, null=True, description="校园状态：on_campus(校内)/off_campus(校外)/unknown(未知)")
     view_count = fields.IntField(default=0, description="总浏览量（冗余字段）")
     favorite_count = fields.IntField(default=0, description="收藏数（冗余字段）")
     comment_count = fields.IntField(default=0, description="讨论数（冗余字段）")
