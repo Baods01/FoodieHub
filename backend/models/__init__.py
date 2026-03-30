@@ -1,7 +1,6 @@
 from .users import Users
 from .shops import Shops
-from .categories import Categories
-from .dining_methods import DiningMethods
+from .dict_type import DictTypes, DictData, ShopDictRel
 from .menu_items import MenuItems
 from .comments import Comments
 from .ratings import Ratings
@@ -12,14 +11,13 @@ from .activities import Activities
 from .shop_edit_requests import ShopEditRequests
 from .user_behavior_logs import UserBehaviorLogs
 from .base import BaseModel
-from .shop_dining_methods import ShopDiningMethods
-from .shop_categories import ShopCategories
 
 __all__ = [
     'Users',
     'Shops',
-    'Categories',
-    'DiningMethods',
+    'DictTypes',
+    'DictData',
+    'ShopDictRel',
     'MenuItems',
     'Comments',
     'Ratings',
@@ -29,7 +27,5 @@ __all__ = [
     'Activities',
     'ShopEditRequests',
     'UserBehaviorLogs',
-    'BaseModel',
-    'ShopDiningMethods',
-    'ShopCategories'
+    'BaseModel'
 ]
