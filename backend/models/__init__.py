@@ -1,7 +1,6 @@
 from .users import Users, Activities, Favorites, Messages
-from .shops import Shops, Menu, Ratings
+from .shops import Shops, Menu, Ratings, Comments, CommentsLikes
 from .dict import DictTypes, DictData, ShopDictRel
-from .comments import Comments, CommentsLikes
 from .logs import UserBehaviorLogs
 from .reviews import ShopEditRequests
 from .images import Images
