@@ -18,6 +18,9 @@ class ShopEditRequests(BaseModel):
 
     class Meta:
         table = "shop_edit_requests"
+        indexes = [
+            ("status", "created_at"),
+        ]
 
     def __str__(self):
         return f"Shop Edit Request {self.id}: Shop {self.shop_id}, Status {self.status}"

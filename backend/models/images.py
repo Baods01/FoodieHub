@@ -15,6 +15,9 @@ class Images(BaseModel):
 
     class Meta:
         table = "images"
+        indexes = [
+            ("entity_type", "entity_id"),
+        ]
 
     def __str__(self):
         return f"Image {self.id}: {self.url}"

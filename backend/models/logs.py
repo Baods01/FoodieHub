@@ -19,6 +19,10 @@ class UserBehaviorLogs(BaseModel):
 
     class Meta:
         table = "user_behavior_logs"
+        indexes = [
+            ("user_id", "created_at"),
+            ("behavior_type", "created_at"),
+        ]
 
     def __str__(self):
         return f"Log {self.id}: {self.behavior_type} on {self.target_type} {self.target_id}"

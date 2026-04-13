@@ -16,6 +16,9 @@ class Shops(BaseModel):
     favorite_count = fields.IntField(default=0, description="收藏数（冗余字段）")
     comment_count = fields.IntField(default=0, description="讨论数（冗余字段）")
     average_rating = fields.DecimalField(max_digits=2, decimal_places=1, default=0.0, description="平均评分（冗余字段）")
+    aliases = fields.JSONField(null=True, description="存储别名列表，例如[老店名, 别名]")
+    merged_into = fields.ForeignKeyField("models.Shops", null=True, related_name="shops", on_delete=fields.SET_NULL, description="合并后新店铺")
+    
     # 关联表定义
     dict_relations = fields.ReverseRelation["ShopDictRel"]
     comments = fields.ReverseRelation["Comments"]
@@ -51,7 +54,7 @@ class Ratings(BaseModel):
     id = fields.IntField(pk=True, description="评分唯一标识")
     user = fields.ForeignKeyField("models.Users", related_name="ratings", on_delete=fields.CASCADE, description="评分用户")
     shop = fields.ForeignKeyField("models.Shops", related_name="ratings", on_delete=fields.CASCADE, description="被评店铺")
-    score = fields.IntField(description="评分值")  # Note: In MySQL, we'll use a constraint to ensure 1-5 range
+    score = fields.IntField(description="评分值（1-5）")
 
     class Meta:
         table = "ratings"
@@ -75,10 +78,12 @@ class Comments(BaseModel):
     content = fields.TextField(null=False, description="评论内容，支持富文本或纯文本")
     like_count = fields.IntField(default=0, null=False, description="点赞数，冗余字段，便于排序和展示")
     reply_count = fields.IntField(default=0, null=False, description="直接子回复数量，冗余字段，减少 COUNT 查询")
-    
 
     class Meta:
         table = "comments"
+        indexes = [
+            ("shop_id", "root_id", "created_at"),
+        ]
 
     def __str__(self):
         return f"Comment {self.id} on Shop {self.shop_id} by User {self.user_id}"
