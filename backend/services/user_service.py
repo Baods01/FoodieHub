@@ -5,7 +5,10 @@ from jose import jwt
 
 from config import settings
 from dao.user_dao import UserDAO
-from schemas.users import UserCreate, UserLogin, UserResponse, LoginResponse
+from schemas.users import (
+    UserCreate, UserLogin, UserResponse, LoginResponse,
+    UserUpdate, UserProfileResponse, UserStats
+)
 from services.password_service import PasswordService
 
 
@@ -98,3 +101,43 @@ class UserService:
         if user:
             return UserResponse.model_validate(user)
         return None
+
+    @staticmethod
+    async def update_profile(user_id: int, update_data: UserUpdate) -> UserResponse:
+        """
+        更新用户个人信息
+        - 支持更新头像和简介
+        """
+        update_dict = update_data.model_dump(exclude_unset=True)
+        user = await UserDAO.update_user(user_id, **update_dict)
+        if not user:
+            raise ValueError("用户不存在")
+        return UserResponse.model_validate(user)
+
+    @staticmethod
+    async def delete_account(user_id: int) -> None:
+        """
+        软删除用户账号
+        """
+        success = await UserDAO.delete_user(user_id)
+        if not success:
+            raise ValueError("用户不存在")
+
+    @staticmethod
+    async def get_profile(user_id: int) -> UserProfileResponse:
+        """
+        获取用户个人主页信息
+        - 包含用户基本信息和统计数据
+        """
+        # 获取用户基本信息
+        user = await UserDAO.find_by_id(user_id)
+        if not user:
+            raise ValueError("用户不存在")
+        
+        # 获取用户统计数据
+        stats_dict = await UserDAO.get_user_stats(user_id)
+        stats = UserStats(**stats_dict)
+        
+        # 构建响应
+        user_response = UserResponse.model_validate(user)
+        return UserProfileResponse(user=user_response, stats=stats)
