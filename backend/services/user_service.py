@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from jose import jwt
+from passlib.context import CryptContext
 
 from config import settings
 from dao.user_dao import UserDAO
@@ -10,6 +11,9 @@ from schemas.users import (
     UserUpdate, UserProfileResponse, UserStats
 )
 from services.password_service import PasswordService
+
+# 密码验证上下文（用于 OAuth2 登录）
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class UserService:
@@ -93,6 +97,25 @@ class UserService:
             user=user_response,
             expires_in=int(expires_delta.total_seconds())
         )
+
+    @staticmethod
+    async def authenticate(username: str, password: str):
+        """
+        用户认证（OAuth2 格式）
+        - 根据用户名查找用户
+        - 验证密码
+        - 返回用户对象（用于生成 token）
+        """
+        from dao.user_dao import UserDAO
+        
+        user = await UserDAO.find_by_username(username)
+        if not user:
+            return None
+        
+        if not PasswordService.verify(password, user.password):
+            return None
+        
+        return user
 
     @staticmethod
     async def get_user_by_id(user_id: int) -> Optional[UserResponse]:

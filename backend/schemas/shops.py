@@ -8,10 +8,34 @@ from decimal import Decimal
 
 class ShopCreate(BaseModel):
     """创建店铺请求"""
-    name: str = Field(min_length=1, max_length=100, description="店铺名称")
-    description: Optional[str] = Field(default=None, max_length=2000, description="店铺描述")
-    dict_data_ids: Optional[List[int]] = Field(default=None, description="字典数据ID列表（类别、点餐方式、位置类型等）")
-    menu_items: Optional[List["MenuItemCreateRequest"]] = Field(default=None, description="初始菜单项")
+    name: str = Field(min_length=1, max_length=100, description="店铺名称（必填）")
+    description: Optional[str] = Field(default=None, max_length=2000, description="店铺描述（可选）")
+    # 必填：字典数据编码列表，至少包含一个区域和一个品类
+    dict_data_codes: List[str] = Field(
+        ..., 
+        description=(
+            "字典数据编码列表（必填，至少包含一个区域和一个品类）\n"
+            "品类编码：local_cuisine, hotpot, barbecue, western_food, "
+            "snacks, specialty, drinks, desserts\n"
+            "区域编码：nei_taisan, nei_huashan, nei_qilin, nei_liuyi, wai_outside"
+        )
+    )
+    # 新增字段
+    price_range: Optional[str] = Field(default=None, max_length=50, description="人均消费价格段，如 '30-50' 或 '50-100'")
+    business_hours: Optional[str] = Field(default=None, max_length=50, description="营业时间，如 '08:00-22:00'")
+    # 就餐方式：必填，至少选择一项
+    dining_methods: List[str] = Field(
+        ..., 
+        description=(
+            "就餐方式（必填，至少选择一项）\n"
+            "- 'dine_in': 堂食\n"
+            "- 'pickup': 自取\n"
+            "- 'delivery': 外卖"
+        )
+    )
+    address_detail: Optional[str] = Field(default=None, max_length=200, description="详细地址")
+    tags: Optional[List[str]] = Field(default=None, description="店铺标签数组，如 ['环境好', '速度快']")
+    menu_items: Optional[List["MenuItemCreateRequest"]] = Field(default=None, description="初始菜单项（可选）")
 
 
 class MenuItemCreateRequest(BaseModel):
@@ -19,6 +43,13 @@ class MenuItemCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100, description="菜品名称")
     price: Optional[Decimal] = Field(default=None, ge=0, description="价格")
     description: Optional[str] = Field(default=None, max_length=500, description="菜品描述")
+
+
+class MenuItemAddRequest(BaseModel):
+    """添加菜单项请求"""
+    name: str = Field(..., min_length=1, max_length=100, description="菜品名称（必填）")
+    price: Decimal = Field(..., gt=0, description="价格（必填，单位：元，必须大于0）")
+    description: Optional[str] = Field(default=None, max_length=500, description="菜品描述（可选）")
 
 
 class ShopUpdate(BaseModel):
@@ -159,6 +190,12 @@ class ShopResponse(BaseModel):
     average_rating: Decimal = Field(default=0.0, description="平均评分")
     aliases: Optional[List[str]] = Field(default=None, description="别名列表")
     merged_into_id: Optional[int] = Field(default=None, description="合并后店铺ID")
+    # 新增字段
+    price_range: Optional[str] = Field(default=None, description="人均消费价格段，如 '30-50' 或 '50-100'")
+    business_hours: Optional[str] = Field(default=None, description="营业时间，如 '08:00-22:00'")
+    dining_methods: Optional[List[str]] = Field(default=None, description="就餐方式：['dine_in', 'pickup', 'delivery']")
+    address_detail: Optional[str] = Field(default=None, description="详细地址")
+    tags: Optional[List[str]] = Field(default=None, description="店铺标签数组，如 ['环境好', '速度快']")
     dict_data: Optional[List[DictDataSimpleResponse]] = Field(default=None, description="关联的字典数据（类别、点餐方式等）")
     menu_items: Optional[List[MenuItemResponse]] = Field(default=None, description="菜单列表")
     images: Optional[List[ImageResponse]] = Field(default=None, description="图片列表")

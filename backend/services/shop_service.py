@@ -3,13 +3,20 @@ from decimal import Decimal
 
 from models.shops import Shops, Menu, Ratings, Comments
 from models.users import Users
+from models.dict import DictData
 from dao.shop_dao import ShopDAO
+
+# 调试日志开关
+DEBUG_LOG = True
 from schemas.shops import (
     ShopCreate, ShopUpdate, RatingCreate, CommentCreate,
     CommentUpdate, ShopMergeRequest, MenuItemCreateRequest,
+    MenuItemAddRequest,
     ShopResponse, ShopListItem, MenuItemResponse, RatingResponse,
     CommentResponse, CommentUserResponse, DictDataSimpleResponse, ImageResponse
 )
+from schemas.comments import CommentCreateRequest, CommentResponse, CommentImageResponse
+from schemas.images import MenuItemWithImageRequest
 
 
 class ShopService:
@@ -23,24 +30,51 @@ class ShopService:
         创建新店铺
         - 检查店铺名称是否已存在
         - 创建店铺记录
-        - 关联字典数据
+        - 关联字典数据（通过 code 查询）
         - 可选：创建初始菜单项
         """
+        if DEBUG_LOG:
+            print(f"DEBUG create_shop: user_id={user_id}, shop_data={shop_data.model_dump()}")
+        
         # 检查店铺名称是否已存在
         existing_shop = await ShopDAO.find_shop_by_name(shop_data.name)
         if existing_shop:
             raise ValueError(f"店铺名称 '{shop_data.name}' 已存在")
 
+        # 查询字典数据（通过 code）
+        if DEBUG_LOG:
+            print(f"DEBUG create_shop: Checking dict_data with codes: {shop_data.dict_data_codes}")
+        
+        dict_data_list = await DictData.filter(
+            code__in=shop_data.dict_data_codes,
+            is_active=True
+        ).all()
+        
+        if DEBUG_LOG:
+            print(f"DEBUG create_shop: Found dict_data_list = {dict_data_list}")
+            print(f"DEBUG create_shop: Total codes: {len(shop_data.dict_data_codes)}, Found: {len(dict_data_list)}")
+        
+        if len(dict_data_list) != len(shop_data.dict_data_codes):
+            existing_codes = [d.code for d in dict_data_list]
+            missing_codes = set(shop_data.dict_data_codes) - set(existing_codes)
+            if DEBUG_LOG:
+                print(f"DEBUG create_shop: Missing codes: {missing_codes}")
+            raise ValueError(f"以下字典数据编码不存在：{', '.join(missing_codes)}")
+
         # 创建店铺
         shop = await ShopDAO.create_shop(
             name=shop_data.name,
-            description=shop_data.description
+            description=shop_data.description,
+            price_range=shop_data.price_range,
+            business_hours=shop_data.business_hours,
+            dining_methods=shop_data.dining_methods,
+            address_detail=shop_data.address_detail,
+            tags=shop_data.tags
         )
 
         # 关联字典数据
-        if shop_data.dict_data_ids:
-            for dict_data_id in shop_data.dict_data_ids:
-                await ShopDAO.add_dict_data_to_shop(shop.id, dict_data_id)
+        for dict_data in dict_data_list:
+            await ShopDAO.add_dict_data_to_shop(shop.id, dict_data.id)
 
         # 创建初始菜单项
         if shop_data.menu_items:
@@ -110,6 +144,11 @@ class ShopService:
             average_rating=shop.average_rating,
             aliases=shop.aliases,
             merged_into_id=shop.merged_into_id,
+            price_range=shop.price_range,
+            business_hours=shop.business_hours,
+            dining_methods=shop.dining_methods,
+            address_detail=shop.address_detail,
+            tags=shop.tags,
             dict_data=[DictDataSimpleResponse.from_orm(dd) for dd in dict_data_list],
             menu_items=[MenuItemResponse.from_orm(mi) for mi in menu_items],
             images=[],  # TODO: 图片功能
@@ -231,6 +270,36 @@ class ShopService:
         return cls._build_comment_response(comment_full, user_id)
 
     @classmethod
+    async def create_comment_with_images(
+        cls,
+        user_id: int,
+        shop_id: int,
+        content: str,
+        image_urls: Optional[List[str]] = None
+    ) -> CommentResponse:
+        """创建评论（支持图文）"""
+        # 检查店铺是否存在
+        shop = await ShopDAO.find_shop_by_id(shop_id)
+        if not shop:
+            raise ValueError("店铺不存在")
+
+        # 创建评论并关联图片
+        comment = await ShopDAO.create_comment_with_images(
+            shop_id=shop_id,
+            user_id=user_id,
+            content=content,
+            image_urls=image_urls
+        )
+
+        # 获取完整的评论信息（包括图片）
+        comment_full = await ShopDAO.get_comment_by_id(comment.id)
+        
+        # 获取评论关联的图片
+        images = await ShopDAO.get_comment_images(comment.id)
+        
+        return cls._build_comment_response_with_images(comment_full, images, user_id)
+
+    @classmethod
     async def get_shop_comments(
         cls,
         shop_id: int,
@@ -314,26 +383,114 @@ class ShopService:
             updated_at=comment.updated_at
         )
 
-    # ============ 菜单项操作 ============
+    @classmethod
+    def _build_comment_response_with_images(
+        cls,
+        comment: Comments,
+        images: List,
+        current_user_id: Optional[int] = None
+    ) -> CommentResponse:
+        """构建评论响应（包含图片）"""
+        has_liked = False
+        if current_user_id:
+            # 同步检查点赞状态，这里简化处理
+            pass
+
+        return CommentResponse(
+            id=comment.id,
+            shop_id=comment.shop_id,
+            user=CommentUserResponse.from_orm(comment.user) if comment.user else None,
+            type=comment.type,
+            parent_id=comment.parent_id,
+            content=comment.content,
+            like_count=comment.like_count,
+            reply_count=comment.reply_count,
+            images=[CommentImageResponse(id=img.id, url=img.url, created_at=img.created_at) for img in images],
+            has_liked=has_liked,
+            created_at=comment.created_at,
+            updated_at=comment.updated_at
+        )
+
+    # ============ 图片上传服务 ============
+
+    @classmethod
+    async def upload_shop_image(
+        cls,
+        user_id: int,
+        shop_id: int,
+        url: str,
+        extra: Optional[dict] = None
+    ) -> dict:
+        """上传店铺环境图片"""
+        # 检查店铺是否存在且在线
+        shop = await ShopDAO.find_shop_by_id(shop_id)
+        if not shop:
+            raise ValueError("店铺不存在")
+
+        # 创建图片记录
+        image = await ShopDAO.create_image(
+            url=url,
+            entity_type="shop",
+            entity_id=shop_id,
+            extra=extra
+        )
+
+        return {"message": "图片上传成功", "image_id": image.id}
+
+    @classmethod
+    async def upload_menu_image(
+        cls,
+        user_id: int,
+        shop_id: int,
+        menu_id: int,
+        url: str,
+        extra: Optional[dict] = None
+    ) -> dict:
+        """上传菜单项图片"""
+        # 检查店铺和菜单项是否存在
+        shop = await ShopDAO.find_shop_by_id(shop_id)
+        if not shop:
+            raise ValueError("店铺不存在")
+
+        menu_item = await ShopDAO.get_menu_items(shop_id)
+        menu_ids = [m.id for m in menu_item]
+        if menu_id not in menu_ids:
+            raise ValueError("菜单项不属于该店铺")
+
+        # 创建图片记录
+        image = await ShopDAO.create_image(
+            url=url,
+            entity_type="menu_item",
+            entity_id=menu_id,
+            extra=extra
+        )
+
+        # 更新菜单项的图片字段
+        await ShopDAO.update_menu_item_image(menu_id, url)
+
+        return {"message": "菜单图片上传成功", "image_id": image.id}
 
     @classmethod
     async def add_menu_item(
         cls,
         shop_id: int,
-        menu_item: MenuItemCreateRequest
+        menu_item_data: MenuItemAddRequest
     ) -> MenuItemResponse:
-        """为店铺添加菜单项"""
+        """为店铺添加菜单项（独立于创建店铺时的菜单）"""
+        # 检查店铺是否存在且在线
         shop = await ShopDAO.find_shop_by_id(shop_id)
         if not shop:
             raise ValueError("店铺不存在")
 
-        menu = await ShopDAO.create_menu_item(
+        # 创建菜单项
+        menu_item = await ShopDAO.create_menu_item(
             shop_id=shop_id,
-            name=menu_item.name,
-            price=menu_item.price,
-            description=menu_item.description
+            name=menu_item_data.name,
+            price=menu_item_data.price,
+            description=menu_item_data.description
         )
-        return MenuItemResponse.from_orm(menu)
+
+        return MenuItemResponse.from_orm(menu_item)
 
     @classmethod
     async def get_menu_items(cls, shop_id: int) -> List[MenuItemResponse]:
@@ -344,3 +501,69 @@ class ShopService:
 
         menu_items = await ShopDAO.get_menu_items(shop_id)
         return [MenuItemResponse.from_orm(mi) for mi in menu_items]
+
+    @classmethod
+    async def get_shop_images(cls, shop_id: int) -> List[dict]:
+        """获取店铺的所有图片"""
+        shop = await ShopDAO.find_shop_by_id(shop_id)
+        if not shop:
+            raise ValueError("店铺不存在")
+
+        images = await ShopDAO.get_images_by_entity("shop", shop_id)
+        return [
+            {
+                "id": img.id,
+                "url": img.url,
+                "extra": img.extra,
+                "created_at": img.created_at
+            }
+            for img in images
+        ]
+
+    @classmethod
+    async def upload_comment_image(
+        cls,
+        user_id: int,
+        shop_id: int,
+        comment_id: int,
+        url: str,
+        extra: Optional[dict] = None
+    ) -> dict:
+        """为评论上传图片（需校验评论归属）"""
+        # 检查店铺是否存在
+        shop = await ShopDAO.find_shop_by_id(shop_id)
+        if not shop:
+            raise ValueError("店铺不存在")
+        
+        # 调用 DAO 方法上传评论图片（包含评论归属校验）
+        image = await ShopDAO.upload_comment_image(
+            shop_id=shop_id,
+            comment_id=comment_id,
+            url=url,
+            user_id=user_id,
+            extra=extra
+        )
+        
+        return {"message": "评论图片上传成功", "image_id": image.id}
+
+    @classmethod
+    async def get_menu_item_images(cls, shop_id: int) -> List[dict]:
+        """获取店铺菜单项的所有图片"""
+        shop = await ShopDAO.find_shop_by_id(shop_id)
+        if not shop:
+            raise ValueError("店铺不存在")
+
+        menu_items = await ShopDAO.get_menu_items(shop_id)
+        menu_item_images = []
+
+        for menu_item in menu_items:
+            extra = menu_item.extra or {}
+            image_url = extra.get("image_url")
+            if image_url:
+                menu_item_images.append({
+                    "menu_id": menu_item.id,
+                    "menu_name": menu_item.name,
+                    "image_url": image_url
+                })
+
+        return menu_item_images

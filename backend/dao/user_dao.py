@@ -102,11 +102,9 @@ class UserDAO:
         获取用户统计数据
         返回：店铺数、评论数、评分数、收藏数、动态数
         """
-        from models.shops import Shops
-        from models.comments import Comments
-        from models.ratings import Ratings
+        from models.shops import Shops, Comments, Ratings
+        from models.users import Activities
         from models.favorites import Favorites
-        from models.activities import Activities
 
         # 统计各表数据
         shop_count = await Shops.filter(user_id=user_id, is_active=True).count()

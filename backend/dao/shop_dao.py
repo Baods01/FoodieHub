@@ -1,7 +1,10 @@
 from typing import Optional, List
+from decimal import Decimal
 from tortoise.expressions import Q
 from models.shops import Shops, Menu, Ratings, Comments, CommentsLikes
 from models.dict import DictData, ShopDictRel
+from models.images import Images
+from models.users import Activities
 
 
 class ShopDAO:
@@ -14,12 +17,22 @@ class ShopDAO:
         cls,
         name: str,
         description: Optional[str] = None,
+        price_range: Optional[str] = None,
+        business_hours: Optional[str] = None,
+        dining_methods: Optional[dict] = None,
+        address_detail: Optional[str] = None,
+        tags: Optional[dict] = None,
         **kwargs
     ) -> Shops:
         """创建新店铺"""
         return await Shops.create(
             name=name,
             description=description,
+            price_range=price_range,
+            business_hours=business_hours,
+            dining_methods=dining_methods,
+            address_detail=address_detail,
+            tags=tags,
             **kwargs
         )
 
@@ -126,14 +139,14 @@ class ShopDAO:
         cls,
         shop_id: int,
         name: str,
-        price: Optional[float] = None,
+        price: Optional[Decimal] = None,
         description: Optional[str] = None
     ) -> Menu:
         """创建菜单项"""
         return await Menu.create(
             shop_id=shop_id,
             name=name,
-            price=price,
+            price=str(price) if price else None,
             description=description
         )
 
@@ -327,3 +340,173 @@ class ShopDAO:
     async def has_user_liked_comment(cls, user_id: int, comment_id: int) -> bool:
         """检查用户是否已点赞评论"""
         return await CommentsLikes.filter(user_id=user_id, comment_id=comment_id, is_active=True).exists()
+
+    # ============ 图片操作 ============
+
+    @classmethod
+    async def create_image(
+        cls,
+        url: str,
+        entity_type: str,
+        entity_id: int,
+        extra: Optional[dict] = None
+    ) -> Images:
+        """创建图片记录"""
+        return await Images.create(
+            url=url,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            extra=extra
+        )
+
+    @classmethod
+    async def get_images_by_entity(cls, entity_type: str, entity_id: int) -> List[Images]:
+        """根据实体类型和ID获取图片列表"""
+        return await Images.filter(entity_type=entity_type, entity_id=entity_id, is_active=True).all()
+
+    @classmethod
+    async def delete_image(cls, image_id: int) -> bool:
+        """软删除图片"""
+        image = await Images.get_or_none(id=image_id, is_active=True)
+        if image:
+            image.is_active = False
+            await image.save()
+            return True
+        return False
+
+    @classmethod
+    async def get_image_by_id(cls, image_id: int) -> Optional[Images]:
+        """根据ID获取图片"""
+        return await Images.get_or_none(id=image_id, is_active=True)
+
+    # ============ 菜单项图片操作 ============
+
+    @classmethod
+    async def update_menu_item_image(cls, menu_id: int, image_url: Optional[str]) -> Optional[Menu]:
+        """为菜单项添加图片URL"""
+        menu_item = await Menu.get_or_none(id=menu_id, is_active=True)
+        if menu_item:
+            # 将图片URL存储在 menu_items 的 extra 字段中
+            extra = menu_item.extra or {}
+            extra["image_url"] = image_url
+            menu_item.extra = extra
+            await menu_item.save()
+        return menu_item
+
+    # ============ 评论图片操作 ============
+
+    @classmethod
+    async def create_comment_with_images(
+        cls,
+        shop_id: int,
+        user_id: int,
+        content: str,
+        image_urls: Optional[List[str]] = None
+    ) -> Comments:
+        """创建评论并关联图片（事务性操作）"""
+        # 创建评论
+        comment = await cls.create_comment(
+            shop_id=shop_id,
+            user_id=user_id,
+            type="comment",  # 默认为普通评论
+            content=content,
+            parent_id=None
+        )
+
+        # 关联图片到评论
+        if image_urls:
+            for url in image_urls:
+                await cls.create_image(
+                    url=url,
+                    entity_type="comment",
+                    entity_id=comment.id
+                )
+
+        return comment
+
+    @classmethod
+    async def get_comment_with_images(cls, comment_id: int) -> Optional[Comments]:
+        """根据ID获取评论（包含图片）"""
+        return await Comments.get_or_none(id=comment_id, is_active=True).prefetch_related("user", "shop", "images")
+
+    @classmethod
+    async def get_comment_images(cls, comment_id: int) -> List[Images]:
+        """获取评论关联的图片"""
+        return await Images.filter(entity_type="comment", entity_id=comment_id, is_active=True).order_by("id").all()
+
+    @classmethod
+    async def delete_comment_images(cls, comment_id: int) -> int:
+        """删除评论关联的图片"""
+        images = await Images.filter(entity_type="comment", entity_id=comment_id, is_active=True).all()
+        for image in images:
+            image.is_active = False
+            await image.save()
+        return len(images)
+
+    # ============ 用户活动操作 ============
+
+    @classmethod
+    async def create_activity(
+        cls,
+        user_id: int,
+        type: str,
+        target_id: int,
+        target_type: str,
+        content: Optional[str] = None
+    ) -> Activities:
+        """创建用户活动记录"""
+        return await Activities.create(
+            user_id=user_id,
+            type=type,
+            target_id=target_id,
+            target_type=target_type,
+            content=content
+        )
+
+    # ============ 评论图片上传操作 ============
+
+    @classmethod
+    async def upload_comment_image(
+        cls,
+        shop_id: int,
+        comment_id: int,
+        url: str,
+        user_id: int,
+        extra: Optional[dict] = None
+    ) -> Images:
+        """为评论上传图片（需校验评论归属）"""
+        # 验证评论属于当前店铺
+        comment = await Comments.get_or_none(id=comment_id, is_active=True)
+        if not comment:
+            raise ValueError("评论不存在")
+        if comment.shop_id != shop_id:
+            raise ValueError("评论不属于当前店铺")
+        
+        # 创建图片记录
+        return await cls.create_image(
+            url=url,
+            entity_type="comment",
+            entity_id=comment_id,
+            extra=extra
+        )
+
+    @classmethod
+    async def get_comment_list_with_images(
+        cls,
+        shop_id: int,
+        type: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[Comments]:
+        """获取评论列表（包含图片）"""
+        query = Comments.filter(shop_id=shop_id, is_active=True, parent_id=None)
+        if type:
+            query = query.filter(type=type)
+        
+        # 预加载关联数据
+        query = query.prefetch_related(
+            "user",
+            "images"
+        )
+        
+        return await query.order_by("-created_at").limit(limit).offset(offset).all()

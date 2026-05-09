@@ -28,6 +28,13 @@ from .reviews import (
     ShopEditRequestListRequest, ShopEditRequestResponse,
     ProposedDataResponse, EditRequestStats
 )
+from .comments import (
+    CommentCreateRequest,
+)
+from .images import (
+    ImageUploadRequest, MenuItemWithImageRequest,
+    ImageResponse as ImageUploadResponse, MenuItemImageResponse
+)
 
 __all__ = [
     # Common
@@ -98,4 +105,11 @@ __all__ = [
     'ShopEditRequestResponse',
     'ProposedDataResponse',
     'EditRequestStats',
+    # Images
+    'ImageUploadRequest',
+    'MenuItemWithImageRequest',
+    'ImageUploadResponse',
+    'MenuItemImageResponse',
+    # Comments
+    'CommentCreateRequest',
 ]
