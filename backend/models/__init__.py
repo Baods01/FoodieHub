@@ -15,6 +15,7 @@ from .shops import Shops, Menu, Ratings, Comments, CommentsLikes
 from .logs import UserBehaviorLogs
 from .reviews import ShopEditRequests
 from .images import Images
+from .complaints import Complaints, ComplaintHandlers
 
 __all__ = [
     'BaseModel',
@@ -33,4 +34,6 @@ __all__ = [
     'UserBehaviorLogs',
     'ShopEditRequests',
     'Images',
+    'Complaints',
+    'ComplaintHandlers',
 ]

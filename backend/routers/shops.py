@@ -1,0 +1,772 @@
+from fastapi import APIRouter, HTTPException, status, Depends, Request, UploadFile, File, Form
+from fastapi.responses import FileResponse
+from typing import Optional, List
+import traceback
+import os
+from pathlib import Path
+from datetime import datetime
+
+from schemas.shops import (
+    ShopCreate, ShopResponse, ShopUpdate,
+    RatingCreate, ShopSearchRequest,
+    ShopListItem, ShopMergeResult, MenuItemResponse, MenuItemAddRequest
+)
+from schemas.comments import CommentCreateRequest, CommentResponse
+from schemas.images import ImageUploadRequest, MenuItemWithImageRequest
+from schemas.common import ResponseModel
+from schemas.users import UserResponse
+from services.shop_service import ShopService
+from dependencies.auth import get_current_user, require_login
+
+router = APIRouter(prefix="/shops", tags=["店铺模块"])
+
+
+# ============ 店铺基本操作 ============
+
+@router.post("/", response_model=ResponseModel[ShopResponse], summary="创建店铺")
+async def create_shop(
+    request: Request,
+    shop_data: ShopCreate,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    创建新店铺（无需审核，创建即上线）
+
+    **必填字段：**
+    - `name`: 店铺名称
+    - `dict_data_codes`: 字典数据编码列表（至少选择一个区域和一个品类）
+
+    **可选字段（新增）：**
+    - `description`: 店铺描述、可将人均消费以及更详细的地址写入其中（最多2000字符）
+    - `price_range`: 人均消费价格段，如 `'30-50'` 或 `'50-100'`
+    - `business_hours`: 营业时间，如 `'08:00-22:00'`
+    - `dining_methods`: 就餐方式数组，如 `['dine_in', 'pickup', 'delivery']`
+      - `dine_in`: 堂食
+      - `pickup`: 自取
+      - `delivery`: 外卖
+    - `address_detail`: 详细地址（最多200字符）
+    - `tags`: 店铺标签数组，如 `['环境好', '速度快', '性价比高']`
+    - `menu_items`: 菜单项列表（可选，创建时可提交初始菜单）
+
+    **菜单项格式：**
+    ```json
+    "menu_items": [
+        {
+            "name": "菜品名称",
+            "price": 25.5,
+            "description": "菜品描述"
+        }
+    ]
+    ```
+
+    **预设字典数据编码：**
+
+    **品类编码（8个）：**
+    - `local_cuisine`: 地方菜
+    - `hotpot`: 火锅
+    - `barbecue`: 烧烤/烤肉
+    - `western_food`: 异域料理
+    - `snacks`: 小吃快餐
+    - `specialty`: 特色菜
+    - `drinks`: 饮品
+    - `desserts`: 甜点/面包
+
+    **区域编码（5个）：**
+    - `nei_taisan`: 泰山区
+    - `nei_huashan`: 华山区
+    - `nei_qilin`: 启林区
+    - `nei_liuyi`: 六一区
+    - `wai_outside`: 校外
+
+    **后端自动生成：**
+    - `id`: 店铺ID（自增主键）
+    - `view_count`, `favorite_count`, `comment_count`: 初始值为 0
+    - `average_rating`: 初始值为 0.0
+
+    **前置条件：**
+    - 用户已登录
+    - 店铺名称未被占用
+    - 所有字典数据编码必须存在于数据库中
+
+    **后置条件：**
+    - 店铺数据写入数据库
+    - 店铺关联的字典数据建立关联关系
+    - 返回完整的店铺信息（包含字典数据、菜单项等）
+    """
+    # 调试：打印请求头
+    print(f"DEBUG create_shop: Headers: {dict(request.headers)}")
+    print(f"DEBUG create_shop: Authorization header: {request.headers.get('authorization', 'Not found')}")
+    try:
+        shop = await ShopService.create_shop(current_user.id, shop_data)
+        return ResponseModel.success(data=shop, message="店铺创建成功")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        # 打印详细错误信息到终端
+        print(f"Error creating shop: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"店铺创建失败: {str(e)}"
+        )
+
+
+@router.get("/", response_model=ResponseModel[list[ShopListItem]], summary="搜索店铺")
+async def search_shops(
+    request: ShopSearchRequest,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    搜索店铺列表
+
+    **支持的筛选条件：**
+    - `keyword`: 关键词搜索（店铺名称、描述）
+    - `min_rating`: 最低评分筛选
+    - `sort_by`: 排序字段（created_at、average_rating、view_count、favorite_count）
+    - `sort_order`: 排序方向（asc、desc）
+
+    **分页参数：**
+    - `page`: 页码（从 1 开始）
+    - `page_size`: 每页数量（默认 20）
+    """
+    try:
+        shops = await ShopService.search_shops(
+            keyword=request.keyword,
+            min_rating=request.min_rating,
+            sort_by=request.sort_by,
+            sort_order=request.sort_order,
+            page=1,
+            page_size=20
+        )
+        return ResponseModel.success(data=shops, message="获取成功")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取店铺列表失败"
+        )
+
+
+@router.get("/{shop_id}", response_model=ResponseModel[ShopResponse], summary="获取店铺详情")
+async def get_shop_detail(
+    shop_id: int,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    获取店铺详情
+
+    **功能：**
+    - 增加店铺浏览量
+    - 返回完整的店铺信息（包括字典数据、菜单项等）
+    - 返回当前用户的收藏状态和评分
+    """
+    try:
+        shop = await ShopService.get_shop_detail(shop_id, current_user.id)
+        return ResponseModel.success(data=shop, message="获取成功")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取店铺详情失败"
+        )
+
+
+# ============ 管理员操作 ============
+
+@router.put("/{shop_id}", response_model=ResponseModel[ShopResponse], summary="更新店铺信息")
+async def update_shop(
+    shop_id: int,
+    update_data: ShopUpdate,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    更新店铺信息（仅管理员）
+
+    **管理员权限：**
+    - 修改店铺基本信息
+    - 软删除店铺
+    """
+    try:
+        # 检查是否为管理员
+        if current_user.role != 1:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限执行此操作"
+            )
+        shop = await ShopService.update_shop(shop_id, update_data)
+        return ResponseModel.success(data=shop, message="更新成功")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="更新店铺信息失败"
+        )
+
+
+@router.delete("/{shop_id}", response_model=ResponseModel[dict], summary="删除店铺")
+async def delete_shop(
+    shop_id: int,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    删除店铺（仅管理员）
+
+    **管理员权限：**
+    - 软删除店铺
+    """
+    try:
+        # 检查是否为管理员
+        if current_user.role != 1:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限执行此操作"
+            )
+        success = await ShopService.delete_shop(shop_id)
+        if success:
+            return ResponseModel.success(data={}, message="删除成功")
+        raise ValueError("店铺不存在")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="删除店铺失败"
+        )
+
+
+# ============ 店铺扩展操作 ============
+
+@router.post("/{shop_id}/rating", response_model=ResponseModel[dict], summary="对店铺评分")
+async def rate_shop(
+    shop_id: int,
+    rating_data: RatingCreate,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    用户对店铺评分（1-5）
+
+    **规则：**
+    - 每个用户对同一店铺只能评一次
+    - 可以修改已有的评分
+    - 修改后会重新计算店铺的平均评分
+    """
+    try:
+        rating = await ShopService.rate_shop(current_user.id, shop_id, rating_data)
+        return ResponseModel.success(data={"message": "评分成功"}, message="评分成功")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="评分失败"
+        )
+
+
+@router.post("/{shop_id}/comments", response_model=ResponseModel[dict], summary="创建评论/提问")
+async def create_comment(
+    shop_id: int,
+    comment_data: CommentCreateRequest,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    创建评论（纯文字）
+
+    **功能：**
+    - 用户可在店铺详情页发表评论
+    - 评论内容必填，1-500字符
+    - 评论成功后，店铺评论数自动加1
+
+    **前置条件：**
+    - 用户已登录
+    - 店铺状态正常
+    - 用户账号状态正常
+
+    **后置条件：**
+    - 评论表中新增一条记录
+    - 店铺评论数加1
+    """
+    try:
+        comment = await ShopService.create_comment(current_user.id, shop_id, comment_data)
+        return ResponseModel.success(data={"message": "评论创建成功"}, message="评论创建成功")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="评论创建失败"
+        )
+
+
+@router.get("/{shop_id}/comments", response_model=ResponseModel[list], summary="获取评论列表")
+async def get_shop_comments(
+    shop_id: int,
+    comment_type: Optional[str] = None,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    获取店铺的评论/提问列表（一级评论）
+
+    **支持的筛选：**
+    - `comment_type`: 评论类型（comment=评论，question=提问）
+    """
+    try:
+        comments = await ShopService.get_shop_comments(
+            shop_id=shop_id,
+            comment_type=comment_type,
+            page=1,
+            page_size=50,
+        current_user_id=current_user.id
+        )
+        return ResponseModel.success(data=comments, message="获取成功")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取评论列表失败"
+        )
+
+
+@router.post("/{shop_id}/menu", response_model=ResponseModel[MenuItemResponse], summary="添加菜单项")
+async def add_menu_item(
+    shop_id: int,
+    menu_item: MenuItemAddRequest,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    为店铺添加菜单项（独立于创建店铺时的菜单）
+
+    **必填字段：**
+    - `name`: 菜品名称（必填，最多100字符）
+    - `price`: 价格（必填，单位：元，必须大于0）
+
+    **可选字段：**
+    - `description`: 菜品描述（可选，最多500字符）
+
+    **请求体格式：**
+    ```json
+    {
+        "name": "菜品名称",
+        "price": 25.5,
+        "description": "菜品描述（可选）"
+    }
+    ```
+    """
+    try:
+        result = await ShopService.add_menu_item(shop_id, menu_item)
+        return ResponseModel.success(data=result, message="菜单项添加成功")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="添加菜单项失败"
+        )
+
+
+@router.get("/{shop_id}/menu", response_model=ResponseModel[list], summary="获取菜单列表")
+async def get_menu_items(
+    shop_id: int,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    获取店铺的所有菜单项
+    """
+    try:
+        menu_items = await ShopService.get_menu_items(shop_id)
+        return ResponseModel.success(data=menu_items, message="获取成功")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取菜单列表失败"
+        )
+
+
+# ============ 图片上传接口 ============
+
+# 图片上传配置
+BASE_DIR = Path(__file__).resolve().parent  # FoodieHub/backend
+UPLOAD_DIR = BASE_DIR / "static" / "images"
+ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
+MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2MB
+
+
+async def save_uploaded_file(file: UploadFile) -> str:
+    """
+    保存上传的图片文件
+    
+    Returns:
+        文件相对路径（如："static/images/2026/05/09/abc123.jpg"）
+    """
+    # 创建日期子目录
+    now = datetime.now()
+    date_dir = UPLOAD_DIR / str(now.year) / f"{now.month:02d}" / f"{now.day:02d}"
+    date_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 生成唯一文件名
+    import uuid
+    file_extension = file.filename.split(".")[-1].lower()
+    unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+    file_path = date_dir / unique_filename
+    
+    # 保存文件
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+    
+    # 返回相对于 FoodieHub/backend 的路径
+    return str(file_path.relative_to(BASE_DIR))
+
+
+@router.post("/{shop_id}/images", response_model=ResponseModel[dict], summary="上传店铺环境图片")
+async def upload_shop_image(
+    shop_id: int,
+    file: UploadFile = File(..., description="环境图片（支持jpg、png、gif、webp格式，最大2MB）"),
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    上传店铺环境图片
+    
+    **功能：**
+    - 用户可为已上线的店铺上传环境图片
+    - 图片格式校验：jpg、png、gif、webp
+    - 图片大小限制：单张不超过 2MB
+    
+    **后置条件：**
+    - 图片保存到服务器
+    - 数据库记录图片信息
+    - 其他用户可在店铺详情页查看图片
+    """
+    # 检查文件类型
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的图片格式。支持的格式：jpg、png、gif、webp"
+        )
+    
+    # 检查文件大小
+    content = await file.read()
+    if len(content) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="图片大小超过限制（最大 2MB）"
+        )
+    
+    try:
+        # 保存文件
+        file_path = await save_uploaded_file(file)
+        
+        # 创建图片记录
+        result = await ShopService.upload_shop_image(
+            user_id=current_user.id,
+            shop_id=shop_id,
+            url=file_path,
+            extra={
+                "file_type": file.content_type,
+                "file_size": len(content),
+                "filename": file.filename
+            }
+        )
+        
+        return ResponseModel.success(
+            data={"message": "图片上传成功", "image_id": result["image_id"], "url": file_path},
+            message="图片上传成功"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"图片上传失败: {str(e)}"
+        )
+
+
+@router.post("/{shop_id}/menu-image", response_model=ResponseModel[dict], summary="上传菜单图片")
+async def upload_menu_image(
+    shop_id: int,
+    file: UploadFile = File(..., description="菜单图片（支持jpg、png、gif、webp格式，最大2MB）"),
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    上传菜单图片（通用接口，可用于上传菜单封面或菜品图片）
+    
+    **功能：**
+    - 上传菜单图片
+    - 图片格式校验：jpg、png、gif、webp
+    - 图片大小限制：单张不超过 2MB
+    
+    **后置条件：**
+    - 图片保存到服务器
+    - 数据库记录图片信息（entity_type='menu'）
+    """
+    # 检查文件类型
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的图片格式。支持的格式：jpg、png、gif、webp"
+        )
+    
+    # 检查文件大小
+    content = await file.read()
+    if len(content) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="图片大小超过限制（最大 2MB）"
+        )
+    
+    try:
+        # 保存文件
+        file_path = await save_uploaded_file(file)
+        
+        # 创建图片记录（entity_type='menu' 表示菜单图片）
+        result = await ShopService.upload_shop_image(
+            user_id=current_user.id,
+            shop_id=shop_id,
+            url=file_path,
+            extra={
+                "file_type": file.content_type,
+                "file_size": len(content),
+                "filename": file.filename
+            }
+        )
+        
+        return ResponseModel.success(
+            data={"message": "图片上传成功", "image_id": result["image_id"], "url": file_path},
+            message="图片上传成功"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"图片上传失败: {str(e)}"
+        )
+
+
+@router.post("/{shop_id}/menu-items-image", response_model=ResponseModel[dict], summary="为菜单项上传图片")
+async def upload_menu_item_image(
+    shop_id: int,
+    menu_id: int,
+    file: UploadFile = File(..., description="菜品图片（支持jpg、png、gif、webp格式，最大2MB）"),
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    为菜单项上传图片（需提供 menu_id）
+    
+    **功能：**
+    - 上传菜品图片
+    - 图片格式校验：jpg、png、gif、webp
+    - 图片大小限制：单张不超过 2MB
+    
+    **后置条件：**
+    - 图片保存到服务器
+    - 数据库记录图片信息（entity_type='menu_item'）
+    - 图片URL存储在 menu_items 的 extra 字段中
+    """
+    # 检查文件类型
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的图片格式。支持的格式：jpg、png、gif、webp"
+        )
+    
+    # 检查文件大小
+    content = await file.read()
+    if len(content) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="图片大小超过限制（最大 2MB）"
+        )
+    
+    try:
+        # 保存文件
+        file_path = await save_uploaded_file(file)
+        
+        # 创建图片记录并更新菜单项
+        result = await ShopService.upload_menu_image(
+            user_id=current_user.id,
+            shop_id=shop_id,
+            menu_id=menu_id,
+            url=file_path,
+            extra={
+                "file_type": file.content_type,
+                "file_size": len(content),
+                "filename": file.filename
+            }
+        )
+        
+        return ResponseModel.success(
+            data={"message": "菜单图片上传成功", "image_id": result["image_id"], "url": file_path},
+            message="图片上传成功"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"图片上传失败: {str(e)}"
+        )
+
+
+@router.get("/{shop_id}/images", response_model=ResponseModel[List[dict]], summary="获取店铺图片列表")
+async def get_shop_images(
+    shop_id: int,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    获取店铺的所有图片（环境图片）
+    """
+    try:
+        images = await ShopService.get_shop_images(shop_id)
+        return ResponseModel.success(data=images, message="获取成功")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取图片列表失败"
+        )
+
+
+@router.get("/{shop_id}/menu-images", response_model=ResponseModel[List[dict]], summary="获取菜单图片列表")
+async def get_menu_item_images(
+    shop_id: int,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    获取菜单项的图片列表
+    """
+    try:
+        menu_images = await ShopService.get_menu_item_images(shop_id)
+        return ResponseModel.success(data=menu_images, message="获取成功")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取图片列表失败"
+        )
+
+
+# ============ 评论图片上传接口（FD02-03） ============
+
+@router.post("/comments/{comment_id}/images", response_model=ResponseModel[dict], summary="为评论上传图片")
+async def upload_comment_image(
+    shop_id: int,
+    comment_id: int,
+    file: UploadFile = File(..., description="评论图片（支持jpg、png、gif、webp格式，最大2MB）"),
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    为评论上传图片（需提供 shop_id 和 comment_id 进行关联）
+    
+    **功能：**
+    - 用户可在评论发表后上传图片
+    - 图片格式校验：jpg、png、gif、webp
+    - 图片大小限制：单张不超过 2MB
+    
+    **前置条件：**
+    - 评论属于当前店铺
+    - 用户是评论的作者
+    
+    **后置条件：**
+    - 图片保存到服务器
+    - 数据库记录图片信息（entity_type='comment'）
+    """
+    from schemas.comments import CommentResponse
+    
+    # 检查文件类型
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的图片格式。支持的格式：jpg、png、gif、webp"
+        )
+    
+    # 检查文件大小
+    content = await file.read()
+    if len(content) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="图片大小超过限制（最大 2MB）"
+        )
+    
+    try:
+        # 保存文件
+        file_path = await save_uploaded_file(file)
+        
+        # 创建图片记录（entity_type='comment' 表示评论图片）
+        result = await ShopService.upload_comment_image(
+            user_id=current_user.id,
+            shop_id=shop_id,
+            comment_id=comment_id,
+            url=file_path,
+            extra={
+                "file_type": file.content_type,
+                "file_size": len(content),
+                "filename": file.filename
+            }
+        )
+        
+        return ResponseModel.success(
+            data={"message": "评论图片上传成功", "image_id": result["image_id"], "url": file_path},
+            message="图片上传成功"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"图片上传失败: {str(e)}"
+        )

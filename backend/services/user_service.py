@@ -2,11 +2,18 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from jose import jwt
+from passlib.context import CryptContext
 
 from config import settings
 from dao.user_dao import UserDAO
-from schemas.users import UserCreate, UserLogin, UserResponse, LoginResponse
+from schemas.users import (
+    UserCreate, UserLogin, UserResponse, LoginResponse,
+    UserUpdate, UserProfileResponse, UserStats
+)
 from services.password_service import PasswordService
+
+# 密码验证上下文（用于 OAuth2 登录）
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class UserService:
@@ -92,9 +99,68 @@ class UserService:
         )
 
     @staticmethod
+    async def authenticate(username: str, password: str):
+        """
+        用户认证（OAuth2 格式）
+        - 根据用户名查找用户
+        - 验证密码
+        - 返回用户对象（用于生成 token）
+        """
+        from dao.user_dao import UserDAO
+        
+        user = await UserDAO.find_by_username(username)
+        if not user:
+            return None
+        
+        if not PasswordService.verify(password, user.password):
+            return None
+        
+        return user
+
+    @staticmethod
     async def get_user_by_id(user_id: int) -> Optional[UserResponse]:
         """根据 ID 获取用户"""
         user = await UserDAO.find_by_id(user_id)
         if user:
             return UserResponse.model_validate(user)
         return None
+
+    @staticmethod
+    async def update_profile(user_id: int, update_data: UserUpdate) -> UserResponse:
+        """
+        更新用户个人信息
+        - 支持更新头像和简介
+        """
+        update_dict = update_data.model_dump(exclude_unset=True)
+        user = await UserDAO.update_user(user_id, **update_dict)
+        if not user:
+            raise ValueError("用户不存在")
+        return UserResponse.model_validate(user)
+
+    @staticmethod
+    async def delete_account(user_id: int) -> None:
+        """
+        软删除用户账号
+        """
+        success = await UserDAO.delete_user(user_id)
+        if not success:
+            raise ValueError("用户不存在")
+
+    @staticmethod
+    async def get_profile(user_id: int) -> UserProfileResponse:
+        """
+        获取用户个人主页信息
+        - 包含用户基本信息和统计数据
+        """
+        # 获取用户基本信息
+        user = await UserDAO.find_by_id(user_id)
+        if not user:
+            raise ValueError("用户不存在")
+        
+        # 获取用户统计数据
+        stats_dict = await UserDAO.get_user_stats(user_id)
+        stats = UserStats(**stats_dict)
+        
+        # 构建响应
+        user_response = UserResponse.model_validate(user)
+        return UserProfileResponse(user=user_response, stats=stats)

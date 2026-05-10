@@ -75,3 +75,48 @@ class UserDAO:
         if await cls.exists(email=email):
             return "email"
         return None
+
+    @classmethod
+    async def update_user(cls, user_id: int, **kwargs) -> Optional[Users]:
+        """更新用户信息"""
+        user = await Users.get_or_none(id=user_id, is_active=True)
+        if user:
+            for key, value in kwargs.items():
+                setattr(user, key, value)
+            await user.save()
+        return user
+
+    @classmethod
+    async def delete_user(cls, user_id: int) -> bool:
+        """软删除用户"""
+        user = await Users.get_or_none(id=user_id, is_active=True)
+        if user:
+            user.is_active = False
+            await user.save()
+            return True
+        return False
+
+    @classmethod
+    async def get_user_stats(cls, user_id: int) -> dict:
+        """
+        获取用户统计数据
+        返回：店铺数、评论数、评分数、收藏数、动态数
+        """
+        from models.shops import Shops, Comments, Ratings
+        from models.users import Activities
+        from models.favorites import Favorites
+
+        # 统计各表数据
+        shop_count = await Shops.filter(user_id=user_id, is_active=True).count()
+        comment_count = await Comments.filter(user_id=user_id, is_active=True).count()
+        rating_count = await Ratings.filter(user_id=user_id, is_active=True).count()
+        favorite_count = await Favorites.filter(user_id=user_id, is_active=True).count()
+        activity_count = await Activities.filter(user_id=user_id, is_active=True).count()
+
+        return {
+            "shop_count": shop_count,
+            "comment_count": comment_count,
+            "rating_count": rating_count,
+            "favorite_count": favorite_count,
+            "activity_count": activity_count
+        }
