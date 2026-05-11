@@ -89,16 +89,30 @@ class ShopMergeRequest(BaseModel):
 
 class ShopSearchRequest(BaseModel):
     """店铺搜索请求"""
-    keyword: Optional[str] = Field(default=None, max_length=100, description="搜索关键词")
-    category_ids: Optional[List[int]] = Field(default=None, description="类别筛选")
-    dining_method_ids: Optional[List[int]] = Field(default=None, description="点餐方式筛选")
+    keyword: Optional[str] = Field(default=None, max_length=100, description="搜索关键词（店铺名称、描述）")
+    category_codes: Optional[List[str]] = Field(default=None, description="品类筛选（编码列表，如 ['hotpot', 'snacks']）")
+    district_codes: Optional[List[str]] = Field(default=None, description="区域筛选（编码列表，如 ['nei_taisan', 'nei_huashan']）")
     min_rating: Optional[float] = Field(default=None, ge=0, le=5, description="最低评分筛选")
-    is_oncampus: Optional[bool] = Field(default=None, description="校内/校外筛选")
-    sort_by: str = Field(default="created_at", pattern="^(created_at|average_rating|view_count|favorite_count)$", description="排序字段")
+    sort_by: str = Field(default="favorite_count", pattern="^(created_at|average_rating|view_count|favorite_count)$", description="排序字段")
     sort_order: str = Field(default="desc", pattern="^(asc|desc)$", description="排序方向")
+    page: int = Field(default=1, ge=1, description="页码（从1开始）")
+    page_size: int = Field(default=20, ge=1, le=100, description="每页数量")
 
 
 # ============ 响应模型 ============
+
+class RatingDistribution(BaseModel):
+    """评分分布统计"""
+    star_1: int = Field(default=0, description="1星评分人数")
+    star_2: int = Field(default=0, description="2星评分人数")
+    star_3: int = Field(default=0, description="3星评分人数")
+    star_4: int = Field(default=0, description="4星评分人数")
+    star_5: int = Field(default=0, description="5星评分人数")
+    total: int = Field(default=0, description="总评分人数")
+
+    class Config:
+        from_attributes = True
+
 
 class ImageResponse(BaseModel):
     """图片响应"""
@@ -188,6 +202,7 @@ class ShopResponse(BaseModel):
     favorite_count: int = Field(default=0, description="收藏数")
     comment_count: int = Field(default=0, description="评论数")
     average_rating: Decimal = Field(default=0.0, description="平均评分")
+    rating_distribution: Optional[RatingDistribution] = Field(default=None, description="评分分布统计")
     aliases: Optional[List[str]] = Field(default=None, description="别名列表")
     merged_into_id: Optional[int] = Field(default=None, description="合并后店铺ID")
     # 新增字段

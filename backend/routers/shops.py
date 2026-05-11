@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Request, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, status, Depends, Request, UploadFile, File, Form, Query
 from fastapi.responses import FileResponse
 from typing import Optional, List
 import traceback
@@ -115,34 +115,72 @@ async def create_shop(
         )
 
 
-@router.get("/", response_model=ResponseModel[list[ShopListItem]], summary="搜索店铺")
+@router.get("/", response_model=ResponseModel[dict], summary="浏览/搜索店铺列表")
 async def search_shops(
-    request: ShopSearchRequest,
-    current_user: UserResponse = Depends(require_login)
+    keyword: Optional[str] = Query(None, max_length=100, description="搜索关键词（店铺名称、描述）"),
+    category_codes: Optional[List[str]] = Query(None, description="品类筛选（编码列表）"),
+    district_codes: Optional[List[str]] = Query(None, description="区域筛选（编码列表）"),
+    min_rating: Optional[float] = Query(None, ge=0, le=5, description="最低评分筛选"),
+    sort_by: str = Query("favorite_count", pattern="^(created_at|average_rating|view_count|favorite_count)$", description="排序字段"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="排序方向"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    current_user: UserResponse = Depends(get_current_user)
 ):
     """
-    搜索店铺列表
+    浏览或搜索店铺列表（支持游客访问）
+
+    **功能描述：**
+    - 用户进入平台首页或发现页后，系统展示店铺卡片列表
+    - 默认按收藏数降序排列，优先展示社区成员广泛标记的店铺
+    - 支持关键词搜索、分类筛选、区域筛选
+    - 支持多种排序方式
 
     **支持的筛选条件：**
     - `keyword`: 关键词搜索（店铺名称、描述）
-    - `min_rating`: 最低评分筛选
+    - `category_codes`: 品类筛选（编码列表，如 ['hotpot', 'snacks']）
+    - `district_codes`: 区域筛选（编码列表，如 ['nei_taisan', 'nei_huashan']）
+    - `min_rating`: 最低评分筛选（0-5）
+
+    **排序参数：**
     - `sort_by`: 排序字段（created_at、average_rating、view_count、favorite_count）
     - `sort_order`: 排序方向（asc、desc）
 
     **分页参数：**
     - `page`: 页码（从 1 开始）
-    - `page_size`: 每页数量（默认 20）
+    - `page_size`: 每页数量（默认 20，最大 100）
+
+    **预设字典数据编码：**
+
+    **品类编码（8个）：**
+    - `local_cuisine`: 地方菜
+    - `hotpot`: 火锅
+    - `barbecue`: 烧烤/烤肉
+    - `western_food`: 异域料理
+    - `snacks`: 小吃快餐
+    - `specialty`: 特色菜
+    - `drinks`: 饮品
+    - `desserts`: 甜点/面包
+
+    **区域编码（5个）：**
+    - `nei_taisan`: 泰山区
+    - `nei_huashan`: 华山区
+    - `nei_qilin`: 启林区
+    - `nei_liuyi`: 六一区
+    - `wai_outside`: 校外
     """
     try:
-        shops = await ShopService.search_shops(
-            keyword=request.keyword,
-            min_rating=request.min_rating,
-            sort_by=request.sort_by,
-            sort_order=request.sort_order,
-            page=1,
-            page_size=20
+        result = await ShopService.search_shops(
+            keyword=keyword,
+            category_codes=category_codes,
+            district_codes=district_codes,
+            min_rating=min_rating,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            page=page,
+            page_size=page_size
         )
-        return ResponseModel.success(data=shops, message="获取成功")
+        return ResponseModel.success(data=result, message="获取成功")
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -150,21 +188,35 @@ async def search_shops(
         )
 
 
-@router.get("/{shop_id}", response_model=ResponseModel[ShopResponse], summary="获取店铺详情")
+@router.get("/{shop_id}", response_model=ResponseModel[ShopResponse], summary="查看店铺详情")
 async def get_shop_detail(
     shop_id: int,
-    current_user: UserResponse = Depends(require_login)
+    current_user: UserResponse = Depends(get_current_user)
 ):
     """
-    获取店铺详情
+    查看店铺详情（支持游客访问）
 
     **功能：**
     - 增加店铺浏览量
-    - 返回完整的店铺信息（包括字典数据、菜单项等）
-    - 返回当前用户的收藏状态和评分
+    - 返回完整的店铺信息（包括字典数据、菜单项、图片等）
+    - 返回评分分布统计
+    - 返回当前用户的收藏状态和评分（已登录用户）
+    - 游客可查看店铺信息，但互动功能需登录
+
+    **详情页信息区域：**
+    1. 店铺封面图与基本信息区（名称、区域、品类、收藏数、浏览量）
+    2. 菜单图片展示区（若有）
+    3. 环境图片展示区（若有）
+    4. 详细评分分布区（显示1-5星各档评分人数）
+    5. 用户图文评论列表区
+    6. 问答讨论区
+
+    **注意：**
+    - 若店铺因违规被管理员封禁，页面显示"该店铺已被封禁"提示
     """
     try:
-        shop = await ShopService.get_shop_detail(shop_id, current_user.id)
+        user_id = current_user.id if current_user else None
+        shop = await ShopService.get_shop_detail(shop_id, user_id)
         return ResponseModel.success(data=shop, message="获取成功")
     except ValueError as e:
         raise HTTPException(

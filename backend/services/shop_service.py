@@ -13,7 +13,8 @@ from schemas.shops import (
     CommentUpdate, ShopMergeRequest, MenuItemCreateRequest,
     MenuItemAddRequest,
     ShopResponse, ShopListItem, MenuItemResponse, RatingResponse,
-    CommentResponse, CommentUserResponse, DictDataSimpleResponse, ImageResponse
+    CommentResponse, CommentUserResponse, DictDataSimpleResponse, ImageResponse,
+    RatingDistribution
 )
 from schemas.comments import CommentCreateRequest, CommentResponse, CommentImageResponse
 from schemas.images import MenuItemWithImageRequest
@@ -100,6 +101,7 @@ class ShopService:
         - 增加浏览量
         - 获取关联的字典数据
         - 获取菜单项
+        - 获取评分分布统计
         - 获取当前用户的收藏状态和评分
         """
         shop = await ShopDAO.find_shop_by_id(shop_id)
@@ -115,10 +117,16 @@ class ShopService:
         # 获取菜单项
         menu_items = await ShopDAO.get_menu_items(shop_id)
 
+        # 获取店铺图片
+        images = await ShopDAO.get_images_by_entity("shop", shop_id)
+        image_list = [ImageResponse.from_orm(img) for img in images]
+
+        # 获取评分分布统计
+        rating_distribution = await ShopDAO.get_shop_rating_distribution(shop_id)
+
         # 检查当前用户是否已收藏
         is_favorited = False
         if current_user_id:
-            # 需要导入 FavoritesDAO 或使用直接查询
             from models.users import Favorites
             is_favorited = await Favorites.filter(
                 user_id=current_user_id,
@@ -142,6 +150,7 @@ class ShopService:
             favorite_count=shop.favorite_count,
             comment_count=shop.comment_count,
             average_rating=shop.average_rating,
+            rating_distribution=RatingDistribution(**rating_distribution),
             aliases=shop.aliases,
             merged_into_id=shop.merged_into_id,
             price_range=shop.price_range,
@@ -151,7 +160,7 @@ class ShopService:
             tags=shop.tags,
             dict_data=[DictDataSimpleResponse.from_orm(dd) for dd in dict_data_list],
             menu_items=[MenuItemResponse.from_orm(mi) for mi in menu_items],
-            images=[],  # TODO: 图片功能
+            images=image_list,
             is_favorited=is_favorited,
             user_rating=user_rating,
             created_at=shop.created_at,
@@ -162,16 +171,23 @@ class ShopService:
     async def search_shops(
         cls,
         keyword: Optional[str] = None,
+        category_codes: Optional[List[str]] = None,
+        district_codes: Optional[List[str]] = None,
         min_rating: Optional[float] = None,
-        sort_by: str = "created_at",
+        sort_by: str = "favorite_count",
         sort_order: str = "desc",
         page: int = 1,
         page_size: int = 20
-    ) -> List[ShopListItem]:
-        """搜索店铺列表"""
+    ) -> dict:
+        """
+        搜索店铺列表
+        返回包含数据和分页信息的字典
+        """
         offset = (page - 1) * page_size
         shops = await ShopDAO.search_shops(
             keyword=keyword,
+            category_codes=category_codes,
+            district_codes=district_codes,
             min_rating=min_rating,
             sort_by=sort_by,
             sort_order=sort_order,
@@ -179,10 +195,23 @@ class ShopService:
             offset=offset
         )
 
+        # 获取总数用于分页
+        total = await ShopDAO.get_shop_count(
+            keyword=keyword,
+            category_codes=category_codes,
+            district_codes=district_codes,
+            min_rating=min_rating
+        )
+
         # 构建列表项
         shop_list = []
         for shop in shops:
             dict_data = await ShopDAO.get_shop_dict_data(shop.id)
+            
+            # 获取封面图片（取第一个店铺图片）
+            images = await ShopDAO.get_images_by_entity("shop", shop.id)
+            cover_image = images[0].url if images else None
+            
             shop_list.append(ShopListItem(
                 id=shop.id,
                 name=shop.name,
@@ -191,12 +220,20 @@ class ShopService:
                 view_count=shop.view_count,
                 favorite_count=shop.favorite_count,
                 comment_count=shop.comment_count,
-                cover_image=None,  # TODO: 图片功能
+                cover_image=cover_image,
                 dict_data=[DictDataSimpleResponse.from_orm(dd) for dd in dict_data],
                 created_at=shop.created_at
             ))
 
-        return shop_list
+        return {
+            "data": shop_list,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+                "total_pages": (total + page_size - 1) // page_size
+            }
+        }
 
     @classmethod
     async def update_shop(cls, shop_id: int, update_data: ShopUpdate) -> ShopResponse:

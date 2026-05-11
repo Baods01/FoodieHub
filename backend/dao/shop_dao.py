@@ -50,6 +50,8 @@ class ShopDAO:
     async def search_shops(
         cls,
         keyword: Optional[str] = None,
+        category_codes: Optional[List[str]] = None,
+        district_codes: Optional[List[str]] = None,
         min_rating: Optional[float] = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
@@ -58,22 +60,63 @@ class ShopDAO:
     ) -> List[Shops]:
         """
         搜索店铺
-        - 支持关键词搜索（名称、描述、别名）
+        - 支持关键词搜索（名称、描述）
+        - 支持分类筛选（通过字典编码）
+        - 支持区域筛选（通过字典编码）
         - 支持最低评分筛选
         - 支持排序
         """
         query = Shops.filter(is_active=True)
         
-        # 关键词搜索
+        # 关键词搜索（支持名称、描述）
         if keyword:
             query = query.filter(
                 Q(name__icontains=keyword) | 
                 Q(description__icontains=keyword)
             )
         
-        # 最低评分筛选
+        # 分类筛选（品类）
+        if category_codes and len(category_codes) > 0:
+            # 获取品类对应的字典数据ID
+            category_dict_data = await DictData.filter(
+                code__in=category_codes,
+                is_active=True
+            ).all()
+            category_ids = [d.id for d in category_dict_data]
+            
+            # 通过关联表筛选
+            shops_with_category = await ShopDictRel.filter(
+                dict_data_id__in=category_ids,
+                is_active=True
+            ).values_list("shop_id", flat=True)
+            
+            if shops_with_category:
+                query = query.filter(id__in=shops_with_category)
+        
+        # 区域筛选
+        if district_codes and len(district_codes) > 0:
+            # 获取区域对应的字典数据ID
+            district_dict_data = await DictData.filter(
+                code__in=district_codes,
+                is_active=True
+            ).all()
+            district_ids = [d.id for d in district_dict_data]
+            
+            # 通过关联表筛选
+            shops_with_district = await ShopDictRel.filter(
+                dict_data_id__in=district_ids,
+                is_active=True
+            ).values_list("shop_id", flat=True)
+            
+            if shops_with_district:
+                query = query.filter(id__in=shops_with_district)
+        
+        # 最低评分筛选（转换为 Decimal 避免浮点数精度问题）
         if min_rating is not None:
-            query = query.filter(average_rating__gte=min_rating)
+            from decimal import Decimal
+            # 将 float 转换为 Decimal，保留一位小数（与数据库字段精度一致）
+            min_rating_decimal = Decimal(str(min_rating)).quantize(Decimal('0.1'))
+            query = query.filter(average_rating__gte=min_rating_decimal)
         
         # 排序
         order_field = sort_by if sort_order == "asc" else f"-{sort_by}"
@@ -81,6 +124,59 @@ class ShopDAO:
         
         # 分页
         return await query.limit(limit).offset(offset).all()
+
+    @classmethod
+    async def get_shop_count(
+        cls,
+        keyword: Optional[str] = None,
+        category_codes: Optional[List[str]] = None,
+        district_codes: Optional[List[str]] = None,
+        min_rating: Optional[float] = None
+    ) -> int:
+        """
+        获取店铺总数（用于分页）
+        """
+        query = Shops.filter(is_active=True)
+        
+        if keyword:
+            query = query.filter(
+                Q(name__icontains=keyword) | 
+                Q(description__icontains=keyword)
+            )
+        
+        if category_codes and len(category_codes) > 0:
+            category_dict_data = await DictData.filter(
+                code__in=category_codes,
+                is_active=True
+            ).all()
+            category_ids = [d.id for d in category_dict_data]
+            shops_with_category = await ShopDictRel.filter(
+                dict_data_id__in=category_ids,
+                is_active=True
+            ).values_list("shop_id", flat=True)
+            if shops_with_category:
+                query = query.filter(id__in=shops_with_category)
+        
+        if district_codes and len(district_codes) > 0:
+            district_dict_data = await DictData.filter(
+                code__in=district_codes,
+                is_active=True
+            ).all()
+            district_ids = [d.id for d in district_dict_data]
+            shops_with_district = await ShopDictRel.filter(
+                dict_data_id__in=district_ids,
+                is_active=True
+            ).values_list("shop_id", flat=True)
+            if shops_with_district:
+                query = query.filter(id__in=shops_with_district)
+        
+        # 最低评分筛选（转换为 Decimal 避免浮点数精度问题）
+        if min_rating is not None:
+            from decimal import Decimal
+            min_rating_decimal = Decimal(str(min_rating)).quantize(Decimal('0.1'))
+            query = query.filter(average_rating__gte=min_rating_decimal)
+        
+        return await query.count()
 
     @classmethod
     async def update_shop(cls, shop_id: int, **kwargs) -> Optional[Shops]:
@@ -211,6 +307,29 @@ class ShopDAO:
             return 0.0
         total_score = sum(r.score for r in ratings)
         return total_score / len(ratings)
+
+    @classmethod
+    async def get_shop_rating_distribution(cls, shop_id: int) -> dict:
+        """获取店铺评分分布统计"""
+        # 使用聚合查询获取各星级评分人数
+        ratings = await Ratings.filter(shop_id=shop_id, is_active=True).all()
+        
+        distribution = {
+            "star_1": 0,
+            "star_2": 0,
+            "star_3": 0,
+            "star_4": 0,
+            "star_5": 0,
+            "total": 0
+        }
+        
+        for rating in ratings:
+            star_key = f"star_{rating.score}"
+            if star_key in distribution:
+                distribution[star_key] += 1
+            distribution["total"] += 1
+        
+        return distribution
 
     # ============ 评论操作 ============
 
