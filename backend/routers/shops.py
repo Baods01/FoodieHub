@@ -18,6 +18,9 @@ from schemas.users import UserResponse
 from services.shop_service import ShopService
 from dependencies.auth import get_current_user, require_login
 
+# 调试日志开关
+DEBUG_LOG = True
+
 router = APIRouter(prefix="/shops", tags=["店铺模块"])
 
 
@@ -290,7 +293,7 @@ async def create_comment(
     current_user: UserResponse = Depends(require_login)
 ):
     """
-    创建评论（纯文字）
+    创建评论/提问（纯文字）
 
     **功能：**
     - 用户可在店铺详情页发表评论
@@ -305,8 +308,16 @@ async def create_comment(
     **后置条件：**
     - 评论表中新增一条记录
     - 店铺评论数加1
+
+    **参数解释**
+    - **content**: 评论内容，必填，1-500字符
+    - **type**: 评论类型，默认为 "comment"，可切换为question（提问）
+    - **parent_id**: 父评论ID，回复评论时填写
     """
     try:
+        if DEBUG_LOG:
+            print(f"DEBUG create_comment route: user_id={current_user.id}, shop_id={shop_id}")
+            print(f"DEBUG create_comment route: comment_data={comment_data.model_dump()}")
         comment = await ShopService.create_comment(current_user.id, shop_id, comment_data)
         return ResponseModel.success(data={"message": "评论创建成功"}, message="评论创建成功")
     except ValueError as e:
@@ -315,9 +326,13 @@ async def create_comment(
             detail=str(e)
         )
     except Exception as e:
+        import traceback
+        if DEBUG_LOG:
+            print(f"DEBUG create_comment route error: {str(e)}")
+            print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="评论创建失败"
+            detail=f"评论创建失败: {str(e)}"
         )
 
 
@@ -334,23 +349,75 @@ async def get_shop_comments(
     - `comment_type`: 评论类型（comment=评论，question=提问）
     """
     try:
+        if DEBUG_LOG:
+            print(f"DEBUG get_shop_comments route: shop_id={shop_id}, comment_type={comment_type}, user_id={current_user.id}")
+        
         comments = await ShopService.get_shop_comments(
             shop_id=shop_id,
             comment_type=comment_type,
             page=1,
             page_size=50,
-        current_user_id=current_user.id
+            current_user_id=current_user.id
         )
+        
+        if DEBUG_LOG:
+            print(f"DEBUG get_shop_comments route: Found {len(comments)} comments")
+        
         return ResponseModel.success(data=comments, message="获取成功")
     except ValueError as e:
+        if DEBUG_LOG:
+            print(f"DEBUG get_shop_comments route ValueError: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
         )
     except Exception as e:
+        if DEBUG_LOG:
+            import traceback
+            print(f"DEBUG get_shop_comments route Error: {str(e)}")
+            print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取评论列表失败"
+            detail=f"获取评论列表失败: {str(e)}"
+        )
+
+
+@router.get("/{shop_id}/comments/{comment_id}/replies", response_model=ResponseModel[list], summary="获取评论的子回复")
+async def get_comment_replies(
+    shop_id: int,
+    comment_id: int,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    获取某个评论的所有直接子回复/回答（二级评论）
+
+    **功能：**
+    - 返回指定评论的所有子回复
+    - 子回复也包含用户信息和图片
+    - 返回指定问题的所有回答（如果是提问）
+
+    **参数解释**
+    - **comment_id**: 评论/提问ID
+    - **shop_id**: 店铺ID
+    """
+    try:
+        if DEBUG_LOG:
+            print(f"DEBUG get_comment_replies route: shop_id={shop_id}, comment_id={comment_id}, user_id={current_user.id}")
+        
+        replies = await ShopService.get_comment_replies(comment_id, current_user.id)
+        
+        if DEBUG_LOG:
+            print(f"DEBUG get_comment_replies route: Found {len(replies)} replies")
+        
+        return ResponseModel.success(data=replies, message="获取成功")
+    except Exception as e:
+        if DEBUG_LOG:
+            import traceback
+            print(f"DEBUG get_comment_replies route Error: {str(e)}")
+            print(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取子回复失败: {str(e)}"
         )
 
 

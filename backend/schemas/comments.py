@@ -8,19 +8,11 @@ from datetime import datetime
 class CommentCreateRequest(BaseModel):
     """创建评论请求（纯文字）"""
     content: str = Field(..., min_length=1, max_length=500, description="评论内容（必填，1-500字符）")
+    type: str = Field(default="comment", description="评论类型：comment=评论（默认）")
+    parent_id: Optional[int] = Field(default=None, description="父评论ID（用于回复评论）")
 
 
 # ============ 评论响应 ============
-
-class CommentImageResponse(BaseModel):
-    """评论关联的图片响应"""
-    id: int = Field(description="图片ID")
-    url: str = Field(description="图片URL")
-    created_at: datetime = Field(description="上传时间")
-
-    class Config:
-        from_attributes = True
-
 
 class CommentUserResponse(BaseModel):
     """评论用户响应"""
@@ -32,13 +24,24 @@ class CommentUserResponse(BaseModel):
         from_attributes = True
 
 
+class CommentImageResponse(BaseModel):
+    """评论关联的图片响应"""
+    id: int = Field(description="图片ID")
+    url: str = Field(description="图片URL")
+    created_at: datetime = Field(description="上传时间")
+
+    class Config:
+        from_attributes = True
+
+
 class CommentResponse(BaseModel):
     """评论响应"""
     id: int = Field(description="评论ID")
     shop_id: int = Field(description="店铺ID")
     user: CommentUserResponse = Field(description="用户信息")
-    type: str = Field(description="评论类型：comment=评论, question=提问")
+    type: str = Field(description="评论类型：comment=评论")
     parent_id: Optional[int] = Field(default=None, description="父评论ID")
+    root_id: Optional[int] = Field(default=None, description="根评论ID")
     content: str = Field(description="评论内容")
     like_count: int = Field(description="点赞数")
     reply_count: int = Field(description="回复数")

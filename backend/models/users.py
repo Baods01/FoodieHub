@@ -75,6 +75,7 @@ class Messages(BaseModel):
     content = fields.TextField(null=False, description="消息内容")
     related_entity_type = fields.CharField(max_length=50, null=True, description="关联实体类型（如comment、answer）")
     related_entity_id = fields.IntField(null=True, description="关联实体ID，用于跳转")
+    is_read = fields.BooleanField(default=False, description="是否已读")
 
     class Meta:
         table = "messages"
