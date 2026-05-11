@@ -171,3 +171,12 @@ class UserDAO:
             query = query.filter(behavior_type=behavior_type)
             
         return await query.limit(limit).offset(offset).all()
+
+    @classmethod
+    async def update_user_avatar(cls, user_id: int, avatar_url: str) -> Optional[Users]:
+        """更新用户头像"""
+        user = await Users.get_or_none(id=user_id, is_active=True)
+        if user:
+            user.avatar = avatar_url
+            await user.save()
+        return user

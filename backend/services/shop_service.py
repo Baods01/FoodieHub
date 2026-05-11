@@ -202,10 +202,27 @@ class ShopService:
 
     @classmethod
     async def update_shop(cls, shop_id: int, update_data: ShopUpdate) -> ShopResponse:
-        """管理员更新店铺信息"""
-        shop = await ShopDAO.update_shop(shop_id, **update_data.model_dump(exclude_none=True))
+        """管理员更新店铺信息（支持部分字段更新）"""
+        # 1. 更新店铺基础信息（只更新非 None 的字段）
+        update_dict = update_data.model_dump(exclude_none=True)
+        
+        # 移除字典相关字段，单独处理
+        location_codes = update_dict.pop('location_codes', None)
+        category_codes = update_dict.pop('category_codes', None)
+        
+        # 更新店铺基础信息
+        shop = await ShopDAO.update_shop(shop_id, **update_dict)
         if not shop:
             raise ValueError("店铺不存在")
+        
+        # 2. 更新字典数据关联（区域和品类）
+        if location_codes is not None or category_codes is not None:
+            await ShopDAO.update_shop_dict_data(
+                shop_id=shop_id,
+                location_codes=location_codes,
+                category_codes=category_codes
+            )
+        
         return await cls.get_shop_detail(shop_id)
 
     @classmethod

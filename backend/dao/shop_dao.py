@@ -134,6 +134,103 @@ class ShopDAO:
         relations = await ShopDictRel.filter(shop_id=shop_id, is_active=True).prefetch_related("dict_data")
         return [rel.dict_data for rel in relations]
 
+    @classmethod
+    async def update_shop_dict_data(
+        cls,
+        shop_id: int,
+        location_codes: Optional[List[str]] = None,
+        category_codes: Optional[List[str]] = None
+    ) -> dict:
+        """
+        批量更新店铺的字典数据关联（区域和品类）
+        
+        Args:
+            shop_id: 店铺ID
+            location_codes: 区域编码列表（None 表示不更新）
+            category_codes: 品类编码列表（None 表示不更新）
+        
+        Returns:
+            更新结果统计
+        """
+        from models.dict import DictTypes
+        
+        # 1. 获取店铺当前的字典数据关联
+        current_rels = await ShopDictRel.filter(
+            shop_id=shop_id,
+            is_active=True
+        ).prefetch_related("dict_data", "dict_data__dict_type").all()
+        
+        # 2. 分类当前关联
+        current_location_codes = set()
+        current_category_codes = set()
+        
+        for rel in current_rels:
+            if rel.dict_data.dict_type.code == "location_type":
+                current_location_codes.add(rel.dict_data.code)
+            elif rel.dict_data.dict_type.code == "category_type":
+                current_category_codes.add(rel.dict_data.code)
+        
+        # 3. 需要添加的编码（新增）
+        to_add_location = set(location_codes or []) - current_location_codes
+        to_add_category = set(category_codes or []) - current_category_codes
+        
+        # 4. 需要删除的编码（移除）
+        to_remove_location = current_location_codes - set(location_codes or [])
+        to_remove_category = current_category_codes - set(category_codes or [])
+        
+        # 5. 执行删除操作
+        deleted_count = 0
+        for rel in current_rels:
+            if rel.dict_data.code in to_remove_location or rel.dict_data.code in to_remove_category:
+                await rel.delete()
+                deleted_count += 1
+        
+        # 6. 执行添加操作
+        added_count = 0
+        added_codes = []
+        
+        # 获取区域字典数据
+        if location_codes:
+            location_dict_data = await DictData.filter(
+                dict_type__code="location_type",
+                code__in=location_codes,
+                is_active=True
+            ).all()
+            location_map = {d.code: d for d in location_dict_data}
+            
+            for code in to_add_location:
+                if code in location_map:
+                    await ShopDictRel.create(
+                        shop_id=shop_id,
+                        dict_data_id=location_map[code].id
+                    )
+                    added_count += 1
+                    added_codes.append(code)
+        
+        # 获取品类字典数据
+        if category_codes:
+            category_dict_data = await DictData.filter(
+                dict_type__code="category_type",
+                code__in=category_codes,
+                is_active=True
+            ).all()
+            category_map = {d.code: d for d in category_dict_data}
+            
+            for code in to_add_category:
+                if code in category_map:
+                    await ShopDictRel.create(
+                        shop_id=shop_id,
+                        dict_data_id=category_map[code].id
+                    )
+                    added_count += 1
+                    added_codes.append(code)
+        
+        return {
+            "added": added_count,
+            "removed": deleted_count,
+            "added_codes": added_codes
+        }
+
     # ============ 菜单项操作 ============
 
     @classmethod

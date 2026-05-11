@@ -191,6 +191,15 @@ async def update_shop(
 ):
     """
     更新店铺信息（仅管理员）
+    
+    支持部分字段更新，未传入的字段将保持不变。
+
+    **可更新字段：**
+    - `name`: 店铺名称
+    - `description`: 店铺描述
+    - `is_active`: 是否启用（软删除）
+    - `location_codes`: 区域编码列表（如：['nei_taisan', 'nei_huashan']）
+    - `category_codes`: 品类编码列表（如：['local_cuisine', 'hotpot']）
 
     **管理员权限：**
     - 修改店铺基本信息

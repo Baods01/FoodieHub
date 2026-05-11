@@ -57,6 +57,17 @@ class ShopUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100, description="店铺名称")
     description: Optional[str] = Field(default=None, max_length=2000, description="店铺描述")
     is_active: Optional[bool] = Field(default=None, description="是否启用（软删除）")
+    
+    # 新增：区域编码列表
+    location_codes: Optional[List[str]] = Field(
+        default=None,
+        description="区域编码列表（如：['nei_taisan', 'nei_huashan']）。不传则保持原区域不变"
+    )
+    # 新增：品类编码列表
+    category_codes: Optional[List[str]] = Field(
+        default=None,
+        description="品类编码列表（如：['local_cuisine', 'hotpot']）。不传则保持原品类不变"
+    )
 
 
 class RatingCreate(BaseModel):
