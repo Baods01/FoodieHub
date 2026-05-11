@@ -1,3 +1,22 @@
-tortoise-orm
-aerich
-asyncmy
+# Web 框架
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# ORM 和数据库
+tortoise-orm>=0.20.0
+aerich>=0.7.0
+asyncmy>=0.2.9
+
+# 认证与安全
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt==4.0.1
+email-validator>=2.0.0
+
+# 文件上传
+python-multipart>=0.0.6
+
+# 工具库
+httpx>=0.26.0
