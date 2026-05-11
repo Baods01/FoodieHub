@@ -12,6 +12,14 @@ from schemas.users import (
 )
 from services.password_service import PasswordService
 
+
+# 敏感词列表（可扩展）
+SENSITIVE_WORDS = [
+    # 添加敏感词
+    # "敏感词1",
+    # "敏感词2",
+]
+
 # 密码验证上下文（用于 OAuth2 登录）
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -126,18 +134,6 @@ class UserService:
         return None
 
     @staticmethod
-    async def update_profile(user_id: int, update_data: UserUpdate) -> UserResponse:
-        """
-        更新用户个人信息
-        - 支持更新头像和简介
-        """
-        update_dict = update_data.model_dump(exclude_unset=True)
-        user = await UserDAO.update_user(user_id, **update_dict)
-        if not user:
-            raise ValueError("用户不存在")
-        return UserResponse.model_validate(user)
-
-    @staticmethod
     async def delete_account(user_id: int) -> None:
         """
         软删除用户账号
@@ -164,3 +160,53 @@ class UserService:
         # 构建响应
         user_response = UserResponse.model_validate(user)
         return UserProfileResponse(user=user_response, stats=stats)
+
+    @staticmethod
+    def filter_sensitive_words(text: Optional[str]) -> Optional[str]:
+        """
+        过滤敏感词
+        Args:
+            text: 原始文本
+        Returns:
+            过滤后的文本
+        """
+        if not text:
+            return text
+        for word in SENSITIVE_WORDS:
+            text = text.replace(word, "*" * len(word))
+        return text
+
+    @staticmethod
+    async def update_profile(user_id: int, update_data: UserUpdate) -> UserResponse:
+        """
+        更新用户个人信息
+        - 支持更新昵称、头像、简介、性别
+        - 自动过滤敏感词
+        """
+        update_dict = update_data.model_dump(exclude_unset=True)
+        
+        # 过滤敏感词（昵称和简介）
+        if "nickname" in update_dict and update_dict["nickname"]:
+            update_dict["nickname"] = UserService.filter_sensitive_words(update_dict["nickname"])
+        if "bio" in update_dict and update_dict["bio"]:
+            update_dict["bio"] = UserService.filter_sensitive_words(update_dict["bio"])
+        
+        user = await UserDAO.update_user(user_id, **update_dict)
+        if not user:
+            raise ValueError("用户不存在")
+        return UserResponse.model_validate(user)
+
+    @staticmethod
+    async def update_avatar(user_id: int, avatar_url: str) -> UserResponse:
+        """
+        更新用户头像
+        Args:
+            user_id: 用户ID
+            avatar_url: 头像URL
+        Returns:
+            更新后的用户信息
+        """
+        user = await UserDAO.update_user(user_id, avatar=avatar_url)
+        if not user:
+            raise ValueError("用户不存在")
+        return UserResponse.model_validate(user)

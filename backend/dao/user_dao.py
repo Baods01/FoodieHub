@@ -1,8 +1,9 @@
-from typing import Optional
+from typing import Optional, List
 
 from tortoise.expressions import Q
 
 from models.users import Users
+from models.logs import UserBehaviorLogs
 
 
 class UserDAO:
@@ -103,8 +104,8 @@ class UserDAO:
         返回：店铺数、评论数、评分数、收藏数、动态数
         """
         from models.shops import Shops, Comments, Ratings
-        from models.users import Activities
-        from models.favorites import Favorites
+        from models.users import Activities, Favorites
+        from models.logs import UserBehaviorLogs
 
         # 统计各表数据
         shop_count = await Shops.filter(user_id=user_id, is_active=True).count()
@@ -120,3 +121,62 @@ class UserDAO:
             "favorite_count": favorite_count,
             "activity_count": activity_count
         }
+
+    # ============ 用户账户管理 ============
+    # NOTE: account_status 字段需要在数据库模型中添加
+    # @classmethod
+    # async def update_user_account_status(cls, user_id: int, account_status: int) -> Optional[Users]:
+    #    """更新用户账户状态（封禁/解封）"""
+    #    user = await Users.get_or_none(id=user_id, is_active=True)
+    #    if user:
+    #        user.account_status = account_status
+    #        await user.save()
+    #        return user
+    #    return None
+
+    @classmethod
+    async def create_user_behavior_log(
+        cls,
+        user_id: int,
+        behavior_type: str,
+        target_type: Optional[str] = None,
+        target_id: Optional[int] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        session_id: Optional[str] = None
+    ) -> UserBehaviorLogs:
+        """创建用户行为日志"""
+        return await UserBehaviorLogs.create(
+            user_id=user_id,
+            behavior_type=behavior_type,
+            target_type=target_type,
+            target_id=target_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            session_id=session_id
+        )
+
+    @classmethod
+    async def get_user_behavior_logs(
+        cls,
+        user_id: int,
+        behavior_type: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0
+    ) -> List[UserBehaviorLogs]:
+        """获取用户行为日志列表"""
+        query = UserBehaviorLogs.filter(user_id=user_id, is_active=True).order_by("-created_at")
+        
+        if behavior_type:
+            query = query.filter(behavior_type=behavior_type)
+            
+        return await query.limit(limit).offset(offset).all()
+
+    @classmethod
+    async def update_user_avatar(cls, user_id: int, avatar_url: str) -> Optional[Users]:
+        """更新用户头像"""
+        user = await Users.get_or_none(id=user_id, is_active=True)
+        if user:
+            user.avatar = avatar_url
+            await user.save()
+        return user

@@ -43,8 +43,10 @@ class PasswordChange(BaseModel):
 
 class UserUpdate(BaseModel):
     """用户信息更新请求"""
+    nickname: Optional[str] = Field(default=None, min_length=2, max_length=30, description="昵称（用户显示名）")
     avatar: Optional[str] = Field(default=None, max_length=255, description="头像图片URL")
     bio: Optional[str] = Field(default=None, max_length=500, description="个人简介")
+    gender: Optional[str] = Field(default=None, pattern="^(male|female|other)$", description="性别：male=男性，female=女性，other=其他")
 
 
 class PhoneUpdate(BaseModel):
@@ -72,10 +74,12 @@ class UserResponse(BaseModel):
     """用户信息响应（不包含密码）"""
     id: int = Field(description="用户ID")
     username: str = Field(description="用户名")
+    nickname: Optional[str] = Field(default=None, description="昵称（用户显示名）")
     phone: Optional[str] = Field(default=None, description="手机号")
     email: Optional[str] = Field(default=None, description="邮箱")
     avatar: Optional[str] = Field(default=None, description="头像URL")
     bio: Optional[str] = Field(default=None, description="个人简介")
+    gender: Optional[str] = Field(default=None, description="性别：male/female/other")
     role: int = Field(description="角色：0=普通用户，1=管理员")
     created_at: datetime = Field(description="注册时间")
 

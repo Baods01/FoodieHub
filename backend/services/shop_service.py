@@ -1,16 +1,18 @@
 from typing import Optional, List
 from decimal import Decimal
+import asyncio
 
 from models.shops import Shops, Menu, Ratings, Comments
 from models.users import Users
+from models.images import Images
 from models.dict import DictData
 from dao.shop_dao import ShopDAO
 
 # 调试日志开关
 DEBUG_LOG = True
 from schemas.shops import (
-    ShopCreate, ShopUpdate, RatingCreate, CommentCreate,
-    CommentUpdate, ShopMergeRequest, MenuItemCreateRequest,
+    ShopCreate, ShopUpdate, RatingCreate, RatingResponse,
+    ShopMergeRequest, MenuItemCreateRequest,
     MenuItemAddRequest,
     ShopResponse, ShopListItem, MenuItemResponse, RatingResponse,
     CommentResponse, CommentUserResponse, DictDataSimpleResponse, ImageResponse,
@@ -237,10 +239,27 @@ class ShopService:
 
     @classmethod
     async def update_shop(cls, shop_id: int, update_data: ShopUpdate) -> ShopResponse:
-        """管理员更新店铺信息"""
-        shop = await ShopDAO.update_shop(shop_id, **update_data.model_dump(exclude_none=True))
+        """管理员更新店铺信息（支持部分字段更新）"""
+        # 1. 更新店铺基础信息（只更新非 None 的字段）
+        update_dict = update_data.model_dump(exclude_none=True)
+        
+        # 移除字典相关字段，单独处理
+        location_codes = update_dict.pop('location_codes', None)
+        category_codes = update_dict.pop('category_codes', None)
+        
+        # 更新店铺基础信息
+        shop = await ShopDAO.update_shop(shop_id, **update_dict)
         if not shop:
             raise ValueError("店铺不存在")
+        
+        # 2. 更新字典数据关联（区域和品类）
+        if location_codes is not None or category_codes is not None:
+            await ShopDAO.update_shop_dict_data(
+                shop_id=shop_id,
+                location_codes=location_codes,
+                category_codes=category_codes
+            )
+        
         return await cls.get_shop_detail(shop_id)
 
     @classmethod
@@ -278,63 +297,62 @@ class ShopService:
         cls,
         user_id: int,
         shop_id: int,
-        comment_data: CommentCreate
+        comment_data: CommentCreateRequest
     ) -> CommentResponse:
-        """创建评论/提问"""
-        # 检查店铺是否存在
-        shop = await ShopDAO.find_shop_by_id(shop_id)
-        if not shop:
-            raise ValueError("店铺不存在")
-
-        # 如果是回复，检查父评论是否存在
-        if comment_data.parent_id:
-            parent = await ShopDAO.get_comment_by_id(comment_data.parent_id)
-            if not parent:
-                raise ValueError("父评论不存在")
-
-        # 创建评论
-        comment = await ShopDAO.create_comment(
-            shop_id=shop_id,
-            user_id=user_id,
-            type=comment_data.type,
-            content=comment_data.content,
-            parent_id=comment_data.parent_id
-        )
-
-        # 获取完整的评论信息（包括用户信息）
-        comment_full = await ShopDAO.get_comment_by_id(comment.id)
+        """创建评论（纯文字）
         
-        return cls._build_comment_response(comment_full, user_id)
+        Args:
+            user_id: 用户ID
+            shop_id: 店铺ID
+            comment_data: 评论数据请求对象
+            
+        Returns:
+            评论响应对象
+        """
+        try:
+            # 检查店铺是否存在
+            shop = await ShopDAO.find_shop_by_id(shop_id)
+            if not shop:
+                raise ValueError("店铺不存在")
+            
+            if DEBUG_LOG:
+                print(f"DEBUG create_comment: Shop found: {shop.name}")
 
-    @classmethod
-    async def create_comment_with_images(
-        cls,
-        user_id: int,
-        shop_id: int,
-        content: str,
-        image_urls: Optional[List[str]] = None
-    ) -> CommentResponse:
-        """创建评论（支持图文）"""
-        # 检查店铺是否存在
-        shop = await ShopDAO.find_shop_by_id(shop_id)
-        if not shop:
-            raise ValueError("店铺不存在")
+            # 如果是回复（parent_id > 0），检查父评论是否存在
+            if comment_data.parent_id and comment_data.parent_id > 0:
+                if DEBUG_LOG:
+                    print(f"DEBUG create_comment: Checking parent comment: {comment_data.parent_id}")
+                parent = await ShopDAO.get_comment_by_id(comment_data.parent_id)
+                if not parent:
+                    raise ValueError(f"父评论不存在 (ID: {comment_data.parent_id})")
+                if DEBUG_LOG:
+                    print(f"DEBUG create_comment: Parent comment found")
 
-        # 创建评论并关联图片
-        comment = await ShopDAO.create_comment_with_images(
-            shop_id=shop_id,
-            user_id=user_id,
-            content=content,
-            image_urls=image_urls
-        )
+            # 创建评论
+            comment = await ShopDAO.create_comment(
+                shop_id=shop_id,
+                user_id=user_id,
+                type=comment_data.type,
+                content=comment_data.content,
+                parent_id=comment_data.parent_id
+            )
+            
+            if DEBUG_LOG:
+                print(f"DEBUG create_comment: Comment created: {comment.id}")
 
-        # 获取完整的评论信息（包括图片）
-        comment_full = await ShopDAO.get_comment_by_id(comment.id)
-        
-        # 获取评论关联的图片
-        images = await ShopDAO.get_comment_images(comment.id)
-        
-        return cls._build_comment_response_with_images(comment_full, images, user_id)
+            # 获取完整的评论信息（包括用户信息）
+            comment_full = await ShopDAO.get_comment_by_id(comment.id)
+            
+            if DEBUG_LOG:
+                print(f"DEBUG create_comment: Comment full data loaded")
+
+            return await cls._build_comment_response(comment_full, user_id)
+        except Exception as e:
+            if DEBUG_LOG:
+                import traceback
+                print(f"DEBUG create_comment Error: {str(e)}")
+                print(traceback.format_exc())
+            raise
 
     @classmethod
     async def get_shop_comments(
@@ -346,22 +364,51 @@ class ShopService:
         current_user_id: Optional[int] = None
     ) -> List[CommentResponse]:
         """获取店铺的评论/提问列表（一级评论）"""
-        offset = (page - 1) * page_size
-        comments = await ShopDAO.get_shop_comments(
-            shop_id=shop_id,
-            type=comment_type,
-            limit=page_size,
-            offset=offset
-        )
+        try:
+            if DEBUG_LOG:
+                print(f"DEBUG get_shop_comments service: shop_id={shop_id}, comment_type={comment_type}, current_user_id={current_user_id}")
+            
+            offset = (page - 1) * page_size
+            comments = await ShopDAO.get_shop_comments(
+                shop_id=shop_id,
+                type=comment_type,
+                limit=page_size,
+                offset=offset
+            )
+            
+            if DEBUG_LOG:
+                print(f"DEBUG get_shop_comments service: Found {len(comments)} comments from DAO")
+            
+            # 由于 _build_comment_response 是异步方法，需要使用协程列表
+            result = await asyncio.gather(*[cls._build_comment_response(c, current_user_id) for c in comments])
+            
+            if DEBUG_LOG:
+                print(f"DEBUG get_shop_comments service: Built {len(result)} comment responses")
+            
+            return result
+        except Exception as e:
+            if DEBUG_LOG:
+                import traceback
+                print(f"DEBUG get_shop_comments service Error: {str(e)}")
+                print(traceback.format_exc())
+            raise
 
-        return [cls._build_comment_response(c, current_user_id) for c in comments]
+    @classmethod
+    async def get_comment_replies(
+        cls,
+        comment_id: int,
+        current_user_id: Optional[int] = None
+    ) -> List[CommentResponse]:
+        """获取评论的子回复列表"""
+        replies = await ShopDAO.get_comment_replies(comment_id)
+        return await asyncio.gather(*[cls._build_comment_response(r, current_user_id) for r in replies])
 
     @classmethod
     async def update_comment(
         cls,
         user_id: int,
         comment_id: int,
-        update_data: CommentUpdate
+        content: str
     ) -> CommentResponse:
         """更新评论（仅作者可更新）"""
         comment = await ShopDAO.get_comment_by_id(comment_id)
@@ -370,8 +417,8 @@ class ShopService:
         if comment.user_id != user_id:
             raise ValueError("无权修改他人评论")
 
-        updated_comment = await ShopDAO.update_comment(comment_id, update_data.content)
-        return cls._build_comment_response(updated_comment, user_id)
+        updated_comment = await ShopDAO.update_comment(comment_id, content)
+        return await cls._build_comment_response(updated_comment, user_id)
 
     @classmethod
     async def delete_comment(cls, user_id: int, comment_id: int, is_admin: bool = False) -> bool:
@@ -395,58 +442,91 @@ class ShopService:
         return {"is_liked": is_liked}
 
     @classmethod
-    def _build_comment_response(
+    async def _build_comment_response(
         cls,
         comment: Comments,
         current_user_id: Optional[int] = None
     ) -> CommentResponse:
         """构建评论响应（包含嵌套回复）"""
-        has_liked = False
-        if current_user_id:
-            # 同步检查点赞状态，这里简化处理
-            pass
+        try:
+            if DEBUG_LOG:
+                print(f"DEBUG _build_comment_response: Building response for comment {comment.id}")
+            
+            has_liked = False
+            if current_user_id:
+                # 同步检查点赞状态，这里简化处理
+                pass
 
-        return CommentResponse(
-            id=comment.id,
-            shop_id=comment.shop_id,
-            user=CommentUserResponse.from_orm(comment.user) if comment.user else None,
-            type=comment.type,
-            parent_id=comment.parent_id,
-            content=comment.content,
-            like_count=comment.like_count,
-            reply_count=comment.reply_count,
-            has_liked=has_liked,
-            created_at=comment.created_at,
-            updated_at=comment.updated_at
-        )
+            # 构建用户信息
+            # Tortoise ORM 中，如果预加载了 user，comment.user 是一个 Users 对象；
+            # 否则 comment.user_id 直接是 ID。通过 hasattr 检查 user_id 是否存在。
+            user = None
+            if hasattr(comment, 'user') and comment.user is not None:
+                # 如果 user 被预加载了，直接使用
+                if DEBUG_LOG:
+                    print(f"DEBUG _build_comment_response: User preloaded for comment {comment.id}")
+                user = CommentUserResponse(
+                    id=comment.user.id,
+                    username=comment.user.username,
+                    avatar=comment.user.avatar
+                )
+            elif hasattr(comment, 'user_id') and comment.user_id:
+                # 否则使用 user_id 查询用户（异步）
+                if DEBUG_LOG:
+                    print(f"DEBUG _build_comment_response: Querying user for comment {comment.id}, user_id={comment.user_id}")
+                user_obj = await Users.get_or_none(id=comment.user_id, is_active=True)
+                if user_obj:
+                    user = CommentUserResponse(
+                        id=user_obj.id,
+                        username=user_obj.username,
+                        avatar=user_obj.avatar
+                    )
+                if DEBUG_LOG:
+                    print(f"DEBUG _build_comment_response: User found={user_obj is not None} for comment {comment.id}")
 
-    @classmethod
-    def _build_comment_response_with_images(
-        cls,
-        comment: Comments,
-        images: List,
-        current_user_id: Optional[int] = None
-    ) -> CommentResponse:
-        """构建评论响应（包含图片）"""
-        has_liked = False
-        if current_user_id:
-            # 同步检查点赞状态，这里简化处理
-            pass
+            # 构建评论关联的图片列表（直接查询 Images 表）
+            images = []
+            if hasattr(comment, 'id') and comment.id:
+                if DEBUG_LOG:
+                    print(f"DEBUG _build_comment_response: Querying images for comment {comment.id}")
+                # Tortoise ORM 中 ReverseRelation 需要通过查询 Images 表获取
+                images_list = await Images.filter(
+                    entity_type="comment",
+                    entity_id=comment.id,
+                    is_active=True
+                ).all()
+                if DEBUG_LOG:
+                    print(f"DEBUG _build_comment_response: Found {len(images_list)} images for comment {comment.id}")
+                for img in images_list:
+                    images.append(CommentImageResponse(
+                        id=img.id,
+                        url=img.url,
+                        created_at=img.created_at
+                    ))
+            
+            if DEBUG_LOG:
+                print(f"DEBUG _build_comment_response: Built response for comment {comment.id}, user={user is not None}, images={len(images)}")
 
-        return CommentResponse(
-            id=comment.id,
-            shop_id=comment.shop_id,
-            user=CommentUserResponse.from_orm(comment.user) if comment.user else None,
-            type=comment.type,
-            parent_id=comment.parent_id,
-            content=comment.content,
-            like_count=comment.like_count,
-            reply_count=comment.reply_count,
-            images=[CommentImageResponse(id=img.id, url=img.url, created_at=img.created_at) for img in images],
-            has_liked=has_liked,
-            created_at=comment.created_at,
-            updated_at=comment.updated_at
-        )
+            return CommentResponse(
+                id=comment.id,
+                shop_id=comment.shop_id,
+                user=user,
+                type=comment.type,
+                parent_id=comment.parent_id,
+                content=comment.content,
+                like_count=comment.like_count,
+                reply_count=comment.reply_count,
+                images=images,
+                has_liked=has_liked,
+                created_at=comment.created_at,
+                updated_at=comment.updated_at
+            )
+        except Exception as e:
+            if DEBUG_LOG:
+                import traceback
+                print(f"DEBUG _build_comment_response Error for comment {comment.id}: {str(e)}")
+                print(traceback.format_exc())
+            raise
 
     # ============ 图片上传服务 ============
 

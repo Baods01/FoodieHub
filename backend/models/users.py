@@ -15,6 +15,8 @@ class Users(BaseModel):
     email = fields.CharField(max_length=100, unique=True, null=False, description="电子邮箱，用于通知")
     avatar = fields.CharField(max_length=255, null=True, description="头像图片URL")
     bio = fields.TextField(null=True, description="个人简介")
+    nickname = fields.CharField(max_length=30, null=True, description="昵称（用户显示名）")
+    gender = fields.CharField(max_length=10, null=True, description="性别：male/female/other")
     role = fields.IntField(default=0, null=False, description="角色：0:user（普通用户）、1:admin（管理员）")
 
     class Meta:
@@ -75,6 +77,7 @@ class Messages(BaseModel):
     content = fields.TextField(null=False, description="消息内容")
     related_entity_type = fields.CharField(max_length=50, null=True, description="关联实体类型（如comment、answer）")
     related_entity_id = fields.IntField(null=True, description="关联实体ID，用于跳转")
+    is_read = fields.BooleanField(default=False, description="是否已读")
 
     class Meta:
         table = "messages"
