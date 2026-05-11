@@ -4,7 +4,9 @@ from tortoise.expressions import Q
 from models.shops import Shops, Menu, Ratings, Comments, CommentsLikes
 from models.dict import DictData, ShopDictRel
 from models.images import Images
-from models.users import Activities
+from models.users import Activities, Favorites, Messages
+from models.logs import UserBehaviorLogs
+from models.reviews import ShopEditRequests
 
 
 class ShopDAO:
@@ -219,30 +221,47 @@ class ShopDAO:
         cls,
         shop_id: int,
         user_id: int,
-        type: str,
         content: str,
+        type: str = "comment",
         parent_id: Optional[int] = None
     ) -> Comments:
-        """创建评论/提问"""
+        """创建评论（纯文字）
+        
+        Args:
+            shop_id: 店铺ID
+            user_id: 用户ID
+            content: 评论内容
+            type: 评论类型，默认为 "comment"
+            parent_id: 父评论ID，用于回复评论
+            
+        Returns:
+            创建的评论对象
+        """
         # 确定 root_id
-        root_id = parent_id
-        if parent_id:
-            parent = await Comments.get_or_none(id=parent_id)
+        # 一级评论（parent_id=None 或 parent_id=0）：root_id=None
+        # 回复评论（parent_id>0）：root_id=父评论的root_id或父评论ID
+        root_id = None
+        parent_comment_id = None  # 用于更新回复数的实际父评论ID
+        if parent_id and parent_id > 0:
+            parent = await Comments.get_or_none(id=parent_id, is_active=True)
             if parent:
                 root_id = parent.root_id or parent_id
+                parent_comment_id = parent_id
+            else:
+                raise ValueError(f"父评论不存在 (ID: {parent_id})")
         
         comment = await Comments.create(
             shop_id=shop_id,
             user_id=user_id,
             type=type,
             content=content,
-            parent_id=parent_id,
+            parent_id=parent_comment_id,  # 当 parent_id=0 时，设置为 None
             root_id=root_id
         )
         
         # 更新父评论的回复数
-        if parent_id:
-            parent = await Comments.get_or_none(id=parent_id)
+        if parent_comment_id:
+            parent = await Comments.get_or_none(id=parent_comment_id, is_active=True)
             if parent:
                 parent.reply_count += 1
                 await parent.save()
@@ -267,12 +286,13 @@ class ShopDAO:
         query = Comments.filter(shop_id=shop_id, is_active=True, parent_id=None)
         if type:
             query = query.filter(type=type)
+        # 预加载用户（图片无法通过 prefetch_related 预加载，因为是多态关联）
         return await query.order_by("-created_at").limit(limit).offset(offset).prefetch_related("user")
 
     @classmethod
     async def get_comment_replies(cls, comment_id: int) -> List[Comments]:
-        """获取评论的所有回复"""
-        return await Comments.filter(root_id=comment_id, is_active=True).order_by("created_at").prefetch_related("user").all()
+        """获取评论的所有直接子回复（二级评论）"""
+        return await Comments.filter(parent_id=comment_id, is_active=True).order_by("created_at").prefetch_related("user").all()
 
     @classmethod
     async def get_comment_by_id(cls, comment_id: int) -> Optional[Comments]:
@@ -510,3 +530,226 @@ class ShopDAO:
         )
         
         return await query.order_by("-created_at").limit(limit).offset(offset).all()
+
+    # ============ 店铺编辑申请操作 ============
+
+    @classmethod
+    async def create_edit_request(
+        cls,
+        shop_id: int,
+        user_id: int,
+        proposed_data: dict,
+        request_type: str = "correction"  # "correction" 勘误, "merge" 重复店铺合并
+    ) -> ShopEditRequests:
+        """创建店铺编辑申请（勘误或重复店铺合并反馈）
+        
+        Args:
+            shop_id: 店铺ID（勘误反馈时为单个店铺ID）
+            user_id: 用户ID
+            proposed_data: 提议修改的字段及新值（JSON格式）
+            request_type: 申请类型，"correction" 勘误, "merge" 重复店铺合并
+            
+        Returns:
+            创建的申请对象
+        """
+        return await ShopEditRequests.create(
+            shop_id=shop_id,
+            user_id=user_id,
+            proposed_data=proposed_data,
+            request_type=request_type
+        )
+
+    @classmethod
+    async def create_merge_request(
+        cls,
+        user_id: int,
+        shop_ids: List[int],
+        selected_main_shop_id: int,
+        proposed_name: str
+    ) -> ShopEditRequests:
+        """创建重复店铺合并申请
+        
+        Args:
+            user_id: 用户ID
+            shop_ids: 申报的重复店铺ID列表
+            selected_main_shop_id: 选择的主店铺ID
+            proposed_name: 合并后店铺名称
+            
+        Returns:
+            创建的申请对象
+        """
+        proposed_data = {
+            "shop_ids": shop_ids,
+            "selected_main_shop_id": selected_main_shop_id,
+            "proposed_name": proposed_name
+        }
+        return await ShopEditRequests.create(
+            shop_id=selected_main_shop_id,  # 记录主店铺ID
+            user_id=user_id,
+            proposed_data=proposed_data,
+            request_type="merge"
+        )
+
+    @classmethod
+    async def get_edit_requests_by_status(
+        cls,
+        status: str = "pending",
+        request_type: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0
+    ) -> List[ShopEditRequests]:
+        """按状态获取编辑申请列表（管理员用）
+        
+        Args:
+            status: 申请状态
+            request_type: 申请类型（"correction" 或 "merge"）
+            limit: 每页数量
+            offset: 偏移量
+            
+        Returns:
+            申请列表（包含用户信息）
+        """
+        query = ShopEditRequests.filter(status=status, is_active=True).order_by("-created_at")
+        
+        if request_type:
+            # 通过 proposed_data 中的 request_type 字段筛选
+            # Tortoise ORM 不直接支持 JSON 查询，这里需要手动过滤
+            pass
+        
+        query = query.prefetch_related("user", "admin")
+        
+        if limit:
+            query = query.limit(limit)
+        if offset:
+            query = query.offset(offset)
+            
+        return await query.all()
+
+    @classmethod
+    async def update_edit_request_status(
+        cls,
+        request_id: int,
+        status: str,
+        admin_id: Optional[int] = None
+    ) -> Optional[ShopEditRequests]:
+        """更新申请状态（管理员审核）"""
+        request = await ShopEditRequests.get_or_none(id=request_id, is_active=True)
+        if request:
+            request.status = status
+            if admin_id:
+                request.admin_id = admin_id
+            await request.save()
+            return request
+        return None
+
+    # ============ 用户活动操作 ============
+
+    @classmethod
+    async def get_user_activities(
+        cls,
+        user_id: int,
+        type: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0
+    ) -> List[Activities]:
+        """获取用户活动记录（动态）
+        
+        Args:
+            user_id: 用户ID
+            type: 活动类型（可选）
+            limit: 每页数量
+            offset: 偏移量
+            
+        Returns:
+            活动记录列表（包含关联信息）
+        """
+        query = Activities.filter(user_id=user_id, is_active=True).order_by("-created_at")
+        
+        if type:
+            query = query.filter(type=type)
+            
+        return await query.limit(limit).offset(offset).prefetch_related("user").all()
+
+    # ============ 收藏操作 ============
+
+    @classmethod
+    async def create_favorite(
+        cls,
+        user_id: int,
+        shop_id: int,
+        sort_order: int = 0
+    ) -> Favorites:
+        """创建收藏"""
+        return await Favorites.create(
+            user_id=user_id,
+            shop_id=shop_id,
+            sort_order=sort_order
+        )
+
+    @classmethod
+    async def delete_favorite(
+        cls,
+        user_id: int,
+        shop_id: int
+    ) -> bool:
+        """删除收藏（取消收藏）"""
+        favorite = await Favorites.get_or_none(user_id=user_id, shop_id=shop_id, is_active=True)
+        if favorite:
+            favorite.is_active = False
+            await favorite.save()
+            return True
+        return False
+
+    @classmethod
+    async def get_user_favorites(
+        cls,
+        user_id: int,
+        limit: int = 20,
+        offset: int = 0
+    ) -> List[Favorites]:
+        """获取用户收藏列表"""
+        return await Favorites.filter(
+            user_id=user_id,
+            is_active=True
+        ).order_by("-sort_order", "-created_at").limit(limit).offset(offset).prefetch_related("shop").all()
+
+    @classmethod
+    async def has_user_favorite(
+        cls,
+        user_id: int,
+        shop_id: int
+    ) -> bool:
+        """检查用户是否已收藏该店铺"""
+        return await Favorites.filter(user_id=user_id, shop_id=shop_id, is_active=True).exists()
+
+    # ============ 浏览历史操作 ============
+
+    @classmethod
+    async def create_view_log(
+        cls,
+        user_id: int,
+        shop_id: int,
+        session_id: Optional[str] = None
+    ) -> UserBehaviorLogs:
+        """创建浏览记录（自动合并重复）"""
+        return await UserBehaviorLogs.create(
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            target_id=shop_id,
+            session_id=session_id
+        )
+
+    @classmethod
+    async def get_user_view_history(
+        cls,
+        user_id: int,
+        limit: int = 20,
+        offset: int = 0
+    ) -> List[UserBehaviorLogs]:
+        """获取用户浏览历史"""
+        return await UserBehaviorLogs.filter(
+            user_id=user_id,
+            behavior_type="view_shop",
+            is_active=True
+        ).order_by("-created_at").limit(limit).offset(offset).prefetch_related("user").all()
