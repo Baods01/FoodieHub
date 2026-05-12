@@ -245,6 +245,7 @@ class ShopListItem(BaseModel):
     comment_count: int = Field(description="评论数")
     cover_image: Optional[str] = Field(default=None, description="封面图片")
     dict_data: Optional[List[DictDataSimpleResponse]] = Field(default=None, description="字典数据")
+    is_favorited: bool = Field(default=False, description="当前用户是否已收藏")
     created_at: datetime = Field(description="创建时间")
 
     class Config:

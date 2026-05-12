@@ -179,11 +179,23 @@ class ShopService:
         sort_by: str = "favorite_count",
         sort_order: str = "desc",
         page: int = 1,
-        page_size: int = 20
+        page_size: int = 20,
+        current_user_id: Optional[int] = None
     ) -> dict:
         """
         搜索店铺列表
         返回包含数据和分页信息的字典
+        
+        Args:
+            keyword: 搜索关键词
+            category_codes: 品类筛选编码列表
+            district_codes: 区域筛选编码列表
+            min_rating: 最低评分筛选
+            sort_by: 排序字段
+            sort_order: 排序方向
+            page: 页码
+            page_size: 每页数量
+            current_user_id: 当前用户ID（用于返回收藏状态）
         """
         offset = (page - 1) * page_size
         shops = await ShopDAO.search_shops(
@@ -205,6 +217,15 @@ class ShopService:
             min_rating=min_rating
         )
 
+        # 如果用户已登录，获取用户所有收藏的店铺ID
+        favorited_shop_ids = set()
+        if current_user_id:
+            from models.users import Favorites
+            favorited_shop_ids = set(await Favorites.filter(
+                user_id=current_user_id,
+                is_active=True
+            ).values_list('shop_id', flat=True))
+
         # 构建列表项
         shop_list = []
         for shop in shops:
@@ -224,6 +245,7 @@ class ShopService:
                 comment_count=shop.comment_count,
                 cover_image=cover_image,
                 dict_data=[DictDataSimpleResponse.from_orm(dd) for dd in dict_data],
+                is_favorited=shop.id in favorited_shop_ids,  # 添加收藏状态
                 created_at=shop.created_at
             ))
 
