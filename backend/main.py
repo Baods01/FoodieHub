@@ -13,6 +13,7 @@ from config import settings
 from routers.users import router as users_router
 from routers.shops import router as shops_router
 from routers.favorites import router as favorites_router
+from routers.comments_likes import router as comments_likes_router
 
 
 @asynccontextmanager
@@ -72,6 +73,7 @@ register_tortoise(
 app.include_router(users_router, tags=["用户模块"])
 app.include_router(shops_router, tags=["店铺模块"])
 app.include_router(favorites_router, tags=["收藏模块"])
+app.include_router(comments_likes_router, tags=["评论点赞模块"])
 
 # 配置静态文件服务（图片）
 from pathlib import Path

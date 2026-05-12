@@ -31,6 +31,10 @@ from .reviews import (
 from .comments import (
     CommentCreateRequest,
 )
+from .comments_likes import (
+    CommentLikeCreate,
+    CommentLikeResponse,
+)
 from .images import (
     ImageUploadRequest, MenuItemWithImageRequest,
     ImageResponse as ImageUploadResponse, MenuItemImageResponse
@@ -112,4 +116,7 @@ __all__ = [
     'MenuItemImageResponse',
     # Comments
     'CommentCreateRequest',
+    # Comments Likes
+    'CommentLikeCreate',
+    'CommentLikeResponse',
 ]

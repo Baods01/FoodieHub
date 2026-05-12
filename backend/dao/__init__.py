@@ -5,6 +5,7 @@ from .favorite_dao import FavoriteDAO
 from .message_dao import MessageDAO
 from .complaint_dao import ComplaintDAO
 from .analytics_dao import AnalyticsDAO
+from .comments_likes_dao import CommentsLikesDAO
 
 __all__ = [
     "UserDAO",
@@ -13,4 +14,5 @@ __all__ = [
     "MessageDAO",
     "ComplaintDAO",
     "AnalyticsDAO",
+    "CommentsLikesDAO",
 ]
