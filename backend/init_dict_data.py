@@ -43,6 +43,18 @@ LOCATION_DATA = [
     {"code": "wai_outside", "name": "校外"},
 ]
 
+# 举报原因字典数据
+COMPLAINT_REASON_DATA = [
+    {"code": "advertisement", "name": "广告营销", "description": "包含商业广告、推广引流等内容"},
+    {"code": "personal_attack", "name": "人身攻击", "description": "包含辱骂、诽谤、恶意攻击等内容"},
+    {"code": "false_info", "name": "信息不实", "description": "店铺信息、评论内容等与事实不符"},
+    {"code": "inappropriate_image", "name": "图片违规", "description": "包含无关广告图、令人不适的图片"},
+    {"code": "spam", "name": "恶意刷屏", "description": "重复发布相同内容或无意义内容"},
+    {"code": "rumor", "name": "造谣恶评", "description": "故意发布虚假负面信息进行抹黑"},
+    {"code": "privacy", "name": "涉及隐私", "description": "泄露他人隐私信息"},
+    {"code": "other", "name": "其他", "description": "其他违反社区规范的行为"},
+]
+
 
 async def init_dict_data():
     """初始化字典数据"""
@@ -110,6 +122,31 @@ async def init_dict_data():
         if created:
             print(f"  创建区域: {data.name}")
 
+    # 创建举报原因类型
+    complaint_type, complaint_created = await DictTypes.get_or_create(
+        code="complaint_reason",
+        defaults={
+            "name": "举报原因",
+            "target_table": "complaints",
+            "description": "举报原因类型，如广告营销、人身攻击等",
+        },
+    )
+    print(f"{'创建' if complaint_created else '已存在'} 举报原因类型: {complaint_type.name}")
+
+    # 初始化举报原因数据
+    for item in COMPLAINT_REASON_DATA:
+        data, created = await DictData.get_or_create(
+            dict_type=complaint_type,
+            code=item["code"],
+            defaults={
+                "name": item["name"],
+                "description": item["description"],
+                "sort_order": len([x for x in COMPLAINT_REASON_DATA if COMPLAINT_REASON_DATA.index(x) < COMPLAINT_REASON_DATA.index(item)]),
+            },
+        )
+        if created:
+            print(f"  创建举报原因: {data.name}")
+
     print("\n字典数据初始化完成！")
     print("\n可用的字典数据 ID：")
     print("品类：")
@@ -117,6 +154,9 @@ async def init_dict_data():
         print(f"  ID: {data.id} - {data.name} (code: {data.code})")
     print("\n区域：")
     async for data in DictData.filter(dict_type=location_type):
+        print(f"  ID: {data.id} - {data.name} (code: {data.code})")
+    print("\n举报原因：")
+    async for data in DictData.filter(dict_type=complaint_type):
         print(f"  ID: {data.id} - {data.name} (code: {data.code})")
 
     # 关闭数据库连接

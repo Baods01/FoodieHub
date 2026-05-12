@@ -12,6 +12,7 @@ from tortoise.contrib.fastapi import register_tortoise
 from config import settings
 from routers.users import router as users_router
 from routers.shops import router as shops_router
+from routers.complaints import router as complaints_router
 
 
 @asynccontextmanager
@@ -70,6 +71,7 @@ register_tortoise(
 # 注册路由
 app.include_router(users_router, tags=["用户模块"])
 app.include_router(shops_router, tags=["店铺模块"])
+app.include_router(complaints_router, tags=["举报模块"])
 
 # 配置静态文件服务（图片）
 from pathlib import Path
