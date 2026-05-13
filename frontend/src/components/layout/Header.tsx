@@ -7,11 +7,11 @@ export function Header() {
   const avatarUrl: string | null = null;
 
   return (
-    <header className="h-14 px-4 flex items-center justify-between bg-white border-b border-gray-100">
+    <header className="h-14 px-4 flex items-center justify-between bg-gradient-to-r from-[#FF7E3A] to-[#FF9A5C]">
       {/* Left: brand */}
       <Link
         to="/"
-        className="font-bold bg-gradient-to-r from-[#FF7E3A] to-[#FF9A5C] bg-clip-text text-transparent"
+        className="font-bold text-white"
         style={{ fontSize: 20 }}
       >
         食探社
@@ -27,12 +27,12 @@ export function Header() {
               nickname.charAt(0)
             )}
           </div>
-          <span className="text-sm text-gray-700">{nickname}</span>
+          <span className="text-sm text-white">{nickname}</span>
         </Link>
       ) : (
         <Link
           to="/login"
-          className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-sm text-white/80 hover:text-white transition-colors"
         >
           登录/注册
         </Link>

@@ -1,4 +1,4 @@
-import type { ShopCardData, ShopFilter } from '../types/shop';
+import type { ShopCardData, ShopFilter, ShopDetail, MenuItem } from '../types/shop';
 import type { PaginatedResult } from '../types/common';
 
 // ===== 接口签名（预留给后端对接） =====
@@ -23,6 +23,25 @@ export async function fetchAreas(): Promise<string[]> {
   // const { data } = await apiClient.get<ApiResponse<string[]>>('/dictionaries/areas');
   // return data.data;
   return mockAreas();
+}
+
+// ===== 详情页接口 =====
+
+export async function fetchShopDetail(shopId: number): Promise<ShopDetail> {
+  // const { data } = await apiClient.get<ApiResponse<ShopDetail>>(`/shops/${shopId}`);
+  // return data.data;
+  return mockFetchShopDetail(shopId);
+}
+
+export async function submitRating(shopId: number, rating: number): Promise<void> {
+  // await apiClient.post(`/shops/${shopId}/rate`, { rating });
+  return mockSubmitRating(shopId, rating);
+}
+
+export async function toggleFavorite(shopId: number): Promise<boolean> {
+  // const { data } = await apiClient.post<ApiResponse<boolean>>(`/shops/${shopId}/favorite`);
+  // return data.data;
+  return mockToggleFavorite(shopId);
 }
 
 export async function fetchAnnouncement(): Promise<{ title: string; content: string } | null> {
@@ -123,4 +142,46 @@ function mockFetchShops(filter: ShopFilter): Promise<PaginatedResult<ShopCardDat
     pageSize,
     hasMore: start + pageSize < total,
   }));
+}
+
+// ===== 详情页 Mock 数据 =====
+
+const mockMenu: MenuItem[] = [
+  { id: 1, name: '招牌芋圆', price: 12, description: '手工芋圆搭配红豆、仙草、芋泥，口感丰富', image: 'https://picsum.photos/seed/menu1/200/200' },
+  { id: 2, name: '杨枝甘露', price: 15, description: '芒果+西柚+椰汁，经典港式甜品', image: 'https://picsum.photos/seed/menu2/200/200' },
+  { id: 3, name: '椰汁西米露', price: 10, description: '椰香浓郁，西米Q弹', image: 'https://picsum.photos/seed/menu3/200/200' },
+  { id: 4, name: '烧仙草', price: 11, description: '手工烧仙草搭配芋圆、花生、葡萄干', image: null },
+  { id: 5, name: '双皮奶', price: 13, description: '顺德传统双皮奶，奶香浓郁', image: null },
+  { id: 6, name: '绿豆沙', price: 8, description: '冰镇绿豆沙，夏日消暑必备', image: null },
+];
+
+const mockAlbumImages = Array.from({ length: 6 }, (_, i) => `https://picsum.photos/seed/album1_${i + 1}/400/400`);
+
+let favoriteState: Record<number, boolean> = {};
+const ratingState: Record<number, number> = {};
+
+function mockFetchShopDetail(shopId: number): Promise<ShopDetail> {
+  const base = mockShopData.find((s) => s.id === shopId);
+  if (!base) return delay().then(() => { throw new Error('NOT_FOUND'); });
+
+  return delay().then(() => ({
+    ...base,
+    description: '华农西门开了十年的老字号糖水铺，手工制作，真材实料。招牌芋圆是每个华农学子的青春记忆。',
+    menu: mockMenu,
+    albumImages: mockAlbumImages,
+    ratingDistribution: { 5: 20, 4: 12, 3: 6, 2: 3, 1: 1 },
+    totalRatings: 42,
+    userRating: ratingState[shopId] ?? null,
+    isFavorited: favoriteState[shopId] ?? false,
+  }));
+}
+
+function mockSubmitRating(shopId: number, rating: number): Promise<void> {
+  ratingState[shopId] = rating;
+  return delay().then(() => {});
+}
+
+function mockToggleFavorite(shopId: number): Promise<boolean> {
+  favoriteState[shopId] = !(favoriteState[shopId] ?? false);
+  return delay().then(() => favoriteState[shopId]);
 }

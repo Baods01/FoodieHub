@@ -12,12 +12,15 @@ export interface ShopCardData {
   tags: string[];
 }
 
-/** 店铺详情数据（详情页用，暂留占位） */
+/** 店铺详情数据 */
 export interface ShopDetail extends ShopCardData {
   description: string;
   menu: MenuItem[];
-  environmentImages: string[];
+  albumImages: string[];
   ratingDistribution: Record<1 | 2 | 3 | 4 | 5, number>;
+  totalRatings: number;
+  userRating: number | null;
+  isFavorited: boolean;
 }
 
 export interface MenuItem {
@@ -26,6 +29,12 @@ export interface MenuItem {
   price: number;
   description: string;
   image: string | null;
+}
+
+/** 评分提交请求 */
+export interface RatingSubmit {
+  shopId: number;
+  rating: number;
 }
 
 /** 排序选项 */
