@@ -110,7 +110,7 @@ function mockPostQuestion(_shopId: number, title: string, content: string): Prom
   return delay().then(() => q);
 }
 
-const answerIdCounter = 100;
+let answerIdCounter = 100;
 const qAnswerMap: Record<number, Answer[]> = {};
 mockQuestions.forEach((q) => { qAnswerMap[q.id] = [...q.answers]; });
 

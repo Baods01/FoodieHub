@@ -124,7 +124,7 @@ function mockToggleCommentLike(commentId: number): Promise<boolean> {
   return delay().then(() => likeState[commentId]);
 }
 
-const replyIdCounter = 500;
+let replyIdCounter = 500;
 
 function mockReplyComment(commentId: number, content: string, targetUserName?: string): Promise<CommentReply> {
   const reply: CommentReply = {

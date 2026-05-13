@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { fetchShopDetail, submitRating, toggleFavorite } from '../api/shops';
+import { fetchShopDetail, submitRating } from '../api/shops';
 import type { ShopDetail } from '../types/shop';
 import { ShopCarousel } from '../components/shop/ShopCarousel';
 import { ShopInfoSection } from '../components/shop/ShopInfoSection';
