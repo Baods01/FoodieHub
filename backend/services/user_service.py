@@ -8,7 +8,8 @@ from config import settings
 from dao.user_dao import UserDAO
 from schemas.users import (
     UserCreate, UserLogin, UserResponse, LoginResponse,
-    UserUpdate, UserProfileResponse, UserStats
+    UserUpdate, UserProfileResponse, UserStats,
+    UserComment, UserFavorite
 )
 from services.password_service import PasswordService
 
@@ -143,11 +144,13 @@ class UserService:
             raise ValueError("用户不存在")
 
     @staticmethod
-    async def get_profile(user_id: int) -> UserProfileResponse:
+    async def get_profile(user_id: int) -> dict:
         """
         获取用户个人主页信息
-        - 包含用户基本信息和统计数据
+        - 包含用户基本信息、统计数据和详细列表
         """
+        from schemas.users import UserProfileResponse, UserComment, UserFavorite
+        
         # 获取用户基本信息
         user = await UserDAO.find_by_id(user_id)
         if not user:
@@ -155,11 +158,58 @@ class UserService:
         
         # 获取用户统计数据
         stats_dict = await UserDAO.get_user_stats(user_id)
-        stats = UserStats(**stats_dict)
         
-        # 构建响应
-        user_response = UserResponse.model_validate(user)
-        return UserProfileResponse(user=user_response, stats=stats)
+        # 获取用户评论列表（最新10条）
+        comments = await UserDAO.get_user_comments(user_id, limit=10, offset=0)
+        comment_list = [UserComment(**c) for c in comments]
+        
+        # 获取用户收藏列表（最新10条）
+        favorites = await UserDAO.get_user_favorites(user_id, limit=10, offset=0)
+        favorite_list = [UserFavorite(**f) for f in favorites]
+        
+        # 获取用户问答数
+        question_count = await UserDAO.get_user_questions_count(user_id)
+        
+        return {
+            "user": UserResponse.model_validate(user),
+            "stats": UserStats(**stats_dict),
+            "comments": comment_list,
+            "favorites": favorite_list,
+            "question_count": question_count
+        }
+
+    @staticmethod
+    async def get_profile_with_details(user_id: int) -> dict:
+        """
+        获取用户个人主页完整信息
+        - 包含用户基本信息、统计数据和详细列表
+        """
+        from schemas.users import UserProfileResponse
+        
+        # 获取用户基本信息
+        user = await UserDAO.find_by_id(user_id)
+        if not user:
+            raise ValueError("用户不存在")
+        
+        # 获取用户统计数据
+        stats_dict = await UserDAO.get_user_stats(user_id)
+        
+        # 获取用户评论列表（最新10条）
+        comments = await UserDAO.get_user_comments(user_id, limit=10, offset=0)
+        
+        # 获取用户收藏列表（最新10条）
+        favorites = await UserDAO.get_user_favorites(user_id, limit=10, offset=0)
+        
+        # 获取用户问答数
+        question_count = await UserDAO.get_user_questions_count(user_id)
+        
+        return {
+            "user": UserResponse.model_validate(user),
+            "stats": stats_dict,
+            "comments": comments,
+            "favorites": favorites,
+            "question_count": question_count
+        }
 
     @staticmethod
     def filter_sensitive_words(text: Optional[str]) -> Optional[str]:

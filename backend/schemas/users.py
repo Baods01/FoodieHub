@@ -95,9 +95,28 @@ class LoginResponse(BaseModel):
     expires_in: int = Field(description="过期时间（秒）")
 
 
+class UserComment(BaseModel):
+    """用户评论信息"""
+    comment_id: int = Field(description="评论ID")
+    content: str = Field(description="评论内容")
+    created_at: datetime = Field(description="评论时间")
+    reply_count: int = Field(default=0, description="回复数")
+    like_count: int = Field(default=0, description="点赞数")
+    shop_id: int = Field(description="店铺ID")
+    shop_name: str = Field(description="店铺名称")
+
+
+class UserFavorite(BaseModel):
+    """用户收藏信息"""
+    favorite_id: int = Field(description="收藏ID")
+    sort_order: int = Field(default=0, description="排序序号")
+    created_at: datetime = Field(description="收藏时间")
+    shop_id: int = Field(description="店铺ID")
+    shop_name: str = Field(description="店铺名称")
+
+
 class UserStats(BaseModel):
     """用户统计数据"""
-    shop_count: int = Field(default=0, description="上传店铺数")
     comment_count: int = Field(default=0, description="评论数")
     rating_count: int = Field(default=0, description="评分数")
     favorite_count: int = Field(default=0, description="收藏数")
