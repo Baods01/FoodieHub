@@ -379,13 +379,19 @@ class ShopDAO:
         shop_id: int,
         score: int
     ) -> Ratings:
-        """创建或更新用户评分"""
+        """创建或更新用户评分，并生成动态记录"""
+        from services.user_activities_service import UserActivitiesService
+        
         rating = await Ratings.get_or_none(user_id=user_id, shop_id=shop_id, is_active=True)
         if rating:
             rating.score = score
             await rating.save()
         else:
             rating = await Ratings.create(user_id=user_id, shop_id=shop_id, score=score)
+        
+        # 创建评分动态
+        await UserActivitiesService.create_rating_activity(user_id, shop_id, score)
+        
         return rating
 
     @classmethod
@@ -441,7 +447,7 @@ class ShopDAO:
         type: str = "comment",
         parent_id: Optional[int] = None
     ) -> Comments:
-        """创建评论（纯文字）
+        """创建评论（纯文字），并生成动态记录
         
         Args:
             shop_id: 店铺ID
@@ -453,6 +459,8 @@ class ShopDAO:
         Returns:
             创建的评论对象
         """
+        from services.user_activities_service import UserActivitiesService
+        
         # 确定 root_id
         # 一级评论（parent_id=None 或 parent_id=0）：root_id=None
         # 回复评论（parent_id>0）：root_id=父评论的root_id或父评论ID
@@ -474,6 +482,9 @@ class ShopDAO:
             parent_id=parent_comment_id,  # 当 parent_id=0 时，设置为 None
             root_id=root_id
         )
+        
+        # 创建评论动态
+        await UserActivitiesService.create_comment_activity(user_id, comment.id, shop_id)
         
         # 更新父评论的回复数
         if parent_comment_id:
@@ -895,12 +906,19 @@ class ShopDAO:
         shop_id: int,
         sort_order: int = 0
     ) -> Favorites:
-        """创建收藏"""
-        return await Favorites.create(
+        """创建收藏，并生成动态记录"""
+        from services.user_activities_service import UserActivitiesService
+        
+        favorite = await Favorites.create(
             user_id=user_id,
             shop_id=shop_id,
             sort_order=sort_order
         )
+        
+        # 创建收藏动态
+        await UserActivitiesService.create_favorite_activity(user_id, shop_id)
+        
+        return favorite
 
     @classmethod
     async def delete_favorite(

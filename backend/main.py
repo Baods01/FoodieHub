@@ -15,6 +15,7 @@ from routers.shops import router as shops_router
 from routers.favorites import router as favorites_router
 from routers.comments_likes import router as comments_likes_router
 from routers.complaints import router as complaints_router
+from routers.user_activities import router as user_activities_router
 
 
 @asynccontextmanager
@@ -76,6 +77,7 @@ app.include_router(shops_router, tags=["店铺模块"])
 app.include_router(favorites_router, tags=["收藏模块"])
 app.include_router(comments_likes_router, tags=["评论点赞模块"])
 app.include_router(complaints_router, tags=["举报模块"])
+app.include_router(user_activities_router, tags=["用户动态模块"])
 
 # 配置静态文件服务（图片）
 from pathlib import Path

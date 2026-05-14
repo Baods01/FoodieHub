@@ -4,6 +4,7 @@ from models.shops import Comments
 
 from dao.message_dao import MessageDAO
 from dao.comments_likes_dao import CommentsLikesDAO
+from services.user_activities_service import UserActivitiesService
 
 
 class CommentsLikesService:
@@ -37,9 +38,11 @@ class CommentsLikesService:
         # 获取新的点赞数
         like_count = await CommentsLikesDAO.get_like_count(comment_id)
         
-        # 首次点赞时发送通知
+        # 首次点赞时发送通知和生成动态
         if is_liked:
             await cls.send_like_notification(comment_id, user_id)
+            # 创建点赞动态
+            await UserActivitiesService.create_like_activity(user_id, comment_id)
         
         return {
             "is_liked": is_liked,
@@ -55,8 +58,8 @@ class CommentsLikesService:
             comment_id: 评论ID
             user_id: 点赞用户ID
         """
-        # 获取评论详情
-        comment = await Comments.get_or_none(id=comment_id).prefetch_related("user")
+        # 获取评论详情（预加载 user 关联）
+        comment = await Comments.get_or_none(id=comment_id, is_active=True).select_related("user")
         if not comment:
             return
         

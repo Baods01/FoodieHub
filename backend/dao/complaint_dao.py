@@ -28,12 +28,12 @@ class ComplaintDAO:
     @classmethod
     async def get_complaint_by_id(cls, complaint_id: int) -> Optional[Complaints]:
         """根据ID获取举报详情"""
-        return await Complaints.get_or_none(id=complaint_id, is_active=True).prefetch_related("user")
+        return await Complaints.get_or_none(id=complaint_id, is_active=True).select_related("user")
 
     @classmethod
     async def get_complaint_with_user(cls, complaint_id: int) -> Optional[Complaints]:
         """获取举报详情（包含举报用户信息）"""
-        return await Complaints.get_or_none(id=complaint_id, is_active=True).prefetch_related("user")
+        return await Complaints.get_or_none(id=complaint_id, is_active=True).select_related("user")
 
     @classmethod
     async def get_complaints_by_status(
@@ -46,7 +46,7 @@ class ComplaintDAO:
         return await Complaints.filter(
             status=status,
             is_active=True
-        ).order_by("-created_at").limit(limit).offset(offset).prefetch_related("user").all()
+        ).order_by("-created_at").limit(limit).offset(offset).select_related("user").all()
 
     @classmethod
     async def get_complaints_by_user(
@@ -105,7 +105,7 @@ class ComplaintDAO:
         return await ComplaintHandlers.filter(
             complaint_id=complaint_id,
             is_active=True
-        ).order_by("created_at").limit(limit).offset(offset).prefetch_related("handler", "complaint").all()
+        ).order_by("created_at").limit(limit).offset(offset).select_related("handler", "complaint").all()
 
     @classmethod
     async def get_complaint_by_complainant(

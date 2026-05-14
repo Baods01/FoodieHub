@@ -1,6 +1,6 @@
 from typing import Optional
 
-from models.users import Favorites, Users
+from models.users import Favorites, Users, Activities
 from models.shops import Shops
 
 from dao.favorite_dao import FavoriteDAO
@@ -9,6 +9,7 @@ from schemas.favorites import (
     FavoriteResponse,
     FavoriteActionResponse
 )
+from services.user_activities_service import UserActivitiesService
 
 
 class FavoriteService:
@@ -58,6 +59,8 @@ class FavoriteService:
         else:
             # 添加收藏
             await FavoriteDAO.add_favorite(user_id, shop_id)
+            # 创建收藏动态
+            await UserActivitiesService.create_favorite_activity(user_id, shop_id)
             favorite_count = await FavoriteDAO.get_shop_favorite_count(shop_id)
             return FavoriteActionResponse(
                 success=True,
@@ -110,6 +113,8 @@ class FavoriteService:
 
         # 添加收藏
         await FavoriteDAO.add_favorite(user_id, shop_id)
+        # 创建收藏动态
+        await UserActivitiesService.create_favorite_activity(user_id, shop_id)
         favorite_count = await FavoriteDAO.get_shop_favorite_count(shop_id)
         return FavoriteActionResponse(
             success=True,

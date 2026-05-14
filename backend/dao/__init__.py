@@ -6,6 +6,7 @@ from .message_dao import MessageDAO
 from .complaint_dao import ComplaintDAO
 from .analytics_dao import AnalyticsDAO
 from .comments_likes_dao import CommentsLikesDAO
+from .user_activities_dao import UserActivitiesDAO
 
 __all__ = [
     "UserDAO",
@@ -15,4 +16,5 @@ __all__ = [
     "ComplaintDAO",
     "AnalyticsDAO",
     "CommentsLikesDAO",
+    "UserActivitiesDAO",
 ]

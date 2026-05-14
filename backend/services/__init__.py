@@ -3,6 +3,7 @@ from .user_service import UserService
 from .shop_service import ShopService
 from .favorite_service import FavoriteService
 from .comments_likes_service import CommentsLikesService
+from .user_activities_service import UserActivitiesService
 
 __all__ = [
     "PasswordService",
@@ -10,4 +11,5 @@ __all__ = [
     "ShopService",
     "FavoriteService",
     "CommentsLikesService",
+    "UserActivitiesService",
 ]

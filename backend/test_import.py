@@ -17,6 +17,16 @@ try:
     from schemas.comments_likes import CommentLikeCreate, CommentLikeResponse
     print("✓ schemas/comments_likes.py 导入成功")
     
+    # 新增动态模块测试
+    from routers.user_activities import router as user_activities_router
+    print("✓ routers/user_activities.py 导入成功")
+    
+    from services.user_activities_service import UserActivitiesService
+    print("✓ services/user_activities_service.py 导入成功")
+    
+    from dao.user_activities_dao import UserActivitiesDAO
+    print("✓ dao/user_activities_dao.py 导入成功")
+    
     print("\n所有模块导入成功！")
     
 except Exception as e:
