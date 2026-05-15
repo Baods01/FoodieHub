@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime
 from .users import UserResponse
 from .shops import ShopListItem
@@ -8,13 +8,27 @@ from .shops import ShopListItem
 # ============ 请求模型 ============
 
 class ShopEditRequestCreate(BaseModel):
-    """提交店铺信息修改申请请求"""
-    proposed_data: dict = Field(description="提议修改的字段及新值，JSON格式")
+    """提交店铺信息勘误反馈请求"""
+    shop_id: int = Field(description="待纠正的店铺ID")
+    name: Optional[str] = Field(default=None, max_length=100, description="新的店铺名称")
+    area_dict_data_id: Optional[int] = Field(default=None, description="新的区域字典项ID")
+    category_dict_data_id: Optional[int] = Field(default=None, description="新的品类字典项ID")
+    reason: Optional[str] = Field(default=None, max_length=500, description="勘误说明或补充理由")
+
+
+class ShopDuplicateRequestCreate(BaseModel):
+    """提交重复店铺反馈请求"""
+    candidate_shop_ids: List[int] = Field(
+        min_length=2,
+        description="至少选择两个疑似重复的店铺ID"
+    )
+    reason: Optional[str] = Field(default=None, max_length=500, description="重复判定理由")
 
 
 class ShopEditRequestApprove(BaseModel):
     """审核通过请求"""
     remark: Optional[str] = Field(default=None, max_length=255, description="审核备注")
+    main_shop_id: Optional[int] = Field(default=None, description="重复店铺合并时保留的主店铺ID")
 
 
 class ShopEditRequestReject(BaseModel):

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Request, UploadFile, File, Form, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from typing import Optional, List
 import traceback
 import os
@@ -13,6 +13,11 @@ from schemas.shops import (
 )
 from schemas.comments import CommentCreateRequest, CommentResponse
 from schemas.images import ImageUploadRequest, MenuItemWithImageRequest
+from schemas.reviews import (
+    ShopEditRequestCreate, ShopDuplicateRequestCreate,
+    ShopEditRequestApprove, ShopEditRequestReject,
+    ShopEditRequestListRequest, ShopEditRequestResponse
+)
 from schemas.common import ResponseModel
 from schemas.users import UserResponse
 from services.shop_service import ShopService
@@ -219,6 +224,10 @@ async def get_shop_detail(
     """
     try:
         user_id = current_user.id if current_user else None
+        redirect_target = await ShopService.get_shop_redirect_target(shop_id)
+        if redirect_target:
+            return RedirectResponse(url=f"/shops/{redirect_target}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
         shop = await ShopService.get_shop_detail(shop_id, user_id)
         return ResponseModel.success(data=shop, message="获取成功")
     except ValueError as e:
@@ -313,6 +322,184 @@ async def delete_shop(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="删除店铺失败"
+        )
+
+
+@router.post("/edit-request", response_model=ResponseModel[dict], summary="提交店铺信息勘误反馈")
+async def submit_shop_edit_request(
+    edit_request: ShopEditRequestCreate,
+    current_user: UserResponse = Depends(require_login)
+):
+    """
+    提交店铺信息勘误反馈，只有管理员审核后才会生效
+
+    **请求体字段：**
+    - `shop_id`: 店铺ID（必填）
+    - `name`: 新的店铺名称（可选）
+    - `area_dict_data_id`: 新的区域字典数据ID（可选）
+    - `category_dict_data_id`: 新的品类字典数据ID（可选）
+    - `reason`: 修改原因说明（可选）
+
+    **字典数据ID说明：**
+
+    **区域字典数据ID：**
+    - 9: 泰山区 (nei_taisan)
+    - 10: 华山区 (nei_huashan)
+    - 11: 启林区 (nei_qilin)
+    - 12: 六一区 (nei_liuyi)
+    - 13: 校外 (wai_outside)
+    - 14: 主校区 (zhuxiaoqu)
+
+    **品类字典数据ID：**
+    - 1: 地方菜 (local_cuisine)
+    - 2: 火锅 (hotpot)
+    - 3: 烧烤/烤肉 (barbecue)
+    - 4: 异域料理 (western_food)
+    - 5: 小吃快餐 (snacks)
+    - 6: 特色菜 (specialty)
+    - 7: 饮品 (drinks)
+    - 8: 甜点/面包 (desserts)
+
+    **注意事项：**
+    - 至少提供一个修改项（name、area_dict_data_id 或 category_dict_data_id）
+    - 如果只修改部分字段，其他字段将保持不变
+    - 同一用户对同一字段7天内只能提交一次反馈
+    - 同一店铺当天反馈数量上限为500条
+    - 所有字典数据ID必须存在于系统中
+    """
+    from utils.logger import debug_logger
+
+    debug_logger.info(f"[API] 收到勘误反馈请求 - user_id: {current_user.id}, request_data: {edit_request.dict()}")
+    try:
+        request_obj = await ShopService.submit_shop_correction_request(
+            current_user.id,
+            edit_request.shop_id,
+            edit_request.name,
+            edit_request.area_dict_data_id,
+            edit_request.category_dict_data_id,
+            edit_request.reason
+        )
+        debug_logger.info(f"[API] 勘误反馈提交成功 - request_id: {request_obj.id}")
+        return ResponseModel.success(data={"request_id": request_obj.id}, message="反馈提交成功，等待管理员审核")
+    except ValueError as e:
+        debug_logger.warning(f"[API] 勘误反馈业务错误 - user_id: {current_user.id}, error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        debug_logger.error(f"[API] 勘误反馈未知错误 - user_id: {current_user.id}, error: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="提交反馈失败"
+        )
+
+
+@router.post("/duplicate-request", response_model=ResponseModel[dict], summary="提交重复店铺反馈")
+async def submit_shop_duplicate_request(
+    duplicate_request: ShopDuplicateRequestCreate,
+    current_user: UserResponse = Depends(require_login)
+):
+    """提交疑似重复店铺反馈，只有管理员审核后才会生效"""
+    try:
+        request_obj = await ShopService.submit_duplicate_shop_request(
+            current_user.id,
+            duplicate_request.candidate_shop_ids,
+            duplicate_request.reason
+        )
+        return ResponseModel.success(data={"request_id": request_obj.id}, message="重复反馈提交成功，等待管理员审核")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="提交重复反馈失败"
+        )
+
+
+@router.get("/edit-requests", response_model=ResponseModel[dict], summary="查询店铺编辑/重复反馈列表")
+async def list_shop_edit_requests(
+    status: Optional[str] = Query(None, pattern="^(pending|approved|rejected)$", description="状态筛选"),
+    shop_id: Optional[int] = Query(None, description="店铺ID筛选"),
+    user_id: Optional[int] = Query(None, description="提交用户ID筛选"),
+    current_user: UserResponse = Depends(require_login)
+):
+    """管理员获取店铺编辑与重复反馈列表"""
+    try:
+        if current_user.role != 1:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限执行此操作"
+            )
+        result = await ShopService.list_shop_edit_requests(status=status, shop_id=shop_id, user_id=user_id)
+        return ResponseModel.success(data=result, message="获取成功")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取反馈列表失败"
+        )
+
+
+@router.post("/edit-requests/{request_id}/approve", response_model=ResponseModel[dict], summary="审核通过店铺编辑请求")
+async def approve_shop_edit_request(
+    request_id: int,
+    approve_data: ShopEditRequestApprove,
+    current_user: UserResponse = Depends(require_login)
+):
+    """管理员审核通过某条店铺编辑/重复反馈请求"""
+    try:
+        if current_user.role != 1:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限执行此操作"
+            )
+        await ShopService.approve_shop_edit_request(request_id, current_user.id, approve_data.main_shop_id)
+        return ResponseModel.success(data={}, message="审核通过")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="审核通过失败"
+        )
+
+
+@router.post("/edit-requests/{request_id}/reject", response_model=ResponseModel[dict], summary="拒绝店铺编辑请求")
+async def reject_shop_edit_request(
+    request_id: int,
+    reject_data: ShopEditRequestReject,
+    current_user: UserResponse = Depends(require_login)
+):
+    """管理员拒绝某条店铺编辑/重复反馈请求"""
+    try:
+        if current_user.role != 1:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限执行此操作"
+            )
+        await ShopService.reject_shop_edit_request(request_id, current_user.id, reject_data.reason)
+        return ResponseModel.success(data={}, message="已拒绝")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="拒绝失败"
         )
 
 

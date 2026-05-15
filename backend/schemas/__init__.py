@@ -24,6 +24,7 @@ from .messages import (
 from .activities import ActivityResponse, ActivityListResponse, ActivityStats
 from .reviews import (
     ShopEditRequestCreate as ReviewShopEditRequestCreate,
+    ShopDuplicateRequestCreate,
     ShopEditRequestApprove, ShopEditRequestReject,
     ShopEditRequestListRequest, ShopEditRequestResponse,
     ProposedDataResponse, EditRequestStats
@@ -103,6 +104,7 @@ __all__ = [
     'ActivityStats',
     # Reviews
     'ReviewShopEditRequestCreate',
+    'ShopDuplicateRequestCreate',
     'ShopEditRequestApprove',
     'ShopEditRequestReject',
     'ShopEditRequestListRequest',

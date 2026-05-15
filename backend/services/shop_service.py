@@ -3,10 +3,12 @@ from decimal import Decimal
 import asyncio
 
 from models.shops import Shops, Menu, Ratings, Comments
-from models.users import Users
+from models.users import Users, Favorites, Activities
 from models.images import Images
-from models.dict import DictData
+from models.dict import DictData, ShopDictRel
+from models.reviews import ShopEditRequests
 from dao.shop_dao import ShopDAO
+from dao.message_dao import MessageDAO
 
 # 调试日志开关
 DEBUG_LOG = True
@@ -170,6 +172,13 @@ class ShopService:
         )
 
     @classmethod
+    async def get_shop_redirect_target(cls, shop_id: int) -> Optional[int]:
+        shop = await ShopDAO.find_shop_by_id(shop_id, include_merged=True)
+        if shop and not shop.is_active and getattr(shop, 'merged_into_id', None):
+            return shop.merged_into_id
+        return None
+
+    @classmethod
     async def search_shops(
         cls,
         keyword: Optional[str] = None,
@@ -283,6 +292,478 @@ class ShopService:
             )
         
         return await cls.get_shop_detail(shop_id)
+
+    @classmethod
+    async def submit_shop_correction_request(
+        cls,
+        user_id: int,
+        shop_id: int,
+        name: Optional[str] = None,
+        area_dict_data_id: Optional[int] = None,
+        category_dict_data_id: Optional[int] = None,
+        reason: Optional[str] = None
+    ) -> ShopEditRequests:
+        """提交店铺信息勘误反馈"""
+        from utils.logger import debug_logger
+
+        debug_logger.info(f"[勘误反馈] 开始处理请求 - user_id: {user_id}, shop_id: {shop_id}")
+        debug_logger.info(f"[勘误反馈] 输入参数 - name: {name}, area_dict_data_id: {area_dict_data_id}, category_dict_data_id: {category_dict_data_id}, reason: {reason}")
+
+        # 将 0 值视为 None（前端可能将未填写字段设为 0）
+        if area_dict_data_id == 0:
+            area_dict_data_id = None
+            debug_logger.info("[勘误反馈] area_dict_data_id 为 0，已设为 None")
+        if category_dict_data_id == 0:
+            category_dict_data_id = None
+            debug_logger.info("[勘误反馈] category_dict_data_id 为 0，已设为 None")
+
+        try:
+            shop = await ShopDAO.find_shop_by_id(shop_id)
+            debug_logger.info(f"[勘误反馈] 查询店铺结果 - shop: {shop}")
+            if not shop:
+                debug_logger.error(f"[勘误反馈] 店铺不存在 - shop_id: {shop_id}")
+                raise ValueError("店铺不存在或已下线")
+
+            if not shop.is_active:
+                debug_logger.error(f"[勘误反馈] 店铺未上线 - shop_id: {shop_id}")
+                raise ValueError("只能对已上线店铺提交反馈")
+
+            if not any([name, area_dict_data_id, category_dict_data_id]):
+                debug_logger.error(f"[勘误反馈] 未提供任何修改项 - name: {name}, area: {area_dict_data_id}, category: {category_dict_data_id}")
+                raise ValueError("至少提供一个修改项：name、area_dict_data_id 或 category_dict_data_id")
+
+            changes = {}
+            debug_logger.info("[勘误反馈] 开始验证修改项")
+
+            if name is not None:
+                debug_logger.info(f"[勘误反馈] 验证名称 - name: {name}")
+                if not isinstance(name, str) or not name.strip():
+                    debug_logger.error(f"[勘误反馈] 名称无效 - name: {name}")
+                    raise ValueError("店铺名称必须为非空字符串")
+                if name.strip() == shop.name:
+                    debug_logger.error(f"[勘误反馈] 名称与当前值相同 - new: {name.strip()}, current: {shop.name}")
+                    raise ValueError("新名称必须与当前名称不同")
+                existing = await ShopDAO.find_shop_by_name(name.strip())
+                if existing and existing.id != shop_id:
+                    debug_logger.error(f"[勘误反馈] 名称已被占用 - name: {name.strip()}, existing_id: {existing.id}")
+                    raise ValueError("该店铺名称已被其他店铺占用")
+                changes["name"] = name.strip()
+                debug_logger.info(f"[勘误反馈] 名称验证通过 - changes: {changes}")
+
+            if area_dict_data_id is not None:
+                debug_logger.info(f"[勘误反馈] 验证区域 - area_dict_data_id: {area_dict_data_id}")
+                dict_data = await DictData.get_or_none(id=area_dict_data_id, is_active=True).prefetch_related("dict_type")
+                debug_logger.info(f"[勘误反馈] 查询区域字典结果 - dict_data: {dict_data}")
+                if not dict_data or not dict_data.dict_type or dict_data.dict_type.code != "location_type":
+                    debug_logger.error(f"[勘误反馈] 区域字典项无效 - id: {area_dict_data_id}, dict_data: {dict_data}, dict_type: {dict_data.dict_type if dict_data else None}")
+                    raise ValueError("指定的区域字典项无效")
+                current_dict_data = await ShopDAO.get_shop_dict_data(shop_id)
+                current_ids = [d.id for d in current_dict_data if d.dict_type and d.dict_type.code == "location_type"]
+                debug_logger.info(f"[勘误反馈] 当前区域关联 - current_ids: {current_ids}")
+                if dict_data.id in current_ids:
+                    debug_logger.error(f"[勘误反馈] 区域与当前值相同 - new_id: {dict_data.id}, current_ids: {current_ids}")
+                    raise ValueError("新的区域与当前值相同")
+                changes["area"] = {"dict_data_id": dict_data.id}
+                debug_logger.info(f"[勘误反馈] 区域验证通过 - changes: {changes}")
+
+            if category_dict_data_id is not None:
+                debug_logger.info(f"[勘误反馈] 验证品类 - category_dict_data_id: {category_dict_data_id}")
+                dict_data = await DictData.get_or_none(id=category_dict_data_id, is_active=True).prefetch_related("dict_type")
+                debug_logger.info(f"[勘误反馈] 查询品类字典结果 - dict_data: {dict_data}")
+                if not dict_data or not dict_data.dict_type or dict_data.dict_type.code != "category":
+                    debug_logger.error(f"[勘误反馈] 品类字典项无效 - id: {category_dict_data_id}, dict_data: {dict_data}, dict_type: {dict_data.dict_type if dict_data else None}")
+                    raise ValueError("指定的品类字典项无效")
+                current_dict_data = await ShopDAO.get_shop_dict_data(shop_id)
+                current_ids = [d.id for d in current_dict_data if d.dict_type and d.dict_type.code == "category"]
+                debug_logger.info(f"[勘误反馈] 当前品类关联 - current_ids: {current_ids}")
+                if dict_data.id in current_ids:
+                    debug_logger.error(f"[勘误反馈] 品类与当前值相同 - new_id: {dict_data.id}, current_ids: {current_ids}")
+                    raise ValueError("新的品类与当前值相同")
+                changes["category"] = {"dict_data_id": dict_data.id}
+                debug_logger.info(f"[勘误反馈] 品类验证通过 - changes: {changes}")
+
+            debug_logger.info(f"[勘误反馈] 开始检查重复请求限制 - changes: {changes}")
+            for field in changes.keys():
+                recent_count = await ShopDAO.count_recent_correction_requests(shop_id, user_id, field, days=7)
+                debug_logger.info(f"[勘误反馈] 字段 {field} 近期请求数: {recent_count}")
+                if recent_count > 0:
+                    debug_logger.error(f"[勘误反馈] 字段 {field} 7天内已提交过请求")
+                    raise ValueError(f"同一用户对字段 {field} 7天内仅能提交一次反馈")
+
+            daily_count = await ShopDAO.count_today_shop_requests(shop_id)
+            debug_logger.info(f"[勘误反馈] 今日店铺总请求数: {daily_count}")
+            if daily_count >= 500:
+                debug_logger.error(f"[勘误反馈] 店铺今日请求数已达上限 - count: {daily_count}")
+                raise ValueError("该店铺当天的反馈数量已达上限，请明天再试")
+
+            proposed_data = {
+                "type": "correction",
+                "changes": changes,
+                "reason": reason or ""
+            }
+            debug_logger.info(f"[勘误反馈] 准备创建请求记录 - proposed_data: {proposed_data}")
+
+            request = await ShopDAO.create_edit_request(
+                shop_id=shop_id,
+                user_id=user_id,
+                proposed_data=proposed_data
+            )
+            debug_logger.info(f"[勘误反馈] 请求记录创建成功 - request_id: {request.id}")
+
+            return request
+
+        except ValueError as e:
+            debug_logger.error(f"[勘误反馈] 业务逻辑错误 - {str(e)}")
+            raise
+        except Exception as e:
+            debug_logger.error(f"[勘误反馈] 未知错误 - {str(e)}", exc_info=True)
+            raise
+
+    @classmethod
+    async def submit_duplicate_shop_request(
+        cls,
+        user_id: int,
+        candidate_shop_ids: List[int],
+        reason: Optional[str] = None
+    ) -> ShopEditRequests:
+        """提交重复店铺反馈"""
+        if not candidate_shop_ids or len(candidate_shop_ids) < 2:
+            raise ValueError("至少选择两个疑似重复店铺")
+
+        candidate_shop_ids = sorted(set(candidate_shop_ids))
+        if len(candidate_shop_ids) < 2:
+            raise ValueError("至少选择两个不同的店铺")
+
+        for shop_id in candidate_shop_ids:
+            shop = await ShopDAO.find_shop_by_id(shop_id)
+            if not shop:
+                raise ValueError(f"店铺ID {shop_id} 不存在或未上线")
+
+        exists = await ShopDAO.has_duplicate_request_in_period(user_id, candidate_shop_ids, days=30)
+        if exists:
+            raise ValueError("同一店铺组合30天内只能提交一次重复店铺反馈")
+
+        proposed_data = {
+            "type": "merge",
+            "candidate_shop_ids": candidate_shop_ids,
+            "reason": reason or ""
+        }
+
+        request = await ShopDAO.create_edit_request(
+            shop_id=candidate_shop_ids[0],
+            user_id=user_id,
+            proposed_data=proposed_data
+        )
+        return request
+
+    @classmethod
+    async def list_shop_edit_requests(
+        cls,
+        status: Optional[str] = None,
+        shop_id: Optional[int] = None,
+        user_id: Optional[int] = None,
+        request_type: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0
+    ) -> List[ShopEditRequests]:
+        return await ShopDAO.get_shop_edit_requests_list(
+            status=status,
+            shop_id=shop_id,
+            user_id=user_id,
+            request_type=request_type,
+            limit=limit,
+            offset=offset
+        )
+
+    @classmethod
+    async def approve_shop_edit_request(
+        cls,
+        request_id: int,
+        admin_id: int,
+        main_shop_id: Optional[int] = None
+    ) -> ShopEditRequests:
+        request = await ShopDAO.get_shop_edit_request_by_id(request_id)
+        if not request:
+            raise ValueError("申请不存在")
+        if request.status != "pending":
+            raise ValueError("该申请已处理，无法重复审核")
+
+        proposed_data = request.proposed_data or {}
+        request_type = proposed_data.get("type")
+        if request_type == "correction":
+            await cls._apply_correction_request(request)
+        elif request_type in {"duplicate", "merge"}:
+            if not main_shop_id:
+                raise ValueError("重复店铺反馈审批时必须指定主店铺ID")
+            await cls._apply_duplicate_request(request, main_shop_id, admin_id)
+        else:
+            raise ValueError("无法识别的申请类型")
+
+        updated_request = await ShopDAO.update_edit_request_status(
+            request_id=request_id,
+            status="approved",
+            admin_id=admin_id
+        )
+        await cls._send_edit_request_notification(updated_request, approved=True, admin_id=admin_id)
+        return updated_request
+
+    @classmethod
+    async def reject_shop_edit_request(
+        cls,
+        request_id: int,
+        admin_id: int,
+        reason: str
+    ) -> ShopEditRequests:
+        request = await ShopDAO.get_shop_edit_request_by_id(request_id)
+        if not request:
+            raise ValueError("申请不存在")
+        if request.status != "pending":
+            raise ValueError("该申请已处理，无法重复审核")
+
+        updated_request = await ShopDAO.update_edit_request_status(
+            request_id=request_id,
+            status="rejected",
+            admin_id=admin_id
+        )
+        await cls._send_edit_request_notification(
+            updated_request,
+            approved=False,
+            admin_id=admin_id,
+            reason=reason
+        )
+        return updated_request
+
+    @classmethod
+    async def _apply_correction_request(cls, request: ShopEditRequests) -> None:
+        proposed_data = request.proposed_data or {}
+        changes = proposed_data.get("changes") or {}
+        shop_id = request.shop_id
+
+        shop = await ShopDAO.find_shop_by_id(shop_id)
+        if not shop:
+            raise ValueError("店铺不存在")
+
+        if not changes:
+            raise ValueError("没有可应用的勘误修改项")
+
+        if "name" in changes:
+            name = changes.get("name")
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError("店铺名称无效")
+            existing = await ShopDAO.find_shop_by_name(name.strip())
+            if existing and existing.id != shop_id:
+                raise ValueError("该店铺名称已被其他店铺占用")
+            await ShopDAO.update_shop(shop_id, name=name.strip())
+
+        if "area" in changes:
+            area_change = changes.get("area") or {}
+            dict_data_id = area_change.get("dict_data_id")
+            if not isinstance(dict_data_id, int):
+                raise ValueError("area_dict_data_id 必须为整数")
+            dict_data = await DictData.get_or_none(id=dict_data_id, is_active=True).prefetch_related("dict_type")
+            if not dict_data or not dict_data.dict_type or dict_data.dict_type.code != "location_type":
+                raise ValueError("指定的区域字典项无效")
+            current_rels = await ShopDictRel.filter(
+                shop_id=shop_id,
+                is_active=True
+            ).prefetch_related("dict_data", "dict_data__dict_type").all()
+            for rel in current_rels:
+                if rel.dict_data and rel.dict_data.dict_type and rel.dict_data.dict_type.code == "location_type":
+                    await rel.delete()
+            await ShopDAO.add_dict_data_to_shop(shop_id, dict_data.id)
+
+        if "category" in changes:
+            category_change = changes.get("category") or {}
+            dict_data_id = category_change.get("dict_data_id")
+            if not isinstance(dict_data_id, int):
+                raise ValueError("category_dict_data_id 必须为整数")
+            dict_data = await DictData.get_or_none(id=dict_data_id, is_active=True).prefetch_related("dict_type")
+            if not dict_data or not dict_data.dict_type or dict_data.dict_type.code != "category":
+                raise ValueError("指定的品类字典项无效")
+            current_rels = await ShopDictRel.filter(
+                shop_id=shop_id,
+                is_active=True
+            ).prefetch_related("dict_data", "dict_data__dict_type").all()
+            for rel in current_rels:
+                if rel.dict_data and rel.dict_data.dict_type and rel.dict_data.dict_type.code == "category":
+                    await rel.delete()
+            await ShopDAO.add_dict_data_to_shop(shop_id, dict_data.id)
+
+    @classmethod
+    async def _apply_duplicate_request(cls, request: ShopEditRequests, main_shop_id: int, admin_id: int) -> None:
+        proposed_data = request.proposed_data or {}
+        candidate_shop_ids = sorted(set(proposed_data.get("candidate_shop_ids") or []))
+        duplicate_shop_ids = set(candidate_shop_ids)
+        duplicate_shop_ids.add(request.shop_id)
+
+        if main_shop_id not in duplicate_shop_ids:
+            raise ValueError("主店铺必须是重复候选店铺之一")
+
+        main_shop = await ShopDAO.find_shop_by_id(main_shop_id)
+        if not main_shop:
+            raise ValueError("主店铺不存在或已下线")
+
+        duplicate_shop_ids.discard(main_shop_id)
+        duplicate_shop_ids = list(duplicate_shop_ids)
+        view_count_add = 0
+        for duplicate_id in duplicate_shop_ids:
+            duplicate_shop = await Shops.get_or_none(id=duplicate_id, is_active=True)
+            if not duplicate_shop:
+                raise ValueError(f"候选店铺 {duplicate_id} 不存在或已下线")
+
+            view_count_add += duplicate_shop.view_count
+
+            # 迁移评分
+            ratings = await Ratings.filter(shop_id=duplicate_id, is_active=True).all()
+            for rating in ratings:
+                existing_rating = await Ratings.get_or_none(
+                    shop_id=main_shop_id,
+                    user_id=rating.user_id,
+                    is_active=True
+                )
+                if existing_rating:
+                    if rating.score > existing_rating.score:
+                        existing_rating.score = rating.score
+                        await existing_rating.save()
+                    rating.is_active = False
+                    await rating.save()
+                else:
+                    rating.shop_id = main_shop_id
+                    await rating.save()
+
+            # 迁移评论与问答
+            await Comments.filter(shop_id=duplicate_id, is_active=True).update(shop_id=main_shop_id)
+
+            # 迁移收藏
+            duplicate_favorites = await Favorites.filter(shop_id=duplicate_id, is_active=True).all()
+            for favorite in duplicate_favorites:
+                existed = await Favorites.get_or_none(
+                    shop_id=main_shop_id,
+                    user_id=favorite.user_id,
+                    is_active=True
+                )
+                if existed:
+                    favorite.is_active = False
+                    await favorite.save()
+                else:
+                    favorite.shop_id = main_shop_id
+                    await favorite.save()
+
+            # 迁移图片
+            await Images.filter(entity_type="shop", entity_id=duplicate_id, is_active=True).update(entity_id=main_shop_id)
+
+            # 迁移菜单
+            await Menu.filter(shop_id=duplicate_id, is_active=True).update(shop_id=main_shop_id)
+
+            # 迁移活动
+            await Activities.filter(target_type="shop", target_id=duplicate_id, is_active=True).update(target_id=main_shop_id)
+
+            # 合并字典关联
+            duplicate_rels = await ShopDictRel.filter(shop_id=duplicate_id, is_active=True).all()
+            existing_main_rel_ids = set(
+                await ShopDictRel.filter(shop_id=main_shop_id, is_active=True).values_list("dict_data_id", flat=True)
+            )
+            for rel in duplicate_rels:
+                if rel.dict_data_id in existing_main_rel_ids:
+                    await rel.delete()
+                else:
+                    rel.shop_id = main_shop_id
+                    await rel.save()
+
+            # 记录别名
+            aliases = main_shop.aliases or []
+            if duplicate_shop.name not in aliases:
+                aliases.append(duplicate_shop.name)
+            if duplicate_shop.aliases:
+                for alias in duplicate_shop.aliases:
+                    if alias not in aliases:
+                        aliases.append(alias)
+            main_shop.aliases = aliases
+
+            duplicate_shop.is_active = False
+            duplicate_shop.merged_into_id = main_shop_id
+            await duplicate_shop.save()
+
+        # 更新主店铺统计值
+        main_shop.view_count = main_shop.view_count + view_count_add
+        main_shop.favorite_count = await Favorites.filter(shop_id=main_shop_id, is_active=True).count()
+        main_shop.comment_count = await Comments.filter(shop_id=main_shop_id, is_active=True).count()
+        average_rating = await ShopDAO.calculate_shop_average_rating(main_shop_id)
+        main_shop.average_rating = Decimal(str(average_rating))
+        await main_shop.save()
+
+        # 记录 main_shop_id 到请求中
+        request.proposed_data["main_shop_id"] = main_shop_id
+        await request.save()
+
+        # 发送合并通知给反馈用户与收藏用户
+        await cls._send_merge_notice(request, main_shop_id, duplicate_shop_ids, admin_id)
+
+    @classmethod
+    async def _send_merge_notice(
+        cls,
+        request: ShopEditRequests,
+        main_shop_id: int,
+        duplicate_shop_ids: List[int],
+        admin_id: int
+    ) -> None:
+        if not request:
+            return
+
+        notified_user_ids = set()
+        # 通知反馈发起者
+        await MessageDAO.create_user_message(
+            recipient_id=request.user_id,
+            sender_id=admin_id,
+            title="重复店铺合并已完成",
+            content=f"您提交的重复店铺反馈已处理，主店铺已合并为ID {main_shop_id}。",
+            type="shop_merge",
+            related_entity_type="shop_edit_request",
+            related_entity_id=request.id
+        )
+        notified_user_ids.add(request.user_id)
+
+        # 通知收藏了从属店铺的用户
+        duplicate_favorites = await Favorites.filter(shop_id__in=duplicate_shop_ids, is_active=True).all()
+        for fav in duplicate_favorites:
+            if fav.user_id in notified_user_ids:
+                continue
+            notified_user_ids.add(fav.user_id)
+            await MessageDAO.create_user_message(
+                recipient_id=fav.user_id,
+                sender_id=admin_id,
+                title="店铺合并通知",
+                content=f"您收藏的店铺已并入主店铺ID {main_shop_id}，请前往新的店铺查看最新信息。",
+                type="shop_merge",
+                related_entity_type="shop_edit_request",
+                related_entity_id=request.id
+            )
+
+    @classmethod
+    async def _send_edit_request_notification(
+        cls,
+        request: ShopEditRequests,
+        approved: bool,
+        admin_id: int,
+        reason: Optional[str] = None
+    ) -> None:
+        if not request:
+            return
+        title = "店铺编辑申请已处理"
+        if approved:
+            content = f"您提交的店铺编辑申请已通过，管理员已完成处理。"
+        else:
+            content = f"您提交的店铺编辑申请已被拒绝，原因：{reason or '管理员未填写具体原因'}。"
+
+        await MessageDAO.create_user_message(
+            recipient_id=request.user_id,
+            sender_id=admin_id,
+            title=title,
+            content=content,
+            type="shop_edit_request",
+            related_entity_type="shop_edit_request",
+            related_entity_id=request.id
+        )
 
     @classmethod
     async def delete_shop(cls, shop_id: int) -> bool:

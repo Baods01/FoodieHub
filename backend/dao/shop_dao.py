@@ -1,5 +1,6 @@
 from typing import Optional, List
 from decimal import Decimal
+from datetime import datetime, timedelta
 from tortoise.expressions import Q
 from models.shops import Shops, Menu, Ratings, Comments, CommentsLikes
 from models.dict import DictData, ShopDictRel
@@ -39,8 +40,10 @@ class ShopDAO:
         )
 
     @classmethod
-    async def find_shop_by_id(cls, shop_id: int) -> Optional[Shops]:
-        """根据 ID 查找店铺"""
+    async def find_shop_by_id(cls, shop_id: int, include_merged: bool = False) -> Optional[Shops]:
+        """根据 ID 查找店铺。默认仅返回在线店铺，include_merged=True 时可返回已合并的记录。"""
+        if include_merged:
+            return await Shops.get_or_none(id=shop_id)
         return await Shops.get_or_none(id=shop_id, is_active=True)
 
     @classmethod
@@ -765,92 +768,116 @@ class ShopDAO:
         cls,
         shop_id: int,
         user_id: int,
-        proposed_data: dict,
-        request_type: str = "correction"  # "correction" 勘误, "merge" 重复店铺合并
+        proposed_data: dict
     ) -> ShopEditRequests:
-        """创建店铺编辑申请（勘误或重复店铺合并反馈）
-        
-        Args:
-            shop_id: 店铺ID（勘误反馈时为单个店铺ID）
-            user_id: 用户ID
-            proposed_data: 提议修改的字段及新值（JSON格式）
-            request_type: 申请类型，"correction" 勘误, "merge" 重复店铺合并
-            
-        Returns:
-            创建的申请对象
-        """
+        """创建店铺编辑申请（勘误或重复店铺反馈）"""
         return await ShopEditRequests.create(
             shop_id=shop_id,
             user_id=user_id,
-            proposed_data=proposed_data,
-            request_type=request_type
+            proposed_data=proposed_data
         )
 
     @classmethod
-    async def create_merge_request(
+    async def get_shop_edit_request_by_id(
+        cls,
+        request_id: int
+    ) -> Optional[ShopEditRequests]:
+        """根据申请ID获取申请记录"""
+        return await ShopEditRequests.get_or_none(
+            id=request_id,
+            is_active=True
+        )
+
+    @classmethod
+    async def count_recent_correction_requests(
+        cls,
+        shop_id: int,
+        user_id: int,
+        field: str,
+        days: int = 7
+    ) -> int:
+        """统计同一用户在同一店铺对同一字段的近期勘误反馈数量"""
+        since = datetime.utcnow() - timedelta(days=days)
+        reqs = await ShopEditRequests.filter(
+            shop_id=shop_id,
+            user_id=user_id,
+            is_active=True,
+            created_at__gte=since
+        ).all()
+        return sum(
+            1
+            for req in reqs
+            if req.proposed_data.get("type") == "correction"
+            and field in (req.proposed_data.get("changes") or {})
+        )
+
+    @classmethod
+    async def count_today_shop_requests(
+        cls,
+        shop_id: int
+    ) -> int:
+        """统计单个店铺当日提交的反馈数量"""
+        today = datetime.utcnow().date()
+        start_of_day = datetime(today.year, today.month, today.day)
+        return await ShopEditRequests.filter(
+            shop_id=shop_id,
+            is_active=True,
+            created_at__gte=start_of_day
+        ).count()
+
+    @classmethod
+    async def has_duplicate_request_in_period(
         cls,
         user_id: int,
-        shop_ids: List[int],
-        selected_main_shop_id: int,
-        proposed_name: str
-    ) -> ShopEditRequests:
-        """创建重复店铺合并申请
-        
-        Args:
-            user_id: 用户ID
-            shop_ids: 申报的重复店铺ID列表
-            selected_main_shop_id: 选择的主店铺ID
-            proposed_name: 合并后店铺名称
-            
-        Returns:
-            创建的申请对象
-        """
-        proposed_data = {
-            "shop_ids": shop_ids,
-            "selected_main_shop_id": selected_main_shop_id,
-            "proposed_name": proposed_name
-        }
-        return await ShopEditRequests.create(
-            shop_id=selected_main_shop_id,  # 记录主店铺ID
+        candidate_shop_ids: List[int],
+        days: int = 30
+    ) -> bool:
+        """检查同一用户对同一店铺组合是否已提交过重复反馈"""
+        normalized_ids = sorted(set(candidate_shop_ids))
+        since = datetime.utcnow() - timedelta(days=days)
+        reqs = await ShopEditRequests.filter(
             user_id=user_id,
-            proposed_data=proposed_data,
-            request_type="merge"
-        )
+            is_active=True,
+            created_at__gte=since
+        ).all()
+        for req in reqs:
+            if req.proposed_data.get("type") not in {"duplicate", "merge"}:
+                continue
+            existing = req.proposed_data.get("candidate_shop_ids") or []
+            if sorted(set(existing)) == normalized_ids:
+                return True
+        return False
 
     @classmethod
-    async def get_edit_requests_by_status(
+    async def get_shop_edit_requests_list(
         cls,
-        status: str = "pending",
+        status: Optional[str] = None,
+        shop_id: Optional[int] = None,
+        user_id: Optional[int] = None,
         request_type: Optional[str] = None,
         limit: int = 20,
         offset: int = 0
     ) -> List[ShopEditRequests]:
-        """按状态获取编辑申请列表（管理员用）
-        
-        Args:
-            status: 申请状态
-            request_type: 申请类型（"correction" 或 "merge"）
-            limit: 每页数量
-            offset: 偏移量
-            
-        Returns:
-            申请列表（包含用户信息）
-        """
-        query = ShopEditRequests.filter(status=status, is_active=True).order_by("-created_at")
-        
-        if request_type:
-            # 通过 proposed_data 中的 request_type 字段筛选
-            # Tortoise ORM 不直接支持 JSON 查询，这里需要手动过滤
-            pass
-        
-        query = query.prefetch_related("user", "admin")
-        
+        """获取店铺编辑申请列表"""
+        query = ShopEditRequests.filter(is_active=True)
+        if status:
+            query = query.filter(status=status)
+        if shop_id is not None:
+            query = query.filter(shop_id=shop_id)
+        if user_id is not None:
+            query = query.filter(user_id=user_id)
+        query = query.order_by("-created_at").prefetch_related("shop", "user", "admin")
         if limit:
             query = query.limit(limit)
         if offset:
             query = query.offset(offset)
-            
-        return await query.all()
+        reqs = await query.all()
+        if request_type:
+            reqs = [
+                req for req in reqs
+                if req.proposed_data.get("type") == request_type
+            ]
+        return reqs
 
     @classmethod
     async def update_edit_request_status(
