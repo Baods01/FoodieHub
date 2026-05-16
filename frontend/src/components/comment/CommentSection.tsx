@@ -13,6 +13,8 @@ interface CommentSectionProps {
   shopId: number;
   isLoggedIn: boolean;
   onLoginPrompt: () => void;
+  maxCount?: number;
+  onViewAll?: () => void;
 }
 
 /** A single skeleton comment block used during first load */
@@ -40,6 +42,8 @@ export function CommentSection({
   shopId,
   isLoggedIn,
   onLoginPrompt,
+  maxCount = 5,
+  onViewAll,
 }: CommentSectionProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [page, setPage] = useState(1);
@@ -214,9 +218,10 @@ export function CommentSection({
       {/* Comment list */}
       {!isLoading && !isError && comments.length > 0 && (
         <div className="divide-y divide-gray-100">
-          {/* Sort by likeCount desc */}
+          {/* Sort by likeCount desc, slice for preview if onViewAll */}
           {[...comments]
             .sort((a, b) => b.likeCount - a.likeCount)
+            .slice(0, onViewAll ? maxCount : undefined)
             .map((comment) => (
               <CommentCard
                 key={comment.id}
@@ -228,8 +233,21 @@ export function CommentSection({
         </div>
       )}
 
-      {/* Load more */}
-      {!isLoading && !isError && hasMore && comments.length > 0 && (
+      {/* View all button (preview mode) */}
+      {!isLoading && !isError && onViewAll && comments.length > maxCount && (
+        <div className="text-center mt-4">
+          <button
+            type="button"
+            onClick={onViewAll}
+            className="rounded-lg border border-orange-200 px-6 py-2 text-sm text-orange-500 hover:bg-orange-50 transition-colors"
+          >
+            查看全部 {comments.length} 条评论 &gt;
+          </button>
+        </div>
+      )}
+
+      {/* Load more (full mode - no onViewAll) */}
+      {!isLoading && !isError && !onViewAll && hasMore && comments.length > 0 && (
         <div className="text-center">
           <button
             type="button"

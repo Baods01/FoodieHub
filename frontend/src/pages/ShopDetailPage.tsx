@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { fetchShopDetail, submitRating } from '../api/shops';
+import { fetchShopDetail, submitRating, toggleFavorite } from '../api/shops';
 import type { ShopDetail } from '../types/shop';
 import { ShopCarousel } from '../components/shop/ShopCarousel';
 import { ShopInfoSection } from '../components/shop/ShopInfoSection';
@@ -13,6 +13,10 @@ import { AlbumSection } from '../components/album/AlbumSection';
 import { ShopDetailSkeleton } from '../components/shop/ShopDetailSkeleton';
 import { LoginPromptModal } from '../components/shop/LoginPromptModal';
 import { ErrorState } from '../components/ui/ErrorState';
+import AllCommentsModal from '../components/comment/AllCommentsModal';
+import AllQAModal from '../components/question/AllQAModal';
+import AllMenuModal from '../components/menu/AllMenuModal';
+import AllAlbumModal from '../components/album/AllAlbumModal';
 
 export function ShopDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +26,10 @@ export function ShopDetailPage() {
   const [error, setError] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loginModalMsg, setLoginModalMsg] = useState('');
+  const [commentsModalOpen, setCommentsModalOpen] = useState(false);
+  const [qaModalOpen, setQaModalOpen] = useState(false);
+  const [menuModalOpen, setMenuModalOpen] = useState(false);
+  const [albumModalOpen, setAlbumModalOpen] = useState(false);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const shopId = Number(id);
 
@@ -39,6 +47,17 @@ export function ShopDetailPage() {
   const promptLogin = (msg: string) => {
     setLoginModalMsg(msg);
     setLoginModalOpen(true);
+  };
+
+  const handleToggleFavorite = () => {
+    const prev = shop!;
+    const nextFav = !prev.isFavorited;
+    // Optimistic
+    setShop({ ...prev, isFavorited: nextFav, favoriteCount: prev.favoriteCount + (nextFav ? 1 : -1) });
+    toggleFavorite(shopId).catch(() => {
+      // Rollback
+      setShop(prev);
+    });
   };
 
   const handleRetry = () => {
@@ -85,6 +104,11 @@ export function ShopDetailPage() {
         category={shop.category}
         area={shop.area}
         description={shop.description}
+        isFavorited={shop.isFavorited}
+        favoriteCount={shop.favoriteCount}
+        isLoggedIn={isLoggedIn}
+        onToggleFavorite={handleToggleFavorite}
+        onLoginPrompt={() => promptLogin('登录后即可收藏')}
       />
 
       <RatingSection
@@ -107,6 +131,8 @@ export function ShopDetailPage() {
         shopId={shop.id}
         isLoggedIn={isLoggedIn}
         onLoginPrompt={() => promptLogin('登录后即可评论')}
+        maxCount={5}
+        onViewAll={() => setCommentsModalOpen(true)}
       />
 
       <hr className="border-gray-100" />
@@ -115,6 +141,8 @@ export function ShopDetailPage() {
         shopId={shop.id}
         isLoggedIn={isLoggedIn}
         onLoginPrompt={() => promptLogin('登录后即可提问')}
+        maxCount={3}
+        onViewAll={() => setQaModalOpen(true)}
       />
 
       <hr className="border-gray-100" />
@@ -123,6 +151,8 @@ export function ShopDetailPage() {
         items={shop.menu}
         isLoggedIn={isLoggedIn}
         onUpload={() => {}}
+        maxCount={6}
+        onViewAll={() => setMenuModalOpen(true)}
       />
 
       <hr className="border-gray-100" />
@@ -131,6 +161,36 @@ export function ShopDetailPage() {
         images={shop.albumImages}
         isLoggedIn={isLoggedIn}
         onUpload={() => {}}
+        maxCount={6}
+        onViewAll={() => setAlbumModalOpen(true)}
+      />
+
+      <AllCommentsModal
+        shopId={shop.id}
+        isOpen={commentsModalOpen}
+        onClose={() => setCommentsModalOpen(false)}
+        isLoggedIn={isLoggedIn}
+        onLoginPrompt={() => promptLogin('登录后即可互动')}
+      />
+
+      <AllQAModal
+        shopId={shop.id}
+        isOpen={qaModalOpen}
+        onClose={() => setQaModalOpen(false)}
+        isLoggedIn={isLoggedIn}
+        onLoginPrompt={() => promptLogin('登录后即可提问')}
+      />
+
+      <AllMenuModal
+        items={shop.menu}
+        isOpen={menuModalOpen}
+        onClose={() => setMenuModalOpen(false)}
+      />
+
+      <AllAlbumModal
+        images={shop.albumImages}
+        isOpen={albumModalOpen}
+        onClose={() => setAlbumModalOpen(false)}
       />
 
       <LoginPromptModal

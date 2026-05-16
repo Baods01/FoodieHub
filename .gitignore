@@ -40,8 +40,10 @@ dist-ssr
 *.sln
 *.sw?
 
-# claude code
+# vibe coding
 CLAUDE.md
 .claude
 .claude/*
 .mcp.json
+REASONIX.md
+.playwright-mcp

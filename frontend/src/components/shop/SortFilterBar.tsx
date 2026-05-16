@@ -1,5 +1,6 @@
 import type { SortOption } from '../../types/shop';
 import FilterDropdown from './FilterDropdown';
+import SortDropdown from './SortDropdown';
 
 interface SortFilterBarProps {
   sort: SortOption;
@@ -36,17 +37,11 @@ export default function SortFilterBar({
   return (
     <div className="flex justify-between items-center">
       <div className="flex items-center gap-2">
-        <select
+        <SortDropdown
           value={sort}
-          onChange={(e) => onSortChange(e.target.value as SortOption)}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white text-gray-700"
-        >
-          {sortOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          options={sortOptions}
+          onChange={(v) => onSortChange(v as SortOption)}
+        />
       </div>
 
       <div className="flex items-center gap-2">

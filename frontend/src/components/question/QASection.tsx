@@ -10,9 +10,11 @@ interface QASectionProps {
   shopId: number;
   isLoggedIn: boolean;
   onLoginPrompt: () => void;
+  maxCount?: number;
+  onViewAll?: () => void;
 }
 
-export function QASection({ shopId, isLoggedIn, onLoginPrompt }: QASectionProps) {
+export function QASection({ shopId, isLoggedIn, onLoginPrompt, maxCount = 3, onViewAll }: QASectionProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -127,12 +129,26 @@ export function QASection({ shopId, isLoggedIn, onLoginPrompt }: QASectionProps)
       ) : (
         <>
           <div className="space-y-3">
-            {questions.map((q) => (
+            {questions.slice(0, onViewAll ? maxCount : undefined).map((q) => (
               <QuestionCard key={q.id} question={q} onReply={handleReply} />
             ))}
           </div>
 
-          {hasMore && (
+          {/* View all (preview mode) */}
+          {onViewAll && questions.length > maxCount && (
+            <div className="flex justify-center mt-4">
+              <button
+                type="button"
+                onClick={onViewAll}
+                className="px-5 py-1.5 rounded-lg border border-orange-200 text-orange-500 text-sm hover:bg-orange-50 transition-colors"
+              >
+                查看全部 {questions.length} 条问答 &gt;
+              </button>
+            </div>
+          )}
+
+          {/* Load more (full mode) */}
+          {!onViewAll && hasMore && (
             <div className="flex justify-center mt-4">
               <button
                 type="button"

@@ -8,9 +8,11 @@ interface MenuSectionProps {
   items: MenuItem[];
   isLoggedIn: boolean;
   onUpload: () => void;
+  maxCount?: number;
+  onViewAll?: () => void;
 }
 
-export function MenuSection({ items, isLoggedIn, onUpload }: MenuSectionProps) {
+export function MenuSection({ items, isLoggedIn, onUpload, maxCount = 6, onViewAll }: MenuSectionProps) {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
 
   return (
@@ -37,13 +39,28 @@ export function MenuSection({ items, isLoggedIn, onUpload }: MenuSectionProps) {
           <p className="text-gray-400 text-sm mt-3">还没有菜单，快来上传吧</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <div className="flex gap-3 pb-2">
-            {items.map((item) => (
-              <MenuCard key={item.id} item={item} onClick={setSelectedItem} />
-            ))}
+        <>
+          <div className="overflow-x-auto">
+            <div className="flex gap-3 pb-2">
+              {items.slice(0, onViewAll ? maxCount : undefined).map((item) => (
+                <MenuCard key={item.id} item={item} onClick={setSelectedItem} />
+              ))}
+            </div>
           </div>
-        </div>
+
+          {/* View all (preview mode) */}
+          {onViewAll && items.length > maxCount && (
+            <div className="text-center mt-3">
+              <button
+                type="button"
+                onClick={onViewAll}
+                className="rounded-lg border border-orange-200 px-5 py-1.5 text-sm text-orange-500 hover:bg-orange-50 transition-colors"
+              >
+                查看全部菜单 ({items.length}) &gt;
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Detail modal */}

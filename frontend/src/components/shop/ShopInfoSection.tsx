@@ -1,11 +1,36 @@
+import { Heart } from 'lucide-react';
+
 interface ShopInfoSectionProps {
   name: string;
   category: string;
   area: string;
   description?: string;
+  isFavorited: boolean;
+  favoriteCount: number;
+  isLoggedIn: boolean;
+  onToggleFavorite: () => void;
+  onLoginPrompt: () => void;
 }
 
-export function ShopInfoSection({ name, category, area, description }: ShopInfoSectionProps) {
+export function ShopInfoSection({
+  name,
+  category,
+  area,
+  description,
+  isFavorited,
+  favoriteCount,
+  isLoggedIn,
+  onToggleFavorite,
+  onLoginPrompt,
+}: ShopInfoSectionProps) {
+  const handleFavorite = () => {
+    if (!isLoggedIn) {
+      onLoginPrompt();
+      return;
+    }
+    onToggleFavorite();
+  };
+
   return (
     <div className="flex justify-between items-start">
       {/* Left: shop info */}
@@ -26,13 +51,35 @@ export function ShopInfoSection({ name, category, area, description }: ShopInfoS
         )}
       </div>
 
-      {/* Right: feedback button */}
-      <button
-        type="button"
-        className="flex-shrink-0 ml-4 text-sm text-gray-400 hover:text-orange-500 transition-colors"
-      >
-        反馈
-      </button>
+      {/* Right: actions */}
+      <div className="flex-shrink-0 ml-4 flex items-start gap-3">
+        {/* Favorite button */}
+        <button
+          type="button"
+          onClick={handleFavorite}
+          className={`flex items-center gap-1 text-sm transition-colors ${
+            isFavorited
+              ? 'text-red-500'
+              : 'text-gray-400 hover:text-red-500'
+          }`}
+          title={isFavorited ? '取消收藏' : '收藏'}
+        >
+          <Heart
+            size={18}
+            fill={isFavorited ? 'currentColor' : 'none'}
+            strokeWidth={isFavorited ? 0 : 2}
+          />
+          {favoriteCount > 0 && <span>{favoriteCount}</span>}
+        </button>
+
+        {/* Feedback button */}
+        <button
+          type="button"
+          className="text-sm text-gray-400 hover:text-orange-500 transition-colors"
+        >
+          反馈
+        </button>
+      </div>
     </div>
   );
 }
