@@ -21,7 +21,7 @@ export function AlbumSection({ images, isLoggedIn, onUpload, maxCount = 6, onVie
     <section>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold">店铺相册</h2>
+        <h2 className="text-lg font-bold pl-3 border-l-[3px] border-orange-400">店铺相册</h2>
         {isLoggedIn && (
           <button
             type="button"

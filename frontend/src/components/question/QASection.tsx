@@ -86,7 +86,7 @@ export function QASection({ shopId, isLoggedIn, onLoginPrompt, maxCount = 3, onV
 
   return (
     <section>
-      <h2 className="text-lg font-bold mb-4">问答</h2>
+      <h2 className="text-lg font-bold mb-4 pl-3 border-l-[3px] border-orange-400">问答</h2>
 
       <div className="mb-4">
         <QuestionInput

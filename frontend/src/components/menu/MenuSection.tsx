@@ -19,7 +19,7 @@ export function MenuSection({ items, isLoggedIn, onUpload, maxCount = 6, onViewA
     <section>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold">菜单</h2>
+        <h2 className="text-lg font-bold pl-3 border-l-[3px] border-orange-400">菜单</h2>
         {isLoggedIn && (
           <button
             type="button"

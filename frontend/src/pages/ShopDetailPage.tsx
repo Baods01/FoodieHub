@@ -17,6 +17,7 @@ import AllCommentsModal from '../components/comment/AllCommentsModal';
 import AllQAModal from '../components/question/AllQAModal';
 import AllMenuModal from '../components/menu/AllMenuModal';
 import AllAlbumModal from '../components/album/AllAlbumModal';
+import SectionCard from '../components/ui/SectionCard';
 
 export function ShopDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -96,74 +97,78 @@ export function ShopDetailPage() {
 
   // Main render
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+    <div className="max-w-4xl mx-auto space-y-5 pb-12">
       <ShopCarousel images={shop.albumImages} />
 
-      <ShopInfoSection
-        name={shop.name}
-        category={shop.category}
-        area={shop.area}
-        description={shop.description}
-        isFavorited={shop.isFavorited}
-        favoriteCount={shop.favoriteCount}
-        isLoggedIn={isLoggedIn}
-        onToggleFavorite={handleToggleFavorite}
-        onLoginPrompt={() => promptLogin('登录后即可收藏')}
-      />
+      <SectionCard>
+        <ShopInfoSection
+          name={shop.name}
+          category={shop.category}
+          area={shop.area}
+          description={shop.description}
+          isFavorited={shop.isFavorited}
+          favoriteCount={shop.favoriteCount}
+          isLoggedIn={isLoggedIn}
+          onToggleFavorite={handleToggleFavorite}
+          onLoginPrompt={() => promptLogin('登录后即可收藏')}
+        />
+      </SectionCard>
 
-      <RatingSection
-        rating={shop.rating}
-        totalRatings={shop.totalRatings}
-        distribution={shop.ratingDistribution}
-        userRating={shop.userRating}
-        onRate={(r) =>
-          submitRating(shop.id, r).then(() => {
-            setShop((prev) => (prev ? { ...prev, userRating: r } : prev));
-          })
-        }
-        isLoggedIn={isLoggedIn}
-        onLoginPrompt={() => promptLogin('登录后即可评分')}
-      />
+      <SectionCard>
+        <RatingSection
+          rating={shop.rating}
+          totalRatings={shop.totalRatings}
+          distribution={shop.ratingDistribution}
+          userRating={shop.userRating}
+          onRate={(r) =>
+            submitRating(shop.id, r).then(() => {
+              setShop((prev) => (prev ? { ...prev, userRating: r } : prev));
+            })
+          }
+          isLoggedIn={isLoggedIn}
+          onLoginPrompt={() => promptLogin('登录后即可评分')}
+        />
+      </SectionCard>
 
-      <hr className="border-gray-100" />
+      <SectionCard>
+        <CommentSection
+          shopId={shop.id}
+          isLoggedIn={isLoggedIn}
+          onLoginPrompt={() => promptLogin('登录后即可评论')}
+          maxCount={5}
+          onViewAll={() => setCommentsModalOpen(true)}
+        />
+      </SectionCard>
 
-      <CommentSection
-        shopId={shop.id}
-        isLoggedIn={isLoggedIn}
-        onLoginPrompt={() => promptLogin('登录后即可评论')}
-        maxCount={5}
-        onViewAll={() => setCommentsModalOpen(true)}
-      />
+      <SectionCard>
+        <QASection
+          shopId={shop.id}
+          isLoggedIn={isLoggedIn}
+          onLoginPrompt={() => promptLogin('登录后即可提问')}
+          maxCount={3}
+          onViewAll={() => setQaModalOpen(true)}
+        />
+      </SectionCard>
 
-      <hr className="border-gray-100" />
+      <SectionCard>
+        <MenuSection
+          items={shop.menu}
+          isLoggedIn={isLoggedIn}
+          onUpload={() => {}}
+          maxCount={6}
+          onViewAll={() => setMenuModalOpen(true)}
+        />
+      </SectionCard>
 
-      <QASection
-        shopId={shop.id}
-        isLoggedIn={isLoggedIn}
-        onLoginPrompt={() => promptLogin('登录后即可提问')}
-        maxCount={3}
-        onViewAll={() => setQaModalOpen(true)}
-      />
-
-      <hr className="border-gray-100" />
-
-      <MenuSection
-        items={shop.menu}
-        isLoggedIn={isLoggedIn}
-        onUpload={() => {}}
-        maxCount={6}
-        onViewAll={() => setMenuModalOpen(true)}
-      />
-
-      <hr className="border-gray-100" />
-
-      <AlbumSection
-        images={shop.albumImages}
-        isLoggedIn={isLoggedIn}
-        onUpload={() => {}}
-        maxCount={6}
-        onViewAll={() => setAlbumModalOpen(true)}
-      />
+      <SectionCard>
+        <AlbumSection
+          images={shop.albumImages}
+          isLoggedIn={isLoggedIn}
+          onUpload={() => {}}
+          maxCount={6}
+          onViewAll={() => setAlbumModalOpen(true)}
+        />
+      </SectionCard>
 
       <AllCommentsModal
         shopId={shop.id}

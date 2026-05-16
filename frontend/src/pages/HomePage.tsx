@@ -114,26 +114,33 @@ export function HomePage() {
   }, [filter, debouncedKeyword]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <AnnouncementBanner announcement={announcement} />
 
-      <SearchBar
-        value={filter.keyword}
-        onChange={(v) => dispatch({ type: 'SET_KEYWORD', payload: v })}
-        onSearch={() => {}}
-      />
-
-      <SortFilterBar
-        sort={filter.sort}
-        category={filter.category}
-        area={filter.area}
-        categories={categories}
-        areas={areas}
-        onSortChange={(s) => dispatch({ type: 'SET_SORT', payload: s })}
-        onCategoryChange={(c) => dispatch({ type: 'SET_CATEGORY', payload: c })}
-        onAreaChange={(a) => dispatch({ type: 'SET_AREA', payload: a })}
-        onClear={() => dispatch({ type: 'RESET_ALL' })}
-      />
+      <div className="rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-gray-100/80">
+        {/* Upper layer: white bg, search fills width */}
+        <div className="bg-white px-5 py-4 rounded-t-xl">
+          <SearchBar
+            value={filter.keyword}
+            onChange={(v) => dispatch({ type: 'SET_KEYWORD', payload: v })}
+            onSearch={() => {}}
+          />
+        </div>
+        {/* Lower layer: warm light-orange bg, left-aligned filters */}
+        <div className="bg-[#FFF7F0] px-5 py-3 rounded-b-xl">
+          <SortFilterBar
+            sort={filter.sort}
+            category={filter.category}
+            area={filter.area}
+            categories={categories}
+            areas={areas}
+            onSortChange={(s) => dispatch({ type: 'SET_SORT', payload: s })}
+            onCategoryChange={(c) => dispatch({ type: 'SET_CATEGORY', payload: c })}
+            onAreaChange={(a) => dispatch({ type: 'SET_AREA', payload: a })}
+            onClear={() => dispatch({ type: 'RESET_ALL' })}
+          />
+        </div>
+      </div>
 
       {isLoading && <ShopCardGridSkeleton count={8} />}
 

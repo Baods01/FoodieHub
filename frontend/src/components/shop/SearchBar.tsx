@@ -44,10 +44,10 @@ export default function SearchBar({ value, onChange, onSearch }: SearchBarProps)
   };
 
   return (
-    <div className="flex justify-center">
-      <div ref={wrapperRef} className="relative w-full max-w-[600px]">
-        <form onSubmit={handleSubmit}>
-          <div className="relative">
+    <div ref={wrapperRef} className="relative w-full">
+      <form onSubmit={handleSubmit}>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
               size={18}
@@ -58,7 +58,7 @@ export default function SearchBar({ value, onChange, onSearch }: SearchBarProps)
               value={value}
               onChange={(e) => onChange(e.target.value)}
               onFocus={() => setShowHistory(true)}
-              className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent text-sm"
+              className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent text-sm bg-gray-50/50"
             />
             {value && (
               <button
@@ -70,23 +70,30 @@ export default function SearchBar({ value, onChange, onSearch }: SearchBarProps)
               </button>
             )}
           </div>
-        </form>
+          <button
+            type="submit"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7E3A] to-[#FF9A5C] text-white text-sm font-medium hover:shadow-lg hover:shadow-orange-200 transition-all duration-200 flex items-center gap-1.5"
+          >
+            <Search size={16} />
+            搜索
+          </button>
+        </div>
+      </form>
 
-        {showHistory && searchHistory.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-            {searchHistory.map((keyword) => (
-              <button
-                key={keyword}
-                type="button"
-                onClick={() => handleHistoryClick(keyword)}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
-              >
-                {keyword}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      {showHistory && searchHistory.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+          {searchHistory.map((keyword) => (
+            <button
+              key={keyword}
+              type="button"
+              onClick={() => handleHistoryClick(keyword)}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
+            >
+              {keyword}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

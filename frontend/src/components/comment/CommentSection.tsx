@@ -175,7 +175,7 @@ export function CommentSection({
   return (
     <div className="space-y-4">
       {/* Title */}
-      <h3 className="text-base font-bold text-gray-800">评论</h3>
+      <h3 className="text-base font-bold text-gray-800 pl-3 border-l-[3px] border-orange-400">评论</h3>
 
       {/* Comment input */}
       <CommentInput

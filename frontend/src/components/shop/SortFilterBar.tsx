@@ -35,38 +35,33 @@ export default function SortFilterBar({
   const hasActiveFilter = category !== '' || area !== '';
 
   return (
-    <div className="flex justify-between items-center">
-      <div className="flex items-center gap-2">
-        <SortDropdown
-          value={sort}
-          options={sortOptions}
-          onChange={(v) => onSortChange(v as SortOption)}
-        />
-      </div>
-
-      <div className="flex items-center gap-2">
-        <FilterDropdown
-          label="品类"
-          options={categories}
-          value={category}
-          onChange={onCategoryChange}
-        />
-        <FilterDropdown
-          label="区域"
-          options={areas}
-          value={area}
-          onChange={onAreaChange}
-        />
-        {hasActiveFilter && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-sm text-gray-500 hover:text-gray-700 px-2"
-          >
-            清除
-          </button>
-        )}
-      </div>
+    <div className="flex items-center gap-2 flex-wrap">
+      <SortDropdown
+        value={sort}
+        options={sortOptions}
+        onChange={(v) => onSortChange(v as SortOption)}
+      />
+      <FilterDropdown
+        label="品类"
+        options={categories}
+        value={category}
+        onChange={onCategoryChange}
+      />
+      <FilterDropdown
+        label="区域"
+        options={areas}
+        value={area}
+        onChange={onAreaChange}
+      />
+      {hasActiveFilter && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-sm text-gray-500 hover:text-gray-700 px-2"
+        >
+          清除
+        </button>
+      )}
     </div>
   );
 }
