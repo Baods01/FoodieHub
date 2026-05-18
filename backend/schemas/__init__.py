@@ -1,6 +1,6 @@
 from .common import ResponseModel, PaginationRequest, PaginationResponse, PaginationMeta, paginated_success
 from .users import (
-    UserCreate, UserLogin, UserUpdate, UserResponse,
+    UserCreate, UsernameLogin, PhoneLogin, EmailLogin, UserUpdate, UserResponse,
     PasswordChange, PhoneUpdate, EmailUpdate,
     LoginResponse, UserStats, UserProfileResponse
 )
@@ -50,7 +50,9 @@ __all__ = [
     'paginated_success',
     # Users
     'UserCreate',
-    'UserLogin',
+    'UsernameLogin',
+    'PhoneLogin',
+    'EmailLogin',
     'UserUpdate',
     'UserResponse',
     'PasswordChange',

@@ -28,11 +28,36 @@ class UserCreate(BaseModel):
         return v
 
 
-class UserLogin(BaseModel):
-    """用户登录请求"""
-    account: str = Field(description="用户名/手机号/邮箱")
+class UsernameLogin(BaseModel):
+    """用户名登录请求"""
+    username: str = Field(min_length=2, max_length=50, description="用户名")
     password: str = Field(min_length=6, max_length=128, description="密码")
-    remember_me: bool = Field(default=False, description="记住我")
+
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        if not re.match(r'^[\w\u4e00-\u9fa5]+$', v):
+            raise ValueError('用户名只能包含字母、数字、下划线和中文')
+        return v
+
+
+class PhoneLogin(BaseModel):
+    """手机号登录请求"""
+    phone: str = Field(max_length=20, description="手机号")
+    password: str = Field(min_length=6, max_length=128, description="密码")
+
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        if not re.match(r'^1[3-9]\d{9}$', v):
+            raise ValueError('手机号格式不正确')
+        return v
+
+
+class EmailLogin(BaseModel):
+    """邮箱登录请求"""
+    email: EmailStr = Field(description="邮箱")
+    password: str = Field(min_length=6, max_length=128, description="密码")
 
 
 class PasswordChange(BaseModel):

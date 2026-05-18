@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
 from typing import Optional
-from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse, FileResponse
 import traceback
 import os
@@ -9,7 +8,7 @@ from datetime import datetime
 import uuid
 
 from schemas.users import (
-    UserCreate, UserResponse, UserUpdate, UserProfileResponse
+    UserCreate, UsernameLogin, PhoneLogin, EmailLogin, UserResponse, UserUpdate, UserProfileResponse
 )
 from schemas.common import ResponseModel
 from services.user_service import UserService
@@ -67,24 +66,81 @@ async def register(user_data: UserCreate):
         )
 
 
-@router.post("/login", summary="用户登录")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+@router.post("/login", summary="用户名登录")
+async def login_username(login_data: UsernameLogin):
     """
-    用户登录接口（OAuth2 格式）
-    - 支持 Swagger UI 的 "Authorize" 功能
-    - 接收表单数据：username, password
-    - 返回 JWT token（OAuth2 标准格式）
+    用户名登录接口
+    - 使用用户名 + 密码登录
     """
     try:
-        user = await UserService.authenticate(form_data.username, form_data.password)
+        user = await UserService.authenticate(login_data.username, login_data.password)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="用户名或密码错误"
             )
-        
+
         access_token = create_access_token(user.id)
-        # 返回 OAuth2 标准格式（不使用 ResponseModel 包装）
+        return JSONResponse(
+            content={
+                "access_token": access_token,
+                "token_type": "bearer"
+            }
+        )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post("/login/phone", summary="手机号登录")
+async def login_phone(login_data: PhoneLogin):
+    """
+    手机号登录接口
+    - 使用手机号 + 密码登录
+    """
+    try:
+        user = await UserService.authenticate(login_data.phone, login_data.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="手机号或密码错误"
+            )
+
+        access_token = create_access_token(user.id)
+        return JSONResponse(
+            content={
+                "access_token": access_token,
+                "token_type": "bearer"
+            }
+        )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post("/login/email", summary="邮箱登录")
+async def login_email(login_data: EmailLogin):
+    """
+    邮箱登录接口
+    - 使用邮箱 + 密码登录
+    """
+    try:
+        user = await UserService.authenticate(login_data.email, login_data.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="邮箱或密码错误"
+            )
+
+        access_token = create_access_token(user.id)
         return JSONResponse(
             content={
                 "access_token": access_token,
