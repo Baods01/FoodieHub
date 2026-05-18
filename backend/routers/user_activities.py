@@ -4,7 +4,7 @@ from dependencies.auth import oauth2_scheme, get_current_user
 from schemas.users import UserResponse
 from services.user_activities_service import UserActivitiesService
 
-router = APIRouter(tags=["User Activities"])
+router = APIRouter()
 
 
 @router.get("/users/me/activities", summary="获取我的动态列表")

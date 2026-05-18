@@ -16,6 +16,7 @@ from .logs import UserBehaviorLogs
 from .reviews import ShopEditRequests
 from .images import Images
 from .complaints import Complaints, ComplaintHandlers
+from .bans import Bans
 
 __all__ = [
     'BaseModel',
@@ -36,4 +37,5 @@ __all__ = [
     'Images',
     'Complaints',
     'ComplaintHandlers',
+    'Bans',
 ]

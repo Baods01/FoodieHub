@@ -10,7 +10,7 @@ from schemas.favorites import (
 from schemas.users import UserResponse
 from services.favorite_service import FavoriteService
 
-router = APIRouter(prefix="/favorites", tags=["Favorites"])
+router = APIRouter(prefix="/favorites")
 
 
 @router.post("/toggle", response_model=FavoriteActionResponse)

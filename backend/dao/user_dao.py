@@ -43,6 +43,17 @@ class UserDAO:
         )
 
     @classmethod
+    async def find_by_account_include_banned(cls, account: str) -> Optional[Users]:
+        """
+        按用户名/手机号/邮箱查找用户（包括被封禁用户，用于登录检查）
+        需要显式包含 is_active=False 的记录，因为 SoftDeleteMixin 会自动过滤
+        """
+        return await Users.filter(
+            Q(username=account) | Q(phone=account) | Q(email=account),
+            is_active__in=[True, False]  # 显式包含所有状态的用户
+        ).first()
+
+    @classmethod
     async def find_by_username(cls, username: str) -> Optional[Users]:
         """按用户名查找用户"""
         return await Users.get_or_none(username=username, is_active=True)
@@ -215,18 +226,6 @@ class UserDAO:
             type="question",
             is_active=True
         ).count()
-
-    # ============ 用户账户管理 ============
-    # NOTE: account_status 字段需要在数据库模型中添加
-    # @classmethod
-    # async def update_user_account_status(cls, user_id: int, account_status: int) -> Optional[Users]:
-    #    """更新用户账户状态（封禁/解封）"""
-    #    user = await Users.get_or_none(id=user_id, is_active=True)
-    #    if user:
-    #        user.account_status = account_status
-    #        await user.save()
-    #        return user
-    #    return None
 
     @classmethod
     async def create_user_behavior_log(

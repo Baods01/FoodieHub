@@ -70,16 +70,28 @@ class UserService:
         用户登录
         - 按用户名/手机号/邮箱查找用户
         - 验证密码
+        - 检查账户状态（封禁用户无法登录）
         - 生成 JWT 令牌
         """
-        # 使用 DAO 层查找用户
-        user = await UserDAO.find_by_account(login_data.account)
+        # 先查找包括被封禁用户在内的用户
+        user = await UserDAO.find_by_account_include_banned(login_data.account)
         if not user:
             raise ValueError("账号或密码错误")
 
         # 验证密码
         if not PasswordService.verify(login_data.password, user.password):
             raise ValueError("账号或密码错误")
+
+        # 检查用户是否被封禁
+        if not user.is_active:
+            # 查询封禁记录获取封禁原因
+            from dao.ban_dao import BanDAO
+            ban_record = await BanDAO.get_active_ban("user", user.id)
+            if ban_record:
+                reason = ban_record.reason or "未说明原因"
+                raise ValueError(f"您的账户已被封禁，封禁原因：{reason}")
+            else:
+                raise ValueError("您的账户已被封禁")
 
         # 生成 JWT 令牌
         if login_data.remember_me:
@@ -111,18 +123,31 @@ class UserService:
     async def authenticate(username: str, password: str):
         """
         用户认证（OAuth2 格式）
-        - 根据用户名查找用户
+        - 根据用户名查找用户（包括被封禁用户）
         - 验证密码
+        - 检查账户状态（封禁用户无法登录）
         - 返回用户对象（用于生成 token）
         """
         from dao.user_dao import UserDAO
         
-        user = await UserDAO.find_by_username(username)
+        # 使用 find_by_account_include_banned 查找用户（包括被封禁用户）
+        user = await UserDAO.find_by_account_include_banned(username)
         if not user:
             return None
         
         if not PasswordService.verify(password, user.password):
             return None
+        
+        # 检查用户是否被封禁
+        if not user.is_active:
+            # 查询封禁记录获取封禁原因
+            from dao.ban_dao import BanDAO
+            ban_record = await BanDAO.get_active_ban("user", user.id)
+            if ban_record:
+                reason = ban_record.reason or "未说明原因"
+                raise ValueError(f"您的账户已被封禁，封禁原因：{reason}")
+            else:
+                raise ValueError("您的账户已被封禁")
         
         return user
 
@@ -260,3 +285,28 @@ class UserService:
         if not user:
             raise ValueError("用户不存在")
         return UserResponse.model_validate(user)
+
+    @staticmethod
+    async def log_user_behavior(
+        user_id: int,
+        behavior_type: str,
+        target_type: str,
+        target_id: int
+    ) -> None:
+        """
+        记录用户行为日志
+        
+        Args:
+            user_id: 用户ID
+            behavior_type: 行为类型（如 ban_shop、unban_user 等）
+            target_type: 目标类型（如 shop、user 等）
+            target_id: 目标ID
+        """
+        from models.logs import UserBehaviorLogs
+        
+        await UserBehaviorLogs.create(
+            user_id=user_id,
+            behavior_type=behavior_type,
+            target_type=target_type,
+            target_id=target_id
+        )

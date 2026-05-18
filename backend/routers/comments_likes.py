@@ -5,7 +5,7 @@ from schemas.comments_likes import CommentLikeCreate, CommentLikeResponse
 from services.comments_likes_service import CommentsLikesService
 from schemas.users import UserResponse
 
-router = APIRouter(tags=["Comment Likes"])
+router = APIRouter()
 
 
 @router.post("/comments/like", summary="点赞/取消点赞评论")
