@@ -13,16 +13,7 @@ import { useAuthStore } from '../../store/authStore';
 
 export function Header() {
   const navigate = useNavigate();
-  const { isLoggedIn, userName, userAvatar, login, logout } = useAuthStore();
-
-  const handleLogin = () => {
-    // 开发调试：点击后立即切换为已登录态
-    login({
-      id: 1,
-      name: '食探用户',
-      avatar: null,
-    });
-  };
+  const { isLoggedIn, userName, userAvatar, logout } = useAuthStore();
 
   const handleLogout = () => {
     logout();
@@ -117,12 +108,12 @@ export function Header() {
           </Transition>
         </Menu>
       ) : (
-        <button
-          onClick={handleLogin}
+        <Link
+          to="/login"
           className="text-sm text-white/80 hover:text-white transition-colors"
         >
           登录/注册
-        </button>
+        </Link>
       )}
     </header>
   );

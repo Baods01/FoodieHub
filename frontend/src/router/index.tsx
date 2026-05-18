@@ -6,6 +6,8 @@ import ProfilePage from '../pages/ProfilePage';
 import FavoritesPage from '../pages/FavoritesPage';
 import HistoryPage from '../pages/HistoryPage';
 import NotificationsPage from '../pages/NotificationsPage';
+import LoginPage from '../pages/LoginPage';
+import RegisterPage from '../pages/RegisterPage';
 
 export const router = createBrowserRouter([
   {
@@ -20,4 +22,7 @@ export const router = createBrowserRouter([
       { path: 'notifications', element: <NotificationsPage /> },
     ],
   },
+  // 独立全屏页面（无 RootLayout）
+  { path: '/login', element: <LoginPage /> },
+  { path: '/register', element: <RegisterPage /> },
 ]);
