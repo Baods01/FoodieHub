@@ -12,7 +12,7 @@ from schemas.users import UserResponse
 from services.shop_service import ShopService
 from dependencies.auth import require_login
 
-router = APIRouter(prefix="/user/history", tags=["用户浏览历史"])
+router = APIRouter(prefix="/user/history")
 
 @router.get("/", response_model=UserHistoryListResponse, summary="获取浏览历史记录")
 async def get_user_history(

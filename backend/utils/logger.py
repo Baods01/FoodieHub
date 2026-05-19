@@ -1,4 +1,4 @@
-"""日志工具模块 - 用于点赞功能调试"""
+"""日志工具模块 - 通用日志记录工具"""
 
 import logging
 import sys
@@ -47,6 +47,58 @@ def get_logger(name: str = "debug") -> logging.Logger:
 
 # 全局日志记录器实例
 debug_logger = get_logger("debug")
+
+
+def log_database_error(operation: str, error: Exception, details: dict = None):
+    """
+    记录数据库操作错误
+    
+    Args:
+        operation: 操作类型
+        error: 异常对象
+        details: 详细信息字典
+    """
+    error_message = f"DATABASE ERROR [{operation}] - {str(error)}"
+    
+    if details:
+        error_message += f" - Details: {details}"
+    
+    debug_logger.error(error_message)
+
+
+def log_admin_operation_error(operation: str, error: Exception, details: dict = None):
+    """
+    记录管理员操作错误
+    
+    Args:
+        operation: 操作类型
+        error: 异常对象
+        details: 详细信息字典
+    """
+    error_message = f"ADMIN OPERATION ERROR [{operation}] - {str(error)}"
+    
+    if details:
+        error_message += f" - Details: {details}"
+    
+    debug_logger.error(error_message)
+
+
+def log_admin_operation(operation: str, user_id: int, module: str, details: dict = None):
+    """
+    记录管理员操作
+    
+    Args:
+        operation: 操作类型
+        user_id: 用户ID
+        module: 操作模块
+        details: 详细信息字典
+    """
+    log_message = f"ADMIN OPERATION [{operation}] user_id={user_id} module={module}"
+    
+    if details:
+        log_message += f" - Details: {details}"
+    
+    debug_logger.info(log_message)
 
 
 # 点赞功能专用日志函数
