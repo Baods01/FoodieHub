@@ -5,6 +5,7 @@ interface ShopInfoSectionProps {
   category: string;
   area: string;
   description?: string;
+  diningMethods?: string[];
   isFavorited: boolean;
   favoriteCount: number;
   isLoggedIn: boolean;
@@ -17,6 +18,7 @@ export function ShopInfoSection({
   category,
   area,
   description,
+  diningMethods,
   isFavorited,
   favoriteCount,
   isLoggedIn,
@@ -44,6 +46,11 @@ export function ShopInfoSection({
           <span className="inline-block px-2 py-0.5 text-xs rounded border border-gray-300 text-gray-500">
             {area}
           </span>
+          {diningMethods?.map((m) => (
+            <span key={m} className="inline-block px-2 py-0.5 text-xs rounded border border-blue-200 text-blue-500">
+              {m}
+            </span>
+          ))}
         </div>
 
         {description && (

@@ -173,6 +173,7 @@ function mockFetchShopDetail(shopId: number): Promise<ShopDetail> {
     totalRatings: 42,
     userRating: ratingState[shopId] ?? null,
     isFavorited: favoriteState[shopId] ?? false,
+    diningMethods: ['堂食', '自取'],
   }));
 }
 

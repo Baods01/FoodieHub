@@ -21,6 +21,7 @@ export interface ShopDetail extends ShopCardData {
   totalRatings: number;
   userRating: number | null;
   isFavorited: boolean;
+  diningMethods?: string[]; // 显示名称，如 ['堂食', '自取', '外卖']
 }
 
 export interface MenuItem {

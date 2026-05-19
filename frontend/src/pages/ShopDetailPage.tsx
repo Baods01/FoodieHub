@@ -106,6 +106,7 @@ export function ShopDetailPage() {
           category={shop.category}
           area={shop.area}
           description={shop.description}
+          diningMethods={shop.diningMethods}
           isFavorited={shop.isFavorited}
           favoriteCount={shop.favoriteCount}
           isLoggedIn={isLoggedIn}

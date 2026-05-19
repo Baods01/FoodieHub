@@ -2,7 +2,8 @@ import { useReducer, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '../hooks/useDebounce';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-import { fetchShops, fetchCategories, fetchAreas, fetchAnnouncement } from '../api/shops';
+import { fetchShops, fetchAnnouncement } from '../api/shops';
+import { fetchDictData } from '../api/dictionary';
 import type { ShopCardData, ShopFilter, SortOption } from '../types/shop';
 import { AnnouncementBanner } from '../components/shop/AnnouncementBanner';
 import SearchBar from '../components/shop/SearchBar';
@@ -52,8 +53,8 @@ export function HomePage() {
   const [announcement, setAnnouncement] = useState<{ title: string; content: string } | null>(null);
 
   useEffect(() => {
-    fetchCategories().then(setCategories);
-    fetchAreas().then(setAreas);
+    fetchDictData('category').then((items) => setCategories(items.map((i) => i.name)));
+    fetchDictData('location_type').then((items) => setAreas(items.map((i) => i.name)));
     fetchAnnouncement().then(setAnnouncement);
   }, []);
 
