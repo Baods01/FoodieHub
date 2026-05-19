@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr, field_validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import re
 
@@ -28,33 +28,20 @@ class UserCreate(BaseModel):
         return v
 
 
-class UsernameLogin(BaseModel):
-    """用户名登录请求"""
-    username: str = Field(min_length=2, max_length=50, description="用户名")
+class UserLogin(BaseModel):
+    """用户登录请求"""
+    account: str = Field(description="用户名/手机号/邮箱")
     password: str = Field(min_length=6, max_length=128, description="密码")
-
-    @field_validator('username')
-    @classmethod
-    def validate_username(cls, v: str) -> str:
-        if not re.match(r'^[\w\u4e00-\u9fa5]+$', v):
-            raise ValueError('用户名只能包含字母、数字、下划线和中文')
-        return v
+    remember_me: bool = Field(default=False, description="记住我")
 
 
-class PhoneLogin(BaseModel):
+class UserPhoneLogin(BaseModel):
     """手机号登录请求"""
-    phone: str = Field(max_length=20, description="手机号")
+    phone: str = Field(description="手机号")
     password: str = Field(min_length=6, max_length=128, description="密码")
 
-    @field_validator('phone')
-    @classmethod
-    def validate_phone(cls, v: str) -> str:
-        if not re.match(r'^1[3-9]\d{9}$', v):
-            raise ValueError('手机号格式不正确')
-        return v
 
-
-class EmailLogin(BaseModel):
+class UserEmailLogin(BaseModel):
     """邮箱登录请求"""
     email: EmailStr = Field(description="邮箱")
     password: str = Field(min_length=6, max_length=128, description="密码")
@@ -146,6 +133,22 @@ class UserStats(BaseModel):
     rating_count: int = Field(default=0, description="评分数")
     favorite_count: int = Field(default=0, description="收藏数")
     activity_count: int = Field(default=0, description="动态数")
+
+
+class ViewHistoryItem(BaseModel):
+    """浏览历史记录项"""
+    shop_id: int = Field(description="店铺ID")
+    shop_name: str = Field(description="店铺名称")
+    shop_cover: Optional[str] = Field(default=None, description="店铺封面图")
+    region: Optional[str] = Field(default=None, description="区域")
+    viewed_at: datetime = Field(description="浏览时间")
+
+
+class ViewHistoryResponse(BaseModel):
+    """浏览历史记录响应"""
+    items: List[ViewHistoryItem] = Field(description="浏览历史记录列表")
+    total: int = Field(description="总记录数")
+    has_more: bool = Field(description="是否有更多记录")
 
 
 class UserProfileResponse(BaseModel):

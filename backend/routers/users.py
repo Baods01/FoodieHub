@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
 from typing import Optional
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse, FileResponse
 import traceback
 import os
@@ -8,7 +9,8 @@ from datetime import datetime
 import uuid
 
 from schemas.users import (
-    UserCreate, UsernameLogin, PhoneLogin, EmailLogin, UserResponse, UserUpdate, UserProfileResponse
+    UserCreate, UserResponse, UserUpdate, UserProfileResponse,
+    UserLogin, UserPhoneLogin, UserEmailLogin
 )
 from schemas.common import ResponseModel
 from services.user_service import UserService
@@ -66,21 +68,24 @@ async def register(user_data: UserCreate):
         )
 
 
-@router.post("/login", summary="用户名登录")
-async def login_username(login_data: UsernameLogin):
+@router.post("/login", summary="用户登录")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     """
-    用户名登录接口
-    - 使用用户名 + 密码登录
+    用户登录接口（OAuth2 格式）
+    - 支持 Swagger UI 的 "Authorize" 功能
+    - 接收表单数据：username, password
+    - 返回 JWT token（OAuth2 标准格式）
     """
     try:
-        user = await UserService.authenticate(login_data.username, login_data.password)
+        user = await UserService.authenticate(form_data.username, form_data.password)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="用户名或密码错误"
             )
-
+        
         access_token = create_access_token(user.id)
+        # 返回 OAuth2 标准格式（不使用 ResponseModel 包装）
         return JSONResponse(
             content={
                 "access_token": access_token,
@@ -96,29 +101,23 @@ async def login_username(login_data: UsernameLogin):
         )
 
 
-@router.post("/login/phone", summary="手机号登录")
-async def login_phone(login_data: PhoneLogin):
+@router.post("/login-phone", summary="手机号登录")
+async def login_phone(login_data: UserPhoneLogin):
     """
     手机号登录接口
-    - 使用手机号 + 密码登录
+    - 使用手机号和密码登录
+    - 返回 JWT access_token
     """
     try:
-        user = await UserService.authenticate(login_data.phone, login_data.password)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="手机号或密码错误"
-            )
-
-        access_token = create_access_token(user.id)
+        login_response = await UserService.login(
+            UserLogin(account=login_data.phone, password=login_data.password)
+        )
         return JSONResponse(
             content={
-                "access_token": access_token,
-                "token_type": "bearer"
+                "access_token": login_response.access_token,
+                "token_type": login_response.token_type
             }
         )
-    except HTTPException:
-        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -126,29 +125,23 @@ async def login_phone(login_data: PhoneLogin):
         )
 
 
-@router.post("/login/email", summary="邮箱登录")
-async def login_email(login_data: EmailLogin):
+@router.post("/login-email", summary="邮箱登录")
+async def login_email(login_data: UserEmailLogin):
     """
     邮箱登录接口
-    - 使用邮箱 + 密码登录
+    - 使用邮箱和密码登录
+    - 返回 JWT access_token
     """
     try:
-        user = await UserService.authenticate(login_data.email, login_data.password)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="邮箱或密码错误"
-            )
-
-        access_token = create_access_token(user.id)
+        login_response = await UserService.login(
+            UserLogin(account=login_data.email, password=login_data.password)
+        )
         return JSONResponse(
             content={
-                "access_token": access_token,
-                "token_type": "bearer"
+                "access_token": login_response.access_token,
+                "token_type": login_response.token_type
             }
         )
-    except HTTPException:
-        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

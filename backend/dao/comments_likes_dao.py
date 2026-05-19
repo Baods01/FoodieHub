@@ -196,7 +196,10 @@ class CommentsLikesDAO:
         return await CommentsLikes.filter(
             user_id=user_id,
             is_active=True
-        ).order_by("-created_at").limit(limit).offset(offset).select_related("comment").all()
+        ).order_by("-created_at").limit(limit).offset(offset).select_related(
+            "comment",
+            "comment__user"
+        ).all()
 
     @classmethod
     async def get_like_by_id(cls, like_id: int) -> Optional[CommentsLikes]:

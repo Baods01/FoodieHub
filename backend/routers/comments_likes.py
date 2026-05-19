@@ -87,20 +87,22 @@ async def get_my_likes(
         user_id = current_user.id
         likes = await CommentsLikesDAO.get_user_likes(user_id, limit, offset)
         
-        data = [
-            {
+        data = []
+        for like in likes:
+            comment = like.comment
+            comment_user = getattr(comment, "user", None) if comment else None
+
+            data.append({
                 "id": like.id,
                 "comment_id": like.comment_id,
                 "user_id": like.user_id,
                 "created_at": like.created_at.isoformat() if like.created_at else None,
-                "comment_content": like.comment.content if like.comment else None,
+                "comment_content": comment.content if comment else None,
                 "comment_user": {
-                    "id": like.comment.user.id if like.comment and like.comment.user else None,
-                    "username": like.comment.user.username if like.comment and like.comment.user else None
-                } if like.comment else None
-            }
-            for like in likes
-        ]
+                    "id": getattr(comment_user, "id", None),
+                    "username": getattr(comment_user, "username", None)
+                } if comment_user else None
+            })
         
         return {
             "code": 200,

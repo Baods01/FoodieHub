@@ -18,6 +18,7 @@ from routers.complaints import router as complaints_router
 from routers.user_activities import router as user_activities_router
 from routers.admin import router as admin_router
 from routers.messages import router as messages_router
+from routers.user_history import router as user_history_router
 
 
 @asynccontextmanager
@@ -82,6 +83,7 @@ app.include_router(complaints_router, tags=["举报模块"])
 app.include_router(user_activities_router, tags=["用户动态模块"])
 app.include_router(admin_router, tags=["管理员模块"])
 app.include_router(messages_router, tags=["消息通知模块"])
+app.include_router(user_history_router, tags=["用户浏览历史模块"])
 
 # 配置静态文件服务（图片）
 from pathlib import Path
