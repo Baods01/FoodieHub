@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr, field_validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import re
 
@@ -33,6 +33,18 @@ class UserLogin(BaseModel):
     account: str = Field(description="用户名/手机号/邮箱")
     password: str = Field(min_length=6, max_length=128, description="密码")
     remember_me: bool = Field(default=False, description="记住我")
+
+
+class UserPhoneLogin(BaseModel):
+    """手机号登录请求"""
+    phone: str = Field(description="手机号")
+    password: str = Field(min_length=6, max_length=128, description="密码")
+
+
+class UserEmailLogin(BaseModel):
+    """邮箱登录请求"""
+    email: EmailStr = Field(description="邮箱")
+    password: str = Field(min_length=6, max_length=128, description="密码")
 
 
 class PasswordChange(BaseModel):
@@ -121,6 +133,22 @@ class UserStats(BaseModel):
     rating_count: int = Field(default=0, description="评分数")
     favorite_count: int = Field(default=0, description="收藏数")
     activity_count: int = Field(default=0, description="动态数")
+
+
+class ViewHistoryItem(BaseModel):
+    """浏览历史记录项"""
+    shop_id: int = Field(description="店铺ID")
+    shop_name: str = Field(description="店铺名称")
+    shop_cover: Optional[str] = Field(default=None, description="店铺封面图")
+    region: Optional[str] = Field(default=None, description="区域")
+    viewed_at: datetime = Field(description="浏览时间")
+
+
+class ViewHistoryResponse(BaseModel):
+    """浏览历史记录响应"""
+    items: List[ViewHistoryItem] = Field(description="浏览历史记录列表")
+    total: int = Field(description="总记录数")
+    has_more: bool = Field(description="是否有更多记录")
 
 
 class UserProfileResponse(BaseModel):

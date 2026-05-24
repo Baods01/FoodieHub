@@ -230,7 +230,10 @@ class ShopDAO:
     @classmethod
     async def get_shop_dict_data(cls, shop_id: int) -> List[DictData]:
         """获取店铺关联的所有字典数据"""
-        relations = await ShopDictRel.filter(shop_id=shop_id, is_active=True).prefetch_related("dict_data")
+        relations = await ShopDictRel.filter(
+            shop_id=shop_id,
+            is_active=True
+        ).prefetch_related("dict_data", "dict_data__dict_type").all()
         return [rel.dict_data for rel in relations]
 
     @classmethod
@@ -251,79 +254,79 @@ class ShopDAO:
         Returns:
             更新结果统计
         """
-        from models.dict import DictTypes
-        
-        # 1. 获取店铺当前的字典数据关联
         current_rels = await ShopDictRel.filter(
             shop_id=shop_id,
             is_active=True
         ).prefetch_related("dict_data", "dict_data__dict_type").all()
-        
-        # 2. 分类当前关联
+
         current_location_codes = set()
         current_category_codes = set()
-        
         for rel in current_rels:
             if rel.dict_data.dict_type.code == "location_type":
                 current_location_codes.add(rel.dict_data.code)
             elif rel.dict_data.dict_type.code == "category_type":
                 current_category_codes.add(rel.dict_data.code)
-        
-        # 3. 需要添加的编码（新增）
-        to_add_location = set(location_codes or []) - current_location_codes
-        to_add_category = set(category_codes or []) - current_category_codes
-        
-        # 4. 需要删除的编码（移除）
-        to_remove_location = current_location_codes - set(location_codes or [])
-        to_remove_category = current_category_codes - set(category_codes or [])
-        
-        # 5. 执行删除操作
+
         deleted_count = 0
-        for rel in current_rels:
-            if rel.dict_data.code in to_remove_location or rel.dict_data.code in to_remove_category:
-                await rel.delete()
-                deleted_count += 1
-        
-        # 6. 执行添加操作
         added_count = 0
         added_codes = []
-        
-        # 获取区域字典数据
-        if location_codes:
+
+        if location_codes is not None:
             location_dict_data = await DictData.filter(
                 dict_type__code="location_type",
                 code__in=location_codes,
                 is_active=True
             ).all()
+            if len(location_dict_data) != len(set(location_codes)):
+                existing_codes = {item.code for item in location_dict_data}
+                missing_codes = sorted(set(location_codes) - existing_codes)
+                raise ValueError(f"以下区域 code 不存在：{', '.join(missing_codes)}")
+
             location_map = {d.code: d for d in location_dict_data}
-            
+            to_add_location = set(location_codes) - current_location_codes
+            to_remove_location = current_location_codes - set(location_codes)
+
+            for rel in current_rels:
+                if rel.dict_data.dict_type.code == "location_type" and rel.dict_data.code in to_remove_location:
+                    await rel.delete()
+                    deleted_count += 1
+
             for code in to_add_location:
-                if code in location_map:
-                    await ShopDictRel.create(
-                        shop_id=shop_id,
-                        dict_data_id=location_map[code].id
-                    )
-                    added_count += 1
-                    added_codes.append(code)
-        
-        # 获取品类字典数据
-        if category_codes:
+                await ShopDictRel.create(
+                    shop_id=shop_id,
+                    dict_data_id=location_map[code].id
+                )
+                added_count += 1
+                added_codes.append(code)
+
+        if category_codes is not None:
             category_dict_data = await DictData.filter(
                 dict_type__code="category_type",
                 code__in=category_codes,
                 is_active=True
             ).all()
+            if len(category_dict_data) != len(set(category_codes)):
+                existing_codes = {item.code for item in category_dict_data}
+                missing_codes = sorted(set(category_codes) - existing_codes)
+                raise ValueError(f"以下品类 code 不存在：{', '.join(missing_codes)}")
+
             category_map = {d.code: d for d in category_dict_data}
-            
+            to_add_category = set(category_codes) - current_category_codes
+            to_remove_category = current_category_codes - set(category_codes)
+
+            for rel in current_rels:
+                if rel.dict_data.dict_type.code == "category_type" and rel.dict_data.code in to_remove_category:
+                    await rel.delete()
+                    deleted_count += 1
+
             for code in to_add_category:
-                if code in category_map:
-                    await ShopDictRel.create(
-                        shop_id=shop_id,
-                        dict_data_id=category_map[code].id
-                    )
-                    added_count += 1
-                    added_codes.append(code)
-        
+                await ShopDictRel.create(
+                    shop_id=shop_id,
+                    dict_data_id=category_map[code].id
+                )
+                added_count += 1
+                added_codes.append(code)
+
         return {
             "added": added_count,
             "removed": deleted_count,
@@ -993,6 +996,19 @@ class ShopDAO:
         session_id: Optional[str] = None
     ) -> UserBehaviorLogs:
         """创建浏览记录（自动合并重复）"""
+        existing_log = await UserBehaviorLogs.get_or_none(
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            target_id=shop_id,
+            is_active=True
+        )
+        if existing_log:
+            if session_id is not None:
+                existing_log.session_id = session_id
+            await existing_log.save()
+            return existing_log
+
         return await UserBehaviorLogs.create(
             user_id=user_id,
             behavior_type="view_shop",
@@ -1012,5 +1028,133 @@ class ShopDAO:
         return await UserBehaviorLogs.filter(
             user_id=user_id,
             behavior_type="view_shop",
+            target_type="shop",
             is_active=True
-        ).order_by("-created_at").limit(limit).offset(offset).prefetch_related("user").all()
+        ).order_by("-updated_at", "-id").limit(limit).offset(offset).prefetch_related("user").all()
+
+    @classmethod
+    async def count_user_view_history(cls, user_id: int) -> int:
+        """统计用户浏览历史数量"""
+        return await UserBehaviorLogs.filter(
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            is_active=True
+        ).count()
+
+    @classmethod
+    async def delete_view_history_item(cls, user_id: int, history_id: int) -> bool:
+        """删除单条浏览历史"""
+        log = await UserBehaviorLogs.get_or_none(
+            id=history_id,
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            is_active=True
+        )
+        if not log:
+            return False
+        log.is_active = False
+        await log.save()
+        return True
+
+    @classmethod
+    async def clear_user_view_history(cls, user_id: int) -> int:
+        """清空用户全部浏览历史"""
+        return await UserBehaviorLogs.filter(
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            is_active=True
+        ).update(is_active=False)
+
+    @classmethod
+    async def get_user_view_history_with_shop_info(
+        cls,
+        user_id: int,
+        limit: int = 20,
+        offset: int = 0,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        shop_id: Optional[int] = None
+    ) -> List[dict]:
+        """获取用户浏览历史（带店铺信息）"""
+        query = UserBehaviorLogs.filter(
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            is_active=True
+        ).order_by("-updated_at", "-id").limit(limit).offset(offset).prefetch_related("user")
+        
+        # 时间范围筛选
+        if start_time:
+            query = query.filter(created_at__gte=start_time)
+        if end_time:
+            query = query.filter(created_at__lte=end_time)
+            
+        # 店铺ID筛选
+        if shop_id:
+            query = query.filter(target_id=shop_id)
+            
+        logs = await query.all()
+        
+        # 构造返回结果
+        result = []
+        for log in logs:
+            # 获取店铺信息
+            shop = await Shops.get_or_none(id=log.target_id)
+            if shop:
+                # 构造店铺简要信息
+                shop_info = {
+                    "id": shop.id,
+                    "name": shop.name,
+                    "view_count": shop.view_count,
+                    "favorite_count": shop.favorite_count,
+                    "comment_count": shop.comment_count,
+                    "average_rating": shop.average_rating,
+                    "aliases": shop.aliases,
+                    "merged_into_id": shop.merged_into_id,
+                    "price_range": shop.price_range,
+                    "business_hours": shop.business_hours,
+                    "dining_methods": shop.dining_methods,
+                    "address_detail": shop.address_detail,
+                    "tags": shop.tags,
+                    "created_at": shop.created_at,
+                    "updated_at": shop.updated_at
+                }
+                result.append({
+                    "id": log.id,
+                    "shop": shop_info,
+                    "viewed_at": log.created_at,
+                    "updated_at": log.updated_at
+                })
+                
+        return result
+
+    @classmethod
+    async def count_user_view_history_with_filters(
+        cls,
+        user_id: int,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        shop_id: Optional[int] = None
+    ) -> int:
+        """统计用户浏览历史数量（带筛选条件）"""
+        query = UserBehaviorLogs.filter(
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            is_active=True
+        )
+        
+        # 时间范围筛选
+        if start_time:
+            query = query.filter(created_at__gte=start_time)
+        if end_time:
+            query = query.filter(created_at__lte=end_time)
+            
+        # 店铺ID筛选
+        if shop_id:
+            query = query.filter(target_id=shop_id)
+            
+        return await query.count()

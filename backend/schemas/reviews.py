@@ -31,6 +31,11 @@ class ShopEditRequestApprove(BaseModel):
     main_shop_id: Optional[int] = Field(default=None, description="重复店铺合并时保留的主店铺ID")
 
 
+class ShopCorrectionRequestApprove(BaseModel):
+    """审核通过勘误反馈请求"""
+    remark: Optional[str] = Field(default=None, max_length=255, description="审核备注，将包含在管理员处理通知中")
+
+
 class ShopEditRequestReject(BaseModel):
     """审核拒绝请求"""
     reason: str = Field(min_length=1, max_length=500, description="拒绝原因")

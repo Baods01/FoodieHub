@@ -13,6 +13,7 @@ from dao.ban_dao import BanDAO
 from services.user_service import UserService
 from dependencies.auth import require_admin
 from datetime import datetime, timedelta
+from utils.admin_log_decorator import log_admin_operation
 
 router = APIRouter(prefix="/admin", tags=["管理员模块"])
 
@@ -49,6 +50,7 @@ class DailyStatsItem(BaseModel):
     response_model=ResponseModel[dict],
     summary="封禁店铺（管理员）"
 )
+@log_admin_operation(operation_type="ban_shop", operation_module="shop", target_object_type="shop")
 async def ban_shop(
     shop_id: int,
     reason: str = Query(..., min_length=1, max_length=255, description="封禁原因（必填）"),
@@ -124,6 +126,7 @@ async def ban_shop(
     response_model=ResponseModel[dict],
     summary="解封店铺（管理员）"
 )
+@log_admin_operation(operation_type="unban_shop", operation_module="shop", target_object_type="shop")
 async def unban_shop(
     shop_id: int,
     reason: Optional[str] = Query(None, description="解封原因"),
@@ -194,6 +197,7 @@ async def unban_shop(
     response_model=ResponseModel[dict],
     summary="封禁用户（管理员）"
 )
+@log_admin_operation(operation_type="ban_user", operation_module="user", target_object_type="user")
 async def ban_user(
     user_id: int,
     reason: str = Query(..., min_length=1, max_length=255, description="封禁原因（必填）"),
@@ -284,6 +288,7 @@ async def ban_user(
     response_model=ResponseModel[dict],
     summary="解封用户（管理员）"
 )
+@log_admin_operation(operation_type="unban_user", operation_module="user", target_object_type="user")
 async def unban_user(
     user_id: int,
     reason: Optional[str] = Query(None, description="解封原因"),
@@ -431,6 +436,7 @@ async def get_user_list(
     response_model=ResponseModel[dict],
     summary="发布系统公告（管理员）"
 )
+@log_admin_operation(operation_type="publish_announcement", operation_module="announcement", target_object_type="announcement")
 async def create_announcement(
     title: str = Query(..., min_length=1, max_length=100, description="公告标题"),
     content: str = Query(..., min_length=1, description="公告内容"),
@@ -477,6 +483,7 @@ async def create_announcement(
     response_model=ResponseModel[PlatformStatsResponse],
     summary="获取平台数据概览（管理员）"
 )
+@log_admin_operation(operation_type="view_platform_stats", operation_module="stats", target_object_type="stats")
 async def get_platform_stats(
     days: int = Query(7, ge=1, le=30, description="统计天数范围"),
     current_user: UserResponse = Depends(require_admin)

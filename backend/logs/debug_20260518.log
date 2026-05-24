@@ -1,0 +1,223 @@
+[2026-05-18 20:22:53 INFO] [API] 收到勘误反馈请求 - user_id: 1, request_data: {'shop_id': 1, 'name': 'string', 'area_dict_data_id': 9, 'category_dict_data_id': 0, 'reason': '地方错误'}
+[2026-05-18 20:22:53 INFO] [勘误反馈] 开始处理请求 - user_id: 1, shop_id: 1
+[2026-05-18 20:22:53 INFO] [勘误反馈] 输入参数 - name: string, area_dict_data_id: 9, category_dict_data_id: 0, reason: 地方错误
+[2026-05-18 20:22:53 INFO] [勘误反馈] category_dict_data_id 为 0，已设为 None
+[2026-05-18 20:22:53 INFO] [勘误反馈] 查询店铺结果 - shop: 周末餐
+[2026-05-18 20:22:53 INFO] [勘误反馈] 开始验证修改项
+[2026-05-18 20:22:53 INFO] [勘误反馈] 验证名称 - name: string
+[2026-05-18 20:22:53 INFO] [勘误反馈] 名称验证通过 - changes: {'name': 'string'}
+[2026-05-18 20:22:53 INFO] [勘误反馈] 验证区域 - area_dict_data_id: 9
+[2026-05-18 20:22:53 INFO] [勘误反馈] 查询区域字典结果 - dict_data: 泰山区(nei_taisan)
+[2026-05-18 20:22:53 ERROR] [勘误反馈] 未知错误 - 'QuerySet' object has no attribute 'code'
+Traceback (most recent call last):
+  File "D:\program\foodie_hub\FoodieHub\backend\services\shop_service.py", line 361, in submit_shop_correction_request
+    current_ids = [d.id for d in current_dict_data if d.dict_type and d.dict_type.code == "location_type"]
+                                                                      ^^^^^^^^^^^^^^^^
+AttributeError: 'QuerySet' object has no attribute 'code'
+[2026-05-18 20:22:53 ERROR] [API] 勘误反馈未知错误 - user_id: 1, error: 'QuerySet' object has no attribute 'code'
+Traceback (most recent call last):
+  File "D:\program\foodie_hub\FoodieHub\backend\routers\shops.py", line 374, in submit_shop_edit_request
+    request_obj = await ShopService.submit_shop_correction_request(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\program\foodie_hub\FoodieHub\backend\services\shop_service.py", line 361, in submit_shop_correction_request
+    current_ids = [d.id for d in current_dict_data if d.dict_type and d.dict_type.code == "location_type"]
+                                                                      ^^^^^^^^^^^^^^^^
+AttributeError: 'QuerySet' object has no attribute 'code'
+[2026-05-18 20:23:28 INFO] [API] 收到勘误反馈请求 - user_id: 1, request_data: {'shop_id': 1, 'name': '周沫西餐', 'area_dict_data_id': 0, 'category_dict_data_id': 0, 'reason': '名字错误'}
+[2026-05-18 20:23:28 INFO] [勘误反馈] 开始处理请求 - user_id: 1, shop_id: 1
+[2026-05-18 20:23:28 INFO] [勘误反馈] 输入参数 - name: 周沫西餐, area_dict_data_id: 0, category_dict_data_id: 0, reason: 名字错误
+[2026-05-18 20:23:28 INFO] [勘误反馈] area_dict_data_id 为 0，已设为 None
+[2026-05-18 20:23:28 INFO] [勘误反馈] category_dict_data_id 为 0，已设为 None
+[2026-05-18 20:23:28 INFO] [勘误反馈] 查询店铺结果 - shop: 周末餐
+[2026-05-18 20:23:28 INFO] [勘误反馈] 开始验证修改项
+[2026-05-18 20:23:28 INFO] [勘误反馈] 验证名称 - name: 周沫西餐
+[2026-05-18 20:23:28 INFO] [勘误反馈] 名称验证通过 - changes: {'name': '周沫西餐'}
+[2026-05-18 20:23:28 INFO] [勘误反馈] 开始检查重复请求限制 - changes: {'name': '周沫西餐'}
+[2026-05-18 20:23:28 INFO] [勘误反馈] 字段 name 近期请求数: 1
+[2026-05-18 20:23:28 ERROR] [勘误反馈] 字段 name 7天内已提交过请求
+[2026-05-18 20:23:28 ERROR] [勘误反馈] 业务逻辑错误 - 同一用户对字段 name 7天内仅能提交一次反馈
+[2026-05-18 20:23:28 WARNING] [API] 勘误反馈业务错误 - user_id: 1, error: 同一用户对字段 name 7天内仅能提交一次反馈
+[2026-05-18 20:24:33 INFO] [API] 收到勘误反馈请求 - user_id: 2, request_data: {'shop_id': 2, 'name': 'string', 'area_dict_data_id': 9, 'category_dict_data_id': 0, 'reason': 'string'}
+[2026-05-18 20:24:33 INFO] [勘误反馈] 开始处理请求 - user_id: 2, shop_id: 2
+[2026-05-18 20:24:33 INFO] [勘误反馈] 输入参数 - name: string, area_dict_data_id: 9, category_dict_data_id: 0, reason: string
+[2026-05-18 20:24:33 INFO] [勘误反馈] category_dict_data_id 为 0，已设为 None
+[2026-05-18 20:24:33 INFO] [勘误反馈] 查询店铺结果 - shop: 川渝印象·老火锅
+[2026-05-18 20:24:33 INFO] [勘误反馈] 开始验证修改项
+[2026-05-18 20:24:33 INFO] [勘误反馈] 验证名称 - name: string
+[2026-05-18 20:24:33 INFO] [勘误反馈] 名称验证通过 - changes: {'name': 'string'}
+[2026-05-18 20:24:33 INFO] [勘误反馈] 验证区域 - area_dict_data_id: 9
+[2026-05-18 20:24:33 INFO] [勘误反馈] 查询区域字典结果 - dict_data: 泰山区(nei_taisan)
+[2026-05-18 20:24:33 ERROR] [勘误反馈] 未知错误 - 'QuerySet' object has no attribute 'code'
+Traceback (most recent call last):
+  File "D:\program\foodie_hub\FoodieHub\backend\services\shop_service.py", line 361, in submit_shop_correction_request
+    current_ids = [d.id for d in current_dict_data if d.dict_type and d.dict_type.code == "location_type"]
+                                                                      ^^^^^^^^^^^^^^^^
+AttributeError: 'QuerySet' object has no attribute 'code'
+[2026-05-18 20:24:33 ERROR] [API] 勘误反馈未知错误 - user_id: 2, error: 'QuerySet' object has no attribute 'code'
+Traceback (most recent call last):
+  File "D:\program\foodie_hub\FoodieHub\backend\routers\shops.py", line 374, in submit_shop_edit_request
+    request_obj = await ShopService.submit_shop_correction_request(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\program\foodie_hub\FoodieHub\backend\services\shop_service.py", line 361, in submit_shop_correction_request
+    current_ids = [d.id for d in current_dict_data if d.dict_type and d.dict_type.code == "location_type"]
+                                                                      ^^^^^^^^^^^^^^^^
+AttributeError: 'QuerySet' object has no attribute 'code'
+[2026-05-18 20:27:31 INFO] [API] 收到勘误反馈请求 - user_id: 2, request_data: {'shop_id': 2, 'name': '周沫西餐', 'area_dict_data_id': 0, 'category_dict_data_id': 0, 'reason': 'string'}
+[2026-05-18 20:27:31 INFO] [勘误反馈] 开始处理请求 - user_id: 2, shop_id: 2
+[2026-05-18 20:27:31 INFO] [勘误反馈] 输入参数 - name: 周沫西餐, area_dict_data_id: 0, category_dict_data_id: 0, reason: string
+[2026-05-18 20:27:31 INFO] [勘误反馈] area_dict_data_id 为 0，已设为 None
+[2026-05-18 20:27:31 INFO] [勘误反馈] category_dict_data_id 为 0，已设为 None
+[2026-05-18 20:27:31 INFO] [勘误反馈] 查询店铺结果 - shop: 川渝印象·老火锅
+[2026-05-18 20:27:31 INFO] [勘误反馈] 开始验证修改项
+[2026-05-18 20:27:31 INFO] [勘误反馈] 验证名称 - name: 周沫西餐
+[2026-05-18 20:27:31 INFO] [勘误反馈] 名称验证通过 - changes: {'name': '周沫西餐'}
+[2026-05-18 20:27:31 INFO] [勘误反馈] 开始检查重复请求限制 - changes: {'name': '周沫西餐'}
+[2026-05-18 20:27:31 INFO] [勘误反馈] 字段 name 近期请求数: 0
+[2026-05-18 20:27:31 INFO] [勘误反馈] 今日店铺总请求数: 0
+[2026-05-18 20:27:31 INFO] [勘误反馈] 准备创建请求记录 - proposed_data: {'type': 'correction', 'changes': {'name': '周沫西餐'}, 'reason': 'string'}
+[2026-05-18 20:27:31 INFO] [勘误反馈] 请求记录创建成功 - request_id: 3
+[2026-05-18 20:27:31 INFO] [API] 勘误反馈提交成功 - request_id: 3
+[2026-05-18 20:43:22 INFO] [API] 收到勘误反馈请求 - user_id: 1, request_data: {'shop_id': 1, 'name': 'string', 'area_dict_data_id': 9, 'category_dict_data_id': 0, 'reason': '1'}
+[2026-05-18 20:43:22 INFO] [勘误反馈] 开始处理请求 - user_id: 1, shop_id: 1
+[2026-05-18 20:43:22 INFO] [勘误反馈] 输入参数 - name: string, area_dict_data_id: 9, category_dict_data_id: 0, reason: 1
+[2026-05-18 20:43:22 INFO] [勘误反馈] category_dict_data_id 为 0，已设为 None
+[2026-05-18 20:43:22 INFO] [勘误反馈] 查询店铺结果 - shop: 周末餐
+[2026-05-18 20:43:22 INFO] [勘误反馈] 开始验证修改项
+[2026-05-18 20:43:22 INFO] [勘误反馈] 验证名称 - name: string
+[2026-05-18 20:43:22 INFO] [勘误反馈] 名称验证通过 - changes: {'name': 'string'}
+[2026-05-18 20:43:22 INFO] [勘误反馈] 验证区域 - area_dict_data_id: 9
+[2026-05-18 20:43:22 INFO] [勘误反馈] 查询区域字典结果 - dict_data: 泰山区(nei_taisan)
+[2026-05-18 20:43:22 INFO] [勘误反馈] 当前区域关联 - current_ids: []
+[2026-05-18 20:43:22 INFO] [勘误反馈] 区域验证通过 - changes: {'name': 'string', 'area': {'dict_data_id': 9}}
+[2026-05-18 20:43:22 INFO] [勘误反馈] 开始检查重复请求限制 - changes: {'name': 'string', 'area': {'dict_data_id': 9}}
+[2026-05-18 20:43:22 INFO] [勘误反馈] 字段 name 近期请求数: 1
+[2026-05-18 20:43:22 ERROR] [勘误反馈] 字段 name 7天内已提交过请求
+[2026-05-18 20:43:22 ERROR] [勘误反馈] 业务逻辑错误 - 同一用户对字段 name 7天内仅能提交一次反馈
+[2026-05-18 20:43:22 WARNING] [API] 勘误反馈业务错误 - user_id: 1, error: 同一用户对字段 name 7天内仅能提交一次反馈
+[2026-05-18 20:50:01 INFO] [API] 收到勘误反馈请求 - user_id: 1, request_data: {'shop_id': 1, 'name': 'string', 'area_dict_data_id': 9, 'category_dict_data_id': 0, 'reason': 'string'}
+[2026-05-18 20:50:01 INFO] [勘误反馈] 开始处理请求 - user_id: 1, shop_id: 1
+[2026-05-18 20:50:01 INFO] [勘误反馈] 输入参数 - name: string, area_dict_data_id: 9, category_dict_data_id: 0, reason: string
+[2026-05-18 20:50:01 INFO] [勘误反馈] category_dict_data_id 为 0，已设为 None
+[2026-05-18 20:50:01 INFO] [勘误反馈] 查询店铺结果 - shop: 周末餐
+[2026-05-18 20:50:01 INFO] [勘误反馈] 开始验证修改项
+[2026-05-18 20:50:01 INFO] [勘误反馈] 验证名称 - name: string
+[2026-05-18 20:50:01 INFO] [勘误反馈] 名称验证通过 - changes: {'name': 'string'}
+[2026-05-18 20:50:01 INFO] [勘误反馈] 验证区域 - area_dict_data_id: 9
+[2026-05-18 20:50:01 INFO] [勘误反馈] 查询区域字典结果 - dict_data: 泰山区(nei_taisan)
+[2026-05-18 20:50:01 INFO] [勘误反馈] 当前区域关联 - current_ids: []
+[2026-05-18 20:50:01 INFO] [勘误反馈] 区域验证通过 - changes: {'name': 'string', 'area': {'dict_data_id': 9}}
+[2026-05-18 20:50:01 INFO] [勘误反馈] 开始检查重复请求限制 - changes: {'name': 'string', 'area': {'dict_data_id': 9}}
+[2026-05-18 20:50:01 INFO] [勘误反馈] 字段 name 近期请求数: 1
+[2026-05-18 20:50:01 ERROR] [勘误反馈] 字段 name 7天内已提交过请求
+[2026-05-18 20:50:01 ERROR] [勘误反馈] 业务逻辑错误 - 同一用户对字段 name 7天内仅能提交一次反馈
+[2026-05-18 20:50:01 WARNING] [API] 勘误反馈业务错误 - user_id: 1, error: 同一用户对字段 name 7天内仅能提交一次反馈
+[2026-05-18 20:50:59 INFO] [API] 收到勘误反馈请求 - user_id: 3, request_data: {'shop_id': 1, 'name': 'string', 'area_dict_data_id': 9, 'category_dict_data_id': 0, 'reason': 'string'}
+[2026-05-18 20:50:59 INFO] [勘误反馈] 开始处理请求 - user_id: 3, shop_id: 1
+[2026-05-18 20:50:59 INFO] [勘误反馈] 输入参数 - name: string, area_dict_data_id: 9, category_dict_data_id: 0, reason: string
+[2026-05-18 20:50:59 INFO] [勘误反馈] category_dict_data_id 为 0，已设为 None
+[2026-05-18 20:50:59 INFO] [勘误反馈] 查询店铺结果 - shop: 周末餐
+[2026-05-18 20:50:59 INFO] [勘误反馈] 开始验证修改项
+[2026-05-18 20:50:59 INFO] [勘误反馈] 验证名称 - name: string
+[2026-05-18 20:50:59 INFO] [勘误反馈] 名称验证通过 - changes: {'name': 'string'}
+[2026-05-18 20:50:59 INFO] [勘误反馈] 验证区域 - area_dict_data_id: 9
+[2026-05-18 20:50:59 INFO] [勘误反馈] 查询区域字典结果 - dict_data: 泰山区(nei_taisan)
+[2026-05-18 20:50:59 INFO] [勘误反馈] 当前区域关联 - current_ids: []
+[2026-05-18 20:50:59 INFO] [勘误反馈] 区域验证通过 - changes: {'name': 'string', 'area': {'dict_data_id': 9}}
+[2026-05-18 20:50:59 INFO] [勘误反馈] 开始检查重复请求限制 - changes: {'name': 'string', 'area': {'dict_data_id': 9}}
+[2026-05-18 20:50:59 INFO] [勘误反馈] 字段 name 近期请求数: 0
+[2026-05-18 20:50:59 INFO] [勘误反馈] 字段 area 近期请求数: 0
+[2026-05-18 20:50:59 INFO] [勘误反馈] 今日店铺总请求数: 0
+[2026-05-18 20:50:59 INFO] [勘误反馈] 准备创建请求记录 - proposed_data: {'type': 'correction', 'changes': {'name': 'string', 'area': {'dict_data_id': 9}}, 'reason': 'string'}
+[2026-05-18 20:50:59 INFO] [勘误反馈] 请求记录创建成功 - request_id: 4
+[2026-05-18 20:50:59 INFO] [API] 勘误反馈提交成功 - request_id: 4
+[2026-05-18 20:58:09 INFO] [API] 收到勘误反馈请求 - user_id: 1, request_data: {'shop_id': 1, 'name': 'string', 'area_dict_data_id': 9, 'category_dict_data_id': 0, 'reason': '1'}
+[2026-05-18 20:58:09 INFO] [勘误反馈] 开始处理请求 - user_id: 1, shop_id: 1
+[2026-05-18 20:58:09 INFO] [勘误反馈] 输入参数 - name: string, area_dict_data_id: 9, category_dict_data_id: 0, reason: 1
+[2026-05-18 20:58:09 INFO] [勘误反馈] category_dict_data_id 为 0，已设为 None
+[2026-05-18 20:58:09 INFO] [勘误反馈] 查询店铺结果 - shop: 周末餐
+[2026-05-18 20:58:09 INFO] [勘误反馈] 开始验证修改项
+[2026-05-18 20:58:09 INFO] [勘误反馈] 验证名称 - name: string
+[2026-05-18 20:58:09 INFO] [勘误反馈] 名称验证通过 - changes: {'name': 'string'}
+[2026-05-18 20:58:09 INFO] [勘误反馈] 验证区域 - area_dict_data_id: 9
+[2026-05-18 20:58:09 INFO] [勘误反馈] 查询区域字典结果 - dict_data: 泰山区(nei_taisan)
+[2026-05-18 20:58:09 INFO] [勘误反馈] 当前区域关联 - current_ids: []
+[2026-05-18 20:58:09 INFO] [勘误反馈] 区域验证通过 - changes: {'name': 'string', 'area': {'dict_data_id': 9}}
+[2026-05-18 20:58:09 INFO] [勘误反馈] 开始检查重复请求限制 - changes: {'name': 'string', 'area': {'dict_data_id': 9}}
+[2026-05-18 20:58:09 INFO] [勘误反馈] 字段 name 近期请求数: 1
+[2026-05-18 20:58:09 ERROR] [勘误反馈] 字段 name 7天内已提交过请求
+[2026-05-18 20:58:09 ERROR] [勘误反馈] 业务逻辑错误 - 同一用户对字段 name 7天内仅能提交一次反馈
+[2026-05-18 20:58:09 WARNING] [API] 勘误反馈业务错误 - user_id: 1, error: 同一用户对字段 name 7天内仅能提交一次反馈
+[2026-05-18 21:07:22 INFO] [API] 收到勘误反馈请求 - user_id: 1, request_data: {'shop_id': 1, 'name': 'string', 'area_dict_data_id': 0, 'category_dict_data_id': 9, 'reason': 'string'}
+[2026-05-18 21:07:22 INFO] [勘误反馈] 开始处理请求 - user_id: 1, shop_id: 1
+[2026-05-18 21:07:22 INFO] [勘误反馈] 输入参数 - name: string, area_dict_data_id: 0, category_dict_data_id: 9, reason: string
+[2026-05-18 21:07:22 INFO] [勘误反馈] area_dict_data_id 为 0，已设为 None
+[2026-05-18 21:07:22 INFO] [勘误反馈] 查询店铺结果 - shop: 周末餐
+[2026-05-18 21:07:22 INFO] [勘误反馈] 开始验证修改项
+[2026-05-18 21:07:22 INFO] [勘误反馈] 验证名称 - name: string
+[2026-05-18 21:07:22 INFO] [勘误反馈] 名称包含占位符值，忽略该字段 - name: string
+[2026-05-18 21:07:22 INFO] [勘误反馈] 名称为空或占位符，忽略该字段
+[2026-05-18 21:07:22 INFO] [勘误反馈] 验证品类 - category_dict_data_id: 9
+[2026-05-18 21:07:22 INFO] [勘误反馈] 查询品类字典结果 - dict_data: 泰山区(nei_taisan)
+[2026-05-18 21:07:22 ERROR] [勘误反馈] 品类字典项无效 - id: 9, dict_data: 泰山区(nei_taisan), dict_type: 区域类型(location_type)
+[2026-05-18 21:07:22 ERROR] [勘误反馈] 业务逻辑错误 - 指定的品类字典项无效
+[2026-05-18 21:07:22 WARNING] [API] 勘误反馈业务错误 - user_id: 1, error: 指定的品类字典项无效
+[2026-05-18 21:07:32 INFO] [API] 收到勘误反馈请求 - user_id: 1, request_data: {'shop_id': 1, 'name': 'string', 'area_dict_data_id': 9, 'category_dict_data_id': 0, 'reason': 'string'}
+[2026-05-18 21:07:32 INFO] [勘误反馈] 开始处理请求 - user_id: 1, shop_id: 1
+[2026-05-18 21:07:32 INFO] [勘误反馈] 输入参数 - name: string, area_dict_data_id: 9, category_dict_data_id: 0, reason: string
+[2026-05-18 21:07:32 INFO] [勘误反馈] category_dict_data_id 为 0，已设为 None
+[2026-05-18 21:07:32 INFO] [勘误反馈] 查询店铺结果 - shop: 周末餐
+[2026-05-18 21:07:32 INFO] [勘误反馈] 开始验证修改项
+[2026-05-18 21:07:32 INFO] [勘误反馈] 验证名称 - name: string
+[2026-05-18 21:07:32 INFO] [勘误反馈] 名称包含占位符值，忽略该字段 - name: string
+[2026-05-18 21:07:32 INFO] [勘误反馈] 名称为空或占位符，忽略该字段
+[2026-05-18 21:07:32 INFO] [勘误反馈] 验证区域 - area_dict_data_id: 9
+[2026-05-18 21:07:32 INFO] [勘误反馈] 查询区域字典结果 - dict_data: 泰山区(nei_taisan)
+[2026-05-18 21:07:32 INFO] [勘误反馈] 当前区域关联 - current_ids: []
+[2026-05-18 21:07:32 INFO] [勘误反馈] 区域验证通过 - changes: {'area': {'dict_data_id': 9}}
+[2026-05-18 21:07:32 INFO] [勘误反馈] 开始检查重复请求限制 - changes: {'area': {'dict_data_id': 9}}
+[2026-05-18 21:07:32 INFO] [勘误反馈] 字段 area 近期请求数: 0
+[2026-05-18 21:07:32 INFO] [勘误反馈] 今日店铺总请求数: 1
+[2026-05-18 21:07:32 INFO] [勘误反馈] 原因包含占位符值，忽略该字段 - reason: string
+[2026-05-18 21:07:32 INFO] [勘误反馈] 准备创建请求记录 - proposed_data: {'type': 'correction', 'changes': {'area': {'dict_data_id': 9}}, 'reason': ''}
+[2026-05-18 21:07:32 INFO] [勘误反馈] 请求记录创建成功 - request_id: 5
+[2026-05-18 21:07:32 INFO] [API] 勘误反馈提交成功 - request_id: 5
+[2026-05-18 21:07:50 INFO] [API] 收到勘误反馈请求 - user_id: 1, request_data: {'shop_id': 1, 'name': 'string', 'area_dict_data_id': 0, 'category_dict_data_id': 2, 'reason': 'string'}
+[2026-05-18 21:07:50 INFO] [勘误反馈] 开始处理请求 - user_id: 1, shop_id: 1
+[2026-05-18 21:07:50 INFO] [勘误反馈] 输入参数 - name: string, area_dict_data_id: 0, category_dict_data_id: 2, reason: string
+[2026-05-18 21:07:50 INFO] [勘误反馈] area_dict_data_id 为 0，已设为 None
+[2026-05-18 21:07:50 INFO] [勘误反馈] 查询店铺结果 - shop: 周末餐
+[2026-05-18 21:07:50 INFO] [勘误反馈] 开始验证修改项
+[2026-05-18 21:07:50 INFO] [勘误反馈] 验证名称 - name: string
+[2026-05-18 21:07:50 INFO] [勘误反馈] 名称包含占位符值，忽略该字段 - name: string
+[2026-05-18 21:07:50 INFO] [勘误反馈] 名称为空或占位符，忽略该字段
+[2026-05-18 21:07:50 INFO] [勘误反馈] 验证品类 - category_dict_data_id: 2
+[2026-05-18 21:07:50 INFO] [勘误反馈] 查询品类字典结果 - dict_data: 火锅(hotpot)
+[2026-05-18 21:07:50 INFO] [勘误反馈] 当前品类关联 - current_ids: [4]
+[2026-05-18 21:07:50 INFO] [勘误反馈] 品类验证通过 - changes: {'category': {'dict_data_id': 2}}
+[2026-05-18 21:07:50 INFO] [勘误反馈] 开始检查重复请求限制 - changes: {'category': {'dict_data_id': 2}}
+[2026-05-18 21:07:50 INFO] [勘误反馈] 字段 category 近期请求数: 0
+[2026-05-18 21:07:50 INFO] [勘误反馈] 今日店铺总请求数: 2
+[2026-05-18 21:07:50 INFO] [勘误反馈] 原因包含占位符值，忽略该字段 - reason: string
+[2026-05-18 21:07:50 INFO] [勘误反馈] 准备创建请求记录 - proposed_data: {'type': 'correction', 'changes': {'category': {'dict_data_id': 2}}, 'reason': ''}
+[2026-05-18 21:07:50 INFO] [勘误反馈] 请求记录创建成功 - request_id: 6
+[2026-05-18 21:07:50 INFO] [API] 勘误反馈提交成功 - request_id: 6
+[2026-05-18 22:49:56 INFO] [API] 收到勘误反馈请求 - user_id: 1, request_data: {'shop_id': 2, 'name': 'string', 'area_dict_data_id': 0, 'category_dict_data_id': 1, 'reason': 'string'}
+[2026-05-18 22:49:56 INFO] [勘误反馈] 开始处理请求 - user_id: 1, shop_id: 2
+[2026-05-18 22:49:56 INFO] [勘误反馈] 输入参数 - name: string, area_dict_data_id: 0, category_dict_data_id: 1, reason: string
+[2026-05-18 22:49:56 INFO] [勘误反馈] area_dict_data_id 为 0，已设为 None
+[2026-05-18 22:49:56 INFO] [勘误反馈] 查询店铺结果 - shop: 周沫西餐
+[2026-05-18 22:49:56 INFO] [勘误反馈] 开始验证修改项
+[2026-05-18 22:49:56 INFO] [勘误反馈] 验证名称 - name: string
+[2026-05-18 22:49:56 INFO] [勘误反馈] 名称包含占位符值，忽略该字段 - name: string
+[2026-05-18 22:49:56 INFO] [勘误反馈] 名称为空或占位符，忽略该字段
+[2026-05-18 22:49:56 INFO] [勘误反馈] 验证品类 - category_dict_data_id: 1
+[2026-05-18 22:49:56 INFO] [勘误反馈] 查询品类字典结果 - dict_data: 地方菜(local_cuisine)
+[2026-05-18 22:49:56 INFO] [勘误反馈] 当前品类关联 - current_ids: [2]
+[2026-05-18 22:49:56 INFO] [勘误反馈] 品类验证通过 - changes: {'category': {'dict_data_id': 1}}
+[2026-05-18 22:49:56 INFO] [勘误反馈] 开始检查重复请求限制 - changes: {'category': {'dict_data_id': 1}}
+[2026-05-18 22:49:56 INFO] [勘误反馈] 字段 category 近期请求数: 0
+[2026-05-18 22:49:56 INFO] [勘误反馈] 今日店铺总请求数: 1
+[2026-05-18 22:49:56 INFO] [勘误反馈] 原因包含占位符值，忽略该字段 - reason: string
+[2026-05-18 22:49:56 INFO] [勘误反馈] 准备创建请求记录 - proposed_data: {'type': 'correction', 'changes': {'category': {'dict_data_id': 1}}, 'reason': ''}
+[2026-05-18 22:49:56 INFO] [勘误反馈] 请求记录创建成功 - request_id: 7
+[2026-05-18 22:49:56 INFO] [API] 勘误反馈提交成功 - request_id: 7

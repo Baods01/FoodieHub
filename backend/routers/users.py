@@ -9,7 +9,8 @@ from datetime import datetime
 import uuid
 
 from schemas.users import (
-    UserCreate, UserResponse, UserUpdate, UserProfileResponse
+    UserCreate, UserResponse, UserUpdate, UserProfileResponse,
+    UserLogin, UserPhoneLogin, UserEmailLogin
 )
 from schemas.common import ResponseModel
 from services.user_service import UserService
@@ -93,6 +94,54 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         )
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post("/login-phone", summary="手机号登录")
+async def login_phone(login_data: UserPhoneLogin):
+    """
+    手机号登录接口
+    - 使用手机号和密码登录
+    - 返回 JWT access_token
+    """
+    try:
+        login_response = await UserService.login(
+            UserLogin(account=login_data.phone, password=login_data.password)
+        )
+        return JSONResponse(
+            content={
+                "access_token": login_response.access_token,
+                "token_type": login_response.token_type
+            }
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post("/login-email", summary="邮箱登录")
+async def login_email(login_data: UserEmailLogin):
+    """
+    邮箱登录接口
+    - 使用邮箱和密码登录
+    - 返回 JWT access_token
+    """
+    try:
+        login_response = await UserService.login(
+            UserLogin(account=login_data.email, password=login_data.password)
+        )
+        return JSONResponse(
+            content={
+                "access_token": login_response.access_token,
+                "token_type": login_response.token_type
+            }
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

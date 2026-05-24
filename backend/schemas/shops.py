@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field, field_validator
+import re
 from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
+from fastapi import Form
+from pydantic import BaseModel, Field, field_validator
 
 
 # ============ 请求模型 ============
@@ -52,22 +54,93 @@ class MenuItemAddRequest(BaseModel):
     description: Optional[str] = Field(default=None, max_length=500, description="菜品描述（可选）")
 
 
+PLACEHOLDER_TEXT_VALUES = {
+    "string",
+    "请输入店铺名称",
+    "请输入名称",
+    "请输入店铺名",
+    "请输入店铺描述",
+    "请输入描述",
+}
+CODE_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
+UUID_LIKE_PATTERN = re.compile(r"^[0-9a-fA-F-]{8,}$")
+
+
 class ShopUpdate(BaseModel):
     """更新店铺请求（管理员）"""
     name: Optional[str] = Field(default=None, min_length=1, max_length=100, description="店铺名称")
     description: Optional[str] = Field(default=None, max_length=2000, description="店铺描述")
     is_active: Optional[bool] = Field(default=None, description="是否启用（软删除）")
-    
-    # 新增：区域编码列表
     location_codes: Optional[List[str]] = Field(
         default=None,
-        description="区域编码列表（如：['nei_taisan', 'nei_huashan']）。不传则保持原区域不变"
+        description="区域编码列表（如：['nei_taisan', 'nei_huashan']）"
     )
-    # 新增：品类编码列表
     category_codes: Optional[List[str]] = Field(
         default=None,
-        description="品类编码列表（如：['local_cuisine', 'hotpot']）。不传则保持原品类不变"
+        description="品类编码列表（如：['local_cuisine', 'hotpot']）"
     )
+
+    @field_validator("name", "description")
+    @classmethod
+    def normalize_text_fields(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if normalized.lower() in PLACEHOLDER_TEXT_VALUES:
+            return None
+        return normalized
+
+    @field_validator("location_codes", "category_codes")
+    @classmethod
+    def normalize_code_fields(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        if value is None:
+            return None
+
+        normalized_codes: List[str] = []
+        seen_codes = set()
+        for raw_code in value:
+            if not isinstance(raw_code, str):
+                raise ValueError("只能提交字符串类型的 code 值")
+            code = raw_code.strip()
+            if not code or code.lower() == "string":
+                continue
+            if code.isdigit() or UUID_LIKE_PATTERN.fullmatch(code):
+                raise ValueError("location_codes 和 category_codes 只能提交业务 code，不能提交数据库 ID 或 UUID")
+            if not CODE_PATTERN.fullmatch(code):
+                raise ValueError("code 值格式无效，仅支持小写字母、数字和下划线")
+            if code not in seen_codes:
+                seen_codes.add(code)
+                normalized_codes.append(code)
+
+        return normalized_codes or None
+
+    @classmethod
+    def as_form(
+        cls,
+        name: Optional[str] = Form(None, description="店铺名称"),
+        description: Optional[str] = Form(None, description="店铺描述"),
+        is_active: Optional[bool] = Form(None, description="是否启用（软删除）"),
+        location_codes: Optional[List[str]] = Form(
+            None,
+            description="区域编码列表（如：['nei_taisan', 'nei_huashan']）"
+        ),
+        category_codes: Optional[List[str]] = Form(
+            None,
+            description="品类编码列表（如：['local_cuisine', 'hotpot']）"
+        ),
+    ) -> "ShopUpdate":
+        return cls(
+            name=name,
+            description=description,
+            is_active=is_active,
+            location_codes=location_codes,
+            category_codes=category_codes,
+        )
+
+    def get_enabled_updates(self) -> dict:
+        return self.model_dump(exclude_none=True)
 
 
 class RatingCreate(BaseModel):

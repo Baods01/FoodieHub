@@ -1,5 +1,6 @@
 from typing import Optional, List
 from decimal import Decimal
+from datetime import datetime
 import asyncio
 
 from models.shops import Shops, Menu, Ratings, Comments
@@ -98,7 +99,8 @@ class ShopService:
     async def get_shop_detail(
         cls,
         shop_id: int,
-        current_user_id: Optional[int] = None
+        current_user_id: Optional[int] = None,
+        increment_view: bool = True
     ) -> ShopResponse:
         """
         获取店铺详情
@@ -112,8 +114,11 @@ class ShopService:
         if not shop:
             raise ValueError("店铺不存在")
 
-        # 增加浏览量
-        await ShopDAO.increment_view_count(shop_id)
+        # 详情页浏览时才增加浏览量，避免后台更新等操作误计数
+        if increment_view:
+            await ShopDAO.increment_view_count(shop_id)
+            if current_user_id:
+                await ShopDAO.create_view_log(current_user_id, shop_id)
 
         # 获取字典数据
         dict_data_list = await ShopDAO.get_shop_dict_data(shop_id)
@@ -177,6 +182,66 @@ class ShopService:
         if shop and not shop.is_active and getattr(shop, 'merged_into_id', None):
             return shop.merged_into_id
         return None
+
+    @classmethod
+    async def get_user_view_history(
+        cls,
+        user_id: int,
+        page: int = 1,
+        page_size: int = 20,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        shop_id: Optional[int] = None
+    ) -> dict:
+        """获取用户浏览历史"""
+        # 计算偏移量
+        offset = (page - 1) * page_size
+        
+        # 获取浏览历史记录
+        history_items = await ShopDAO.get_user_view_history_with_shop_info(
+            user_id=user_id,
+            limit=page_size,
+            offset=offset,
+            start_time=start_time,
+            end_time=end_time,
+            shop_id=shop_id
+        )
+        
+        # 统计总数
+        total = await ShopDAO.count_user_view_history_with_filters(
+            user_id=user_id,
+            start_time=start_time,
+            end_time=end_time,
+            shop_id=shop_id
+        )
+        
+        # 计算总页数
+        total_pages = (total + page_size - 1) // page_size
+        
+        return {
+            "items": history_items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages
+        }
+
+    @classmethod
+    async def delete_user_view_history_item(
+        cls,
+        user_id: int,
+        history_id: int
+    ) -> bool:
+        """删除单条浏览历史"""
+        return await ShopDAO.delete_view_history_item(user_id, history_id)
+
+    @classmethod
+    async def clear_user_view_history(
+        cls,
+        user_id: int
+    ) -> int:
+        """清空用户全部浏览历史"""
+        return await ShopDAO.clear_user_view_history(user_id)
 
     @classmethod
     async def search_shops(
@@ -271,27 +336,32 @@ class ShopService:
     @classmethod
     async def update_shop(cls, shop_id: int, update_data: ShopUpdate) -> ShopResponse:
         """管理员更新店铺信息（支持部分字段更新）"""
-        # 1. 更新店铺基础信息（只更新非 None 的字段）
-        update_dict = update_data.model_dump(exclude_none=True)
-        
-        # 移除字典相关字段，单独处理
-        location_codes = update_dict.pop('location_codes', None)
-        category_codes = update_dict.pop('category_codes', None)
-        
-        # 更新店铺基础信息
-        shop = await ShopDAO.update_shop(shop_id, **update_dict)
+        enabled_updates = update_data.get_enabled_updates()
+        location_codes = enabled_updates.pop("location_codes", None)
+        category_codes = enabled_updates.pop("category_codes", None)
+
+        if "name" in enabled_updates:
+            existing_shop = await ShopDAO.find_shop_by_name(enabled_updates["name"])
+            if existing_shop and existing_shop.id != shop_id:
+                raise ValueError("该店铺名称已被其他店铺占用")
+
+        shop = await ShopDAO.find_shop_by_id(shop_id)
         if not shop:
             raise ValueError("店铺不存在")
-        
-        # 2. 更新字典数据关联（区域和品类）
+
+        if enabled_updates:
+            shop = await ShopDAO.update_shop(shop_id, **enabled_updates)
+            if not shop:
+                raise ValueError("店铺不存在")
+
         if location_codes is not None or category_codes is not None:
             await ShopDAO.update_shop_dict_data(
                 shop_id=shop_id,
                 location_codes=location_codes,
                 category_codes=category_codes
             )
-        
-        return await cls.get_shop_detail(shop_id)
+
+        return await cls.get_shop_detail(shop_id, increment_view=False)
 
     @classmethod
     async def submit_shop_correction_request(
@@ -337,22 +407,28 @@ class ShopService:
 
             if name is not None:
                 debug_logger.info(f"[勘误反馈] 验证名称 - name: {name}")
-                if not isinstance(name, str) or not name.strip():
-                    debug_logger.error(f"[勘误反馈] 名称无效 - name: {name}")
-                    raise ValueError("店铺名称必须为非空字符串")
-                if name.strip() == shop.name:
-                    debug_logger.error(f"[勘误反馈] 名称与当前值相同 - new: {name.strip()}, current: {shop.name}")
-                    raise ValueError("新名称必须与当前名称不同")
-                existing = await ShopDAO.find_shop_by_name(name.strip())
-                if existing and existing.id != shop_id:
-                    debug_logger.error(f"[勘误反馈] 名称已被占用 - name: {name.strip()}, existing_id: {existing.id}")
-                    raise ValueError("该店铺名称已被其他店铺占用")
-                changes["name"] = name.strip()
-                debug_logger.info(f"[勘误反馈] 名称验证通过 - changes: {changes}")
+                if not isinstance(name, str):
+                    debug_logger.error(f"[勘误反馈] 名称类型无效 - name: {name}")
+                    raise ValueError("店铺名称必须为字符串")
+                normalized_name = name.strip()
+                if normalized_name.lower() in {"string", "请输入店铺名称", "请输入名称", "请输入店铺名"}:
+                    debug_logger.info(f"[勘误反馈] 名称包含占位符值，忽略该字段 - name: {name}")
+                    normalized_name = ""
+                if not normalized_name:
+                    debug_logger.info("[勘误反馈] 名称为空或占位符，忽略该字段")
+                elif normalized_name == shop.name:
+                    debug_logger.info(f"[勘误反馈] 名称与当前值相同，忽略该字段 - new: {normalized_name}, current: {shop.name}")
+                else:
+                    existing = await ShopDAO.find_shop_by_name(normalized_name)
+                    if existing and existing.id != shop_id:
+                        debug_logger.error(f"[勘误反馈] 名称已被占用 - name: {normalized_name}, existing_id: {existing.id}")
+                        raise ValueError("该店铺名称已被其他店铺占用")
+                    changes["name"] = normalized_name
+                    debug_logger.info(f"[勘误反馈] 名称验证通过 - changes: {changes}")
 
             if area_dict_data_id is not None:
                 debug_logger.info(f"[勘误反馈] 验证区域 - area_dict_data_id: {area_dict_data_id}")
-                dict_data = await DictData.get_or_none(id=area_dict_data_id, is_active=True).prefetch_related("dict_type")
+                dict_data = await DictData.filter(id=area_dict_data_id, is_active=True).prefetch_related("dict_type").get_or_none()
                 debug_logger.info(f"[勘误反馈] 查询区域字典结果 - dict_data: {dict_data}")
                 if not dict_data or not dict_data.dict_type or dict_data.dict_type.code != "location_type":
                     debug_logger.error(f"[勘误反馈] 区域字典项无效 - id: {area_dict_data_id}, dict_data: {dict_data}, dict_type: {dict_data.dict_type if dict_data else None}")
@@ -361,14 +437,14 @@ class ShopService:
                 current_ids = [d.id for d in current_dict_data if d.dict_type and d.dict_type.code == "location_type"]
                 debug_logger.info(f"[勘误反馈] 当前区域关联 - current_ids: {current_ids}")
                 if dict_data.id in current_ids:
-                    debug_logger.error(f"[勘误反馈] 区域与当前值相同 - new_id: {dict_data.id}, current_ids: {current_ids}")
-                    raise ValueError("新的区域与当前值相同")
-                changes["area"] = {"dict_data_id": dict_data.id}
-                debug_logger.info(f"[勘误反馈] 区域验证通过 - changes: {changes}")
+                    debug_logger.info(f"[勘误反馈] 区域与当前值相同，忽略该字段 - new_id: {dict_data.id}, current_ids: {current_ids}")
+                else:
+                    changes["area"] = {"dict_data_id": dict_data.id}
+                    debug_logger.info(f"[勘误反馈] 区域验证通过 - changes: {changes}")
 
             if category_dict_data_id is not None:
                 debug_logger.info(f"[勘误反馈] 验证品类 - category_dict_data_id: {category_dict_data_id}")
-                dict_data = await DictData.get_or_none(id=category_dict_data_id, is_active=True).prefetch_related("dict_type")
+                dict_data = await DictData.filter(id=category_dict_data_id, is_active=True).prefetch_related("dict_type").get_or_none()
                 debug_logger.info(f"[勘误反馈] 查询品类字典结果 - dict_data: {dict_data}")
                 if not dict_data or not dict_data.dict_type or dict_data.dict_type.code != "category":
                     debug_logger.error(f"[勘误反馈] 品类字典项无效 - id: {category_dict_data_id}, dict_data: {dict_data}, dict_type: {dict_data.dict_type if dict_data else None}")
@@ -377,10 +453,14 @@ class ShopService:
                 current_ids = [d.id for d in current_dict_data if d.dict_type and d.dict_type.code == "category"]
                 debug_logger.info(f"[勘误反馈] 当前品类关联 - current_ids: {current_ids}")
                 if dict_data.id in current_ids:
-                    debug_logger.error(f"[勘误反馈] 品类与当前值相同 - new_id: {dict_data.id}, current_ids: {current_ids}")
-                    raise ValueError("新的品类与当前值相同")
-                changes["category"] = {"dict_data_id": dict_data.id}
-                debug_logger.info(f"[勘误反馈] 品类验证通过 - changes: {changes}")
+                    debug_logger.info(f"[勘误反馈] 品类与当前值相同，忽略该字段 - new_id: {dict_data.id}, current_ids: {current_ids}")
+                else:
+                    changes["category"] = {"dict_data_id": dict_data.id}
+                    debug_logger.info(f"[勘误反馈] 品类验证通过 - changes: {changes}")
+
+            if not changes:
+                debug_logger.error("[勘误反馈] 未检测到实际修改项，提交失败")
+                raise ValueError("至少提供一个实际修改项：name、area_dict_data_id 或 category_dict_data_id")
 
             debug_logger.info(f"[勘误反馈] 开始检查重复请求限制 - changes: {changes}")
             for field in changes.keys():
@@ -396,10 +476,17 @@ class ShopService:
                 debug_logger.error(f"[勘误反馈] 店铺今日请求数已达上限 - count: {daily_count}")
                 raise ValueError("该店铺当天的反馈数量已达上限，请明天再试")
 
+            normalized_reason = ""
+            if isinstance(reason, str):
+                normalized_reason = reason.strip()
+                if normalized_reason.lower() in {"string", "请输入理由", "请输入原因", "请输入修改原因"}:
+                    debug_logger.info(f"[勘误反馈] 原因包含占位符值，忽略该字段 - reason: {reason}")
+                    normalized_reason = ""
+
             proposed_data = {
                 "type": "correction",
                 "changes": changes,
-                "reason": reason or ""
+                "reason": normalized_reason
             }
             debug_logger.info(f"[勘误反馈] 准备创建请求记录 - proposed_data: {proposed_data}")
 
@@ -508,6 +595,34 @@ class ShopService:
         return updated_request
 
     @classmethod
+    async def approve_correction_request(
+        cls,
+        request_id: int,
+        admin_id: int,
+        remark: Optional[str] = None
+    ) -> ShopEditRequests:
+        request = await ShopDAO.get_shop_edit_request_by_id(request_id)
+        if not request:
+            raise ValueError("申请不存在")
+        if request.status != "pending":
+            raise ValueError("该申请已处理，无法重复审核")
+
+        proposed_data = request.proposed_data or {}
+        request_type = proposed_data.get("type")
+        if request_type != "correction":
+            raise ValueError("该申请不是店铺勘误反馈请求")
+
+        await cls._apply_correction_request(request)
+
+        updated_request = await ShopDAO.update_edit_request_status(
+            request_id=request_id,
+            status="approved",
+            admin_id=admin_id
+        )
+        await cls._send_edit_request_notification(updated_request, approved=True, admin_id=admin_id, reason=remark)
+        return updated_request
+
+    @classmethod
     async def reject_shop_edit_request(
         cls,
         request_id: int,
@@ -560,7 +675,7 @@ class ShopService:
             dict_data_id = area_change.get("dict_data_id")
             if not isinstance(dict_data_id, int):
                 raise ValueError("area_dict_data_id 必须为整数")
-            dict_data = await DictData.get_or_none(id=dict_data_id, is_active=True).prefetch_related("dict_type")
+            dict_data = await DictData.filter(id=dict_data_id, is_active=True).prefetch_related("dict_type").get_or_none()
             if not dict_data or not dict_data.dict_type or dict_data.dict_type.code != "location_type":
                 raise ValueError("指定的区域字典项无效")
             current_rels = await ShopDictRel.filter(
@@ -577,7 +692,7 @@ class ShopService:
             dict_data_id = category_change.get("dict_data_id")
             if not isinstance(dict_data_id, int):
                 raise ValueError("category_dict_data_id 必须为整数")
-            dict_data = await DictData.get_or_none(id=dict_data_id, is_active=True).prefetch_related("dict_type")
+            dict_data = await DictData.filter(id=dict_data_id, is_active=True).prefetch_related("dict_type").get_or_none()
             if not dict_data or not dict_data.dict_type or dict_data.dict_type.code != "category":
                 raise ValueError("指定的品类字典项无效")
             current_rels = await ShopDictRel.filter(
@@ -751,7 +866,9 @@ class ShopService:
             return
         title = "店铺编辑申请已处理"
         if approved:
-            content = f"您提交的店铺编辑申请已通过，管理员已完成处理。"
+            content = "您提交的店铺编辑申请已通过，管理员已完成处理。"
+            if reason:
+                content += f" 审核备注：{reason}。"
         else:
             content = f"您提交的店铺编辑申请已被拒绝，原因：{reason or '管理员未填写具体原因'}。"
 
