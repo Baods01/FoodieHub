@@ -7,7 +7,7 @@ TORTOISE_ORM = {
                 'port': '3306',
                 'user': 'root',
                 'password': '123456',
-                'database': 'foodie_hub',
+                'database': 'foodiehub_test',
                 'minsize': 1,
                 'maxsize': 5,
                 'charset': 'utf8mb4',

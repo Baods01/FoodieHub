@@ -10,12 +10,12 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # 数据库配置
-    DATABASE_URL: str = "mysql://root:123456@localhost:3306/foodie_hub"
+    DATABASE_URL: str = "mysql://root:123456@localhost:3306/foodiehub_test"
     
     # Tortoise ORM 配置（用于 aerich）
     TORTOISE_ORM: Dict[str, Any] = {
         "connections": {
-            "default": "mysql://root:123456@localhost:3306/foodie_hub"
+            "default": "mysql://root:123456@localhost:3306/foodiehub_test"
         },
         "apps": {
             "models": {
