@@ -25,9 +25,7 @@ export function ShopCard({ shop, onClick }: ShopCardProps) {
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-            <span className="text-gray-400 text-sm">暂无图片</span>
-          </div>
+          <img src="/nocover.png" alt="暂无封面" className="w-full h-full object-cover" />
         )}
       </div>
 

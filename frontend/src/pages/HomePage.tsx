@@ -131,8 +131,8 @@ export function HomePage() {
             onSearch={() => {}}
           />
         </div>
-        {/* Lower layer: warm light-orange bg, left-aligned filters */}
-        <div className="bg-[#FFF7F0] px-5 py-3 rounded-b-xl">
+        {/* Lower layer: white bg with top separator */}
+        <div className="bg-white px-5 py-3 rounded-b-xl border-t border-gray-100">
           <SortFilterBar
             sort={filter.sort}
             filterConfigs={filterConfigs}

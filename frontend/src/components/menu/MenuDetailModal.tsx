@@ -37,9 +37,7 @@ export function MenuDetailModal({ item, onClose }: MenuDetailModalProps) {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <span className="text-gray-400 text-sm">暂无图片</span>
-                </div>
+                <img src="/nocover.png" alt="暂无封面" className="w-full h-full object-cover" />
               )}
             </div>
           </div>

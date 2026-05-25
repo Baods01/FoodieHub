@@ -20,9 +20,7 @@ export function MenuCard({ item, onClick }: MenuCardProps) {
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-            <span className="text-gray-400 text-xs">暂无图片</span>
-          </div>
+          <img src="/nocover.png" alt="暂无封面" className="w-full h-full object-cover bg-gray-100" />
         )}
       </div>
 
