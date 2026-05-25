@@ -47,5 +47,6 @@ export interface ShopFilter {
   sort: SortOption;
   category: string;
   area: string;
+  diningMethods: string[]; // 多选，如 ['堂食', '自取']
   page: number;
 }

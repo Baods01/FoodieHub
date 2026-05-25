@@ -17,7 +17,7 @@ function App() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen bg-[#FFF9F5] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="animate-pulse text-gray-400 text-sm">加载中...</div>
       </div>
     );

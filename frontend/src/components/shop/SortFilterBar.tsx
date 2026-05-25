@@ -1,16 +1,20 @@
 import type { SortOption } from '../../types/shop';
+import type { FilterConfig } from '../../config/filters';
 import FilterDropdown from './FilterDropdown';
+import MultiFilterDropdown from './MultiFilterDropdown';
 import SortDropdown from './SortDropdown';
 
 interface SortFilterBarProps {
   sort: SortOption;
-  category: string;
-  area: string;
-  categories: string[];
-  areas: string[];
+  /** 筛选配置列表 */
+  filterConfigs: FilterConfig[];
+  /** 各字典的选项 { dictType: displayName[] } */
+  filterOptions: Record<string, string[]>;
+  /** 当前筛选值 { dictType: string | string[] } */
+  filterValues: Record<string, string | string[]>;
   onSortChange: (sort: SortOption) => void;
-  onCategoryChange: (cat: string) => void;
-  onAreaChange: (area: string) => void;
+  /** 通用筛选变更回调 */
+  onFilterChange: (dictType: string, value: string | string[]) => void;
   onClear: () => void;
 }
 
@@ -23,16 +27,18 @@ const sortOptions: { value: SortOption; label: string }[] = [
 
 export default function SortFilterBar({
   sort,
-  category,
-  area,
-  categories,
-  areas,
+  filterConfigs,
+  filterOptions,
+  filterValues,
   onSortChange,
-  onCategoryChange,
-  onAreaChange,
+  onFilterChange,
   onClear,
 }: SortFilterBarProps) {
-  const hasActiveFilter = category !== '' || area !== '';
+  // 是否有活动的筛选
+  const hasActive = Object.values(filterValues).some((v) => {
+    if (Array.isArray(v)) return v.length > 0;
+    return v !== '';
+  });
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
@@ -41,19 +47,36 @@ export default function SortFilterBar({
         options={sortOptions}
         onChange={(v) => onSortChange(v as SortOption)}
       />
-      <FilterDropdown
-        label="品类"
-        options={categories}
-        value={category}
-        onChange={onCategoryChange}
-      />
-      <FilterDropdown
-        label="区域"
-        options={areas}
-        value={area}
-        onChange={onAreaChange}
-      />
-      {hasActiveFilter && (
+
+      {/* 动态渲染筛选控件 — 根据配置自动生成 */}
+      {filterConfigs.map((cfg) => {
+        const options = filterOptions[cfg.dictType] ?? [];
+        const value = filterValues[cfg.dictType];
+
+        if (cfg.component === 'multi-select') {
+          return (
+            <MultiFilterDropdown
+              key={cfg.dictType}
+              label={cfg.label}
+              options={options}
+              values={(value as string[]) ?? []}
+              onChange={(vals) => onFilterChange(cfg.dictType, vals)}
+            />
+          );
+        }
+
+        return (
+          <FilterDropdown
+            key={cfg.dictType}
+            label={cfg.label}
+            options={options}
+            value={(value as string) ?? ''}
+            onChange={(v) => onFilterChange(cfg.dictType, v)}
+          />
+        );
+      })}
+
+      {hasActive && (
         <button
           type="button"
           onClick={onClear}

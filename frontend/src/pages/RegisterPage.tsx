@@ -63,7 +63,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF9F5]">
+    <div className="min-h-screen flex flex-col bg-white">
       <Header />
       <div className="flex-1 flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-[840px] bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04),0_8px_32px_rgba(0,0,0,0.10)] border border-gray-100/80 overflow-hidden animate-fade-slide-up">

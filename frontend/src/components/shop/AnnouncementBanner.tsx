@@ -1,20 +1,9 @@
-interface BannerProps {
-  announcement: { title: string; content: string } | null;
-}
-
-export function AnnouncementBanner({ announcement }: BannerProps) {
-  if (!announcement) {
-    return (
-      <div className="h-[120px] bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-        发现华农周边美食
-      </div>
-    );
-  }
-
+export default function AnnouncementBanner() {
   return (
-    <div className="h-[120px] bg-[#FFF7F0] border-l-4 border-orange-400 rounded-lg flex flex-col justify-center px-6">
-      <h3 className="font-bold text-gray-800">{announcement.title}</h3>
-      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{announcement.content}</p>
-    </div>
+    <img
+      src="https://kkimgs.yisou.com/ims?kt=url&at=ori&key=aHR0cHM6Ly9pbWcwNi50b29vcGVuLmNvbS8yMDE2MDcyNC90b29vcGVuX3N5XzE3MTU2ODI1MjEzOC5qcGc=&sign=yx:sdo85fwBDXJ6t9YfHBZFLTFjFLs=&tv=0_0"
+      alt="公告"
+      className="w-full h-[360px] object-cover rounded-xl"
+    />
   );
 }

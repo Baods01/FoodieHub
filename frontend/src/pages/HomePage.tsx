@@ -2,10 +2,11 @@ import { useReducer, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '../hooks/useDebounce';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-import { fetchShops, fetchAnnouncement } from '../api/shops';
+import { fetchShops } from '../api/shops';
 import { fetchDictData } from '../api/dictionary';
 import type { ShopCardData, ShopFilter, SortOption } from '../types/shop';
-import { AnnouncementBanner } from '../components/shop/AnnouncementBanner';
+import { filterConfigs } from '../config/filters';
+import AnnouncementBanner from '../components/shop/AnnouncementBanner';
 import SearchBar from '../components/shop/SearchBar';
 import SortFilterBar from '../components/shop/SortFilterBar';
 import { ShopList } from '../components/shop/ShopList';
@@ -20,12 +21,13 @@ type FilterAction =
   | { type: 'SET_SORT'; payload: SortOption }
   | { type: 'SET_CATEGORY'; payload: string }
   | { type: 'SET_AREA'; payload: string }
+  | { type: 'SET_DINING'; payload: string[] }
   | { type: 'NEXT_PAGE' }
   | { type: 'RESET_PAGE' }
   | { type: 'RESET_ALL' };
 
 const initialFilter: FilterState = {
-  keyword: '', sort: 'favorites', category: '', area: '', page: 1,
+  keyword: '', sort: 'favorites', category: '', area: '', diningMethods: [], page: 1,
 };
 
 function filterReducer(state: FilterState, action: FilterAction): FilterState {
@@ -34,6 +36,7 @@ function filterReducer(state: FilterState, action: FilterAction): FilterState {
     case 'SET_SORT':     return { ...state, sort: action.payload, page: 1 };
     case 'SET_CATEGORY': return { ...state, category: action.payload, page: 1 };
     case 'SET_AREA':     return { ...state, area: action.payload, page: 1 };
+    case 'SET_DINING':   return { ...state, diningMethods: action.payload, page: 1 };
     case 'NEXT_PAGE':    return { ...state, page: state.page + 1 };
     case 'RESET_PAGE':   return { ...state, page: 1 };
     case 'RESET_ALL':    return { ...initialFilter };
@@ -48,14 +51,15 @@ export function HomePage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isError, setIsError] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [areas, setAreas] = useState<string[]>([]);
-  const [announcement, setAnnouncement] = useState<{ title: string; content: string } | null>(null);
+  const [filterOptions, setFilterOptions] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
-    fetchDictData('category').then((items) => setCategories(items.map((i) => i.name)));
-    fetchDictData('location_type').then((items) => setAreas(items.map((i) => i.name)));
-    fetchAnnouncement().then(setAnnouncement);
+    // 从配置动态获取所有字典选项
+    filterConfigs.forEach((cfg) => {
+      fetchDictData(cfg.dictType as any).then((items) => {
+        setFilterOptions((prev) => ({ ...prev, [cfg.dictType]: items.map((i) => i.name) }));
+      });
+    });
   }, []);
 
   const debouncedKeyword = useDebounce(filter.keyword, 300);
@@ -116,7 +120,7 @@ export function HomePage() {
 
   return (
     <div className="space-y-6">
-      <AnnouncementBanner announcement={announcement} />
+      <AnnouncementBanner />
 
       <div className="rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-gray-100/80">
         {/* Upper layer: white bg, search fills width */}
@@ -131,13 +135,27 @@ export function HomePage() {
         <div className="bg-[#FFF7F0] px-5 py-3 rounded-b-xl">
           <SortFilterBar
             sort={filter.sort}
-            category={filter.category}
-            area={filter.area}
-            categories={categories}
-            areas={areas}
+            filterConfigs={filterConfigs}
+            filterOptions={filterOptions}
+            filterValues={{
+              category: filter.category,
+              location_type: filter.area,
+              dining_method: filter.diningMethods,
+            }}
             onSortChange={(s) => dispatch({ type: 'SET_SORT', payload: s })}
-            onCategoryChange={(c) => dispatch({ type: 'SET_CATEGORY', payload: c })}
-            onAreaChange={(a) => dispatch({ type: 'SET_AREA', payload: a })}
+            onFilterChange={(dictType, value) => {
+              const map: Record<string, string> = {
+                category: 'SET_CATEGORY',
+                location_type: 'SET_AREA',
+                dining_method: 'SET_DINING',
+              };
+              const actionType = map[dictType];
+              if (actionType === 'SET_DINING') {
+                dispatch({ type: 'SET_DINING', payload: value as string[] });
+              } else if (actionType) {
+                dispatch({ type: actionType as any, payload: value as string });
+              }
+            }}
             onClear={() => dispatch({ type: 'RESET_ALL' })}
           />
         </div>

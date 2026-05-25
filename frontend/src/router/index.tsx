@@ -8,6 +8,7 @@ import HistoryPage from '../pages/HistoryPage';
 import NotificationsPage from '../pages/NotificationsPage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
+import UploadShopPage from '../pages/UploadShopPage';
 
 export const router = createBrowserRouter([
   {
@@ -25,4 +26,5 @@ export const router = createBrowserRouter([
   // 独立全屏页面（无 RootLayout）
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
+  { path: '/upload-shop', element: <UploadShopPage /> },
 ]);

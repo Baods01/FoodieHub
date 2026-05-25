@@ -28,29 +28,28 @@ export function Header() {
   ];
 
   return (
-    <header className="h-14 px-4 flex items-center justify-between bg-gradient-to-r from-[#FF7E3A] to-[#FF9A5C]">
+    <header className="h-14 px-4 flex items-center justify-between bg-white/70 backdrop-blur-lg border-b border-gray-100/80 sticky top-0 z-40">
       {/* Left: brand */}
-      <Link
-        to="/"
-        className="font-bold text-white"
-        style={{ fontSize: 20 }}
-      >
-        食探社
+      <Link to="/" className="flex items-center gap-2">
+        <img src="/icon.jpg" alt="食探社" className="w-24 h-12 rounded-lg object-cover" />
+        <span className="font-bold bg-gradient-to-r from-[#FF7E3A] to-[#FF9A5C] bg-clip-text text-transparent" style={{ fontSize: 20 }}>
+          食探社
+        </span>
       </Link>
 
       {/* Right: auth state */}
       {isLoggedIn ? (
         <Menu as="div" className="relative">
           <Menu.Button className="flex items-center gap-2 outline-none">
-            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm text-white font-medium overflow-hidden ring-2 ring-white/50">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FF7E3A] to-[#FF9A5C] flex items-center justify-center text-sm text-white font-medium overflow-hidden">
               {userAvatar ? (
                 <img src={userAvatar} alt={userName} className="w-full h-full object-cover" />
               ) : (
                 userName.charAt(0)
               )}
             </div>
-            <span className="text-sm text-white hidden sm:inline">{userName}</span>
-            <ChevronDown size={14} className="text-white/70" />
+            <span className="text-sm text-gray-700 hidden sm:inline">{userName}</span>
+            <ChevronDown size={14} className="text-gray-400" />
           </Menu.Button>
 
           <Transition
@@ -62,7 +61,7 @@ export function Header() {
             leaveFrom="transform opacity-100 scale-100"
             leaveTo="transform opacity-0 scale-95"
           >
-            <Menu.Items className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden origin-top-right">
+            <Menu.Items className="absolute right-0 mt-2 w-48 bg-white/90 backdrop-blur-md border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden origin-top-right">
               {/* User info header */}
               <div className="px-4 py-3 border-b border-gray-100">
                 <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
@@ -110,7 +109,7 @@ export function Header() {
       ) : (
         <Link
           to="/login"
-          className="text-sm text-white/80 hover:text-white transition-colors"
+          className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
         >
           登录/注册
         </Link>
