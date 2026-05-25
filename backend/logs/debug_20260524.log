@@ -1,0 +1,2 @@
+[2026-05-24 22:09:18 ERROR] DATABASE ERROR [create_admin_log] - Object of type PlatformStatsResponse is not JSON serializable - Details: {'operator_id': 51, 'operation_type': 'view_platform_stats', 'operation_module': 'stats'}
+[2026-05-24 22:09:18 ERROR] ADMIN OPERATION ERROR [create_admin_log] - Object of type PlatformStatsResponse is not JSON serializable - Details: {'operator_id': 51, 'operation_type': 'view_platform_stats', 'operation_module': 'stats', 'error': 'Object of type PlatformStatsResponse is not JSON serializable'}
