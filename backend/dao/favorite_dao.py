@@ -1,4 +1,6 @@
 from typing import Optional, List
+from datetime import datetime
+from tortoise import timezone
 
 from models.users import Favorites
 from models.shops import Shops
@@ -21,23 +23,31 @@ class FavoriteDAO:
     @classmethod
     async def add_favorite(cls, user_id: int, shop_id: int) -> Favorites:
         """
-        添加收藏（自动取消之前的收藏）
-        - 同一用户对同一店铺只能有一条激活的收藏记录
-        - 添加新收藏时，自动软删除之前的收藏
+        添加收藏（更新现有记录状态而非创建新记录）
+        - 同一用户对同一店铺只能有一条收藏记录
+        - 添加收藏时，更新现有记录状态或创建新记录
         """
-        # 先取消之前的收藏
-        await Favorites.filter(
+        # 查找现有的收藏记录
+        favorite = await Favorites.filter(
             user_id=user_id,
-            shop_id=shop_id,
-            is_active=True
-        ).update(is_active=False)
+            shop_id=shop_id
+        ).first()
         
-        # 创建新的收藏
-        return await Favorites.create(
-            user_id=user_id,
-            shop_id=shop_id,
-            sort_order=0
-        )
+        if favorite:
+            # 如果存在记录，更新状态为激活
+            favorite.is_active = True
+            # 更新时间戳以避免唯一约束冲突
+            favorite.updated_at = timezone.now()
+            await favorite.save()
+        else:
+            # 如果不存在记录，创建新的
+            favorite = await Favorites.create(
+                user_id=user_id,
+                shop_id=shop_id,
+                sort_order=0
+            )
+        
+        return favorite
 
     @classmethod
     async def remove_favorite(cls, user_id: int, shop_id: int) -> bool:
