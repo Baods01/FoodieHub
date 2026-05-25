@@ -1,38 +1,45 @@
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
-from .shops import ShopListItem
+from typing import List
+from pydantic import BaseModel
 
-
-# ============ 请求模型 ============
 
 class FavoriteCreate(BaseModel):
-    """收藏店铺请求"""
-    shop_id: int = Field(description="店铺ID")
+    """收藏创建请求"""
+    shop_id: int
 
-
-class FavoriteReorderRequest(BaseModel):
-    """收藏夹排序调整请求"""
-    shop_id: int = Field(description="店铺ID")
-    sort_order: int = Field(description="新排序序号")
-
-
-class FavoriteBatchReorderRequest(BaseModel):
-    """收藏夹批量排序请求"""
-    shop_ids: list[int] = Field(description="店铺ID列表（按顺序排列）")
-
-
-# ============ 响应模型 ============
 
 class FavoriteResponse(BaseModel):
     """收藏响应"""
-    id: int = Field(description="收藏ID")
-    user_id: int = Field(description="用户ID")
-    shop_id: int = Field(description="店铺ID")
-    sort_order: int = Field(description="排序序号")
-    shop: Optional[ShopListItem] = Field(default=None, description="店铺信息")
-    created_at: datetime = Field(description="收藏时间")
-    updated_at: datetime = Field(description="更新时间")
+    id: int
+    user_id: int
+    shop_id: int
+    sort_order: int
+    created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class FavoriteReorderRequest(BaseModel):
+    """收藏重新排序请求"""
+    favorite_id: int
+    sort_order: int
+
+
+class FavoriteBatchReorderRequest(BaseModel):
+    """批量收藏重新排序请求"""
+    favorites: List[FavoriteReorderRequest]
+
+
+class FavoriteActionResponse(BaseModel):
+    """收藏操作响应（通用）"""
+    success: bool
+    message: str
+    is_favorited: bool  # 当前状态
+    favorite_count: int  # 店铺收藏总数
+
+
+class UserFavoritesResponse(BaseModel):
+    """用户收藏列表响应"""
+    total: int
+    favorites: List[FavoriteResponse]

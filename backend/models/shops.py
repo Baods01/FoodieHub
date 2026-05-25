@@ -105,11 +105,14 @@ class CommentsLikes(BaseModel):
     id = fields.IntField(pk=True, description="点赞唯一标识")
     user = fields.ForeignKeyField("models.Users", related_name="comments_likes", on_delete=fields.CASCADE, description="点赞用户")
     comment = fields.ForeignKeyField("models.Comments", related_name="likes", on_delete=fields.CASCADE, description="被点赞的评论")
+    is_active = fields.BooleanField(default=True, description="是否有效（软删除）")
 
     class Meta:
         table = "comments_likes"
-        # 唯一性约束
-        unique_together = [("user_id", "comment_id")]
+        # 移除唯一约束，允许多次创建删除（通过 is_active 控制）
+        indexes = [
+            ("user_id", "comment_id", "created_at"),
+        ]
 
     def __str__(self):
         return f"CommentLike {self.id}: User {self.user_id} -> Comment {self.comment_id}"

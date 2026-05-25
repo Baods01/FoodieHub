@@ -110,21 +110,6 @@ class AnalyticsDAO:
             "total": user_count + admin_count
         }
 
-    # NOTE: account_status 字段需要在数据库模型中添加
-    # @classmethod
-    # async def get_user_count_by_status(cls) -> dict:
-    #    """获取用户状态分布统计（需要 account_status 字段）"""
-    #    normal = await Users.filter(is_active=True, account_status=0).count()
-    #    write_frozen = await Users.filter(is_active=True, account_status=1).count()
-    #    full_frozen = await Users.filter(is_active=True, account_status=2).count()
-    #    
-    #    return {
-    #        "normal": normal,
-    #        "write_frozen": write_frozen,
-    #        "full_frozen": full_frozen,
-    #        "total": normal + write_frozen + full_frozen
-    #    }
-
     # ============ 近7日新增趋势 ============
 
     @classmethod

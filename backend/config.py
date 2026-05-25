@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, Dict, Any
 
 
 class Settings(BaseSettings):
@@ -10,7 +10,20 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # 数据库配置
-    DATABASE_URL: str = "mysql://root:123456@localhost:3306/foodie_hub"
+    DATABASE_URL: str = "mysql://root:123456@localhost:3306/foodiehub_test"
+    
+    # Tortoise ORM 配置（用于 aerich）
+    TORTOISE_ORM: Dict[str, Any] = {
+        "connections": {
+            "default": "mysql://root:123456@localhost:3306/foodiehub_test"
+        },
+        "apps": {
+            "models": {
+                "models": ["models", "aerich.models"],
+                "default_connection": "default",
+            },
+        },
+    }
     
     # JWT 配置
     JWT_SECRET_KEY: str = "your-secret-key-change-in-production"

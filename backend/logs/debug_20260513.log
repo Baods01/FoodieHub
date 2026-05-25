@@ -1,0 +1,80 @@
+[2026-05-13 16:18:59 INFO] LIKE [toggle_start] user_id=1 comment_id=5 details={'step': 'start'}
+[2026-05-13 16:18:59 INFO] LIKE [already_liked] user_id=1 comment_id=5 details={'like_id': 14, 'created_at': '2026-05-13T07:34:05.016848+00:00', 'step': 'cancel_like'}
+[2026-05-13 16:18:59 INFO] LIKE [totalCount_decremented] user_id=1 comment_id=5 details={'old_count': 1, 'new_count': 0}
+[2026-05-13 16:19:01 INFO] LIKE [toggle_start] user_id=1 comment_id=5 details={'step': 'start'}
+[2026-05-13 16:19:01 INFO] LIKE [not_liked_yet] user_id=1 comment_id=5 details={'step': 'try_to_like'}
+[2026-05-13 16:19:01 INFO] LIKE [found_soft_deleted_record] user_id=1 comment_id=5 details={'old_like_id': 14, 'old_is_active': False, 'created_at': '2026-05-13T07:34:05.016848+00:00', 'step': 'recover_old_record'}
+[2026-05-13 16:19:01 INFO] LIKE [totalCount_incremented] user_id=1 comment_id=5 details={'old_count': 0, 'new_count': 1}
+[2026-05-13 16:19:24 INFO] LIKE [toggle_start] user_id=1 comment_id=5 details={'step': 'start'}
+[2026-05-13 16:19:24 INFO] LIKE [already_liked] user_id=1 comment_id=5 details={'like_id': 14, 'created_at': '2026-05-13T07:34:05.016848+00:00', 'step': 'cancel_like'}
+[2026-05-13 16:19:24 INFO] LIKE [totalCount_decremented] user_id=1 comment_id=5 details={'old_count': 1, 'new_count': 0}
+[2026-05-13 16:19:25 INFO] LIKE [toggle_start] user_id=1 comment_id=5 details={'step': 'start'}
+[2026-05-13 16:19:25 INFO] LIKE [not_liked_yet] user_id=1 comment_id=5 details={'step': 'try_to_like'}
+[2026-05-13 16:19:25 INFO] LIKE [found_soft_deleted_record] user_id=1 comment_id=5 details={'old_like_id': 14, 'old_is_active': False, 'created_at': '2026-05-13T07:34:05.016848+00:00', 'step': 'recover_old_record'}
+[2026-05-13 16:19:25 INFO] LIKE [totalCount_incremented] user_id=1 comment_id=5 details={'old_count': 0, 'new_count': 1}
+[2026-05-13 16:34:24 INFO] LIKE [toggle_start] user_id=1 comment_id=7 details={'step': 'start'}
+[2026-05-13 16:34:24 INFO] LIKE [not_liked_yet] user_id=1 comment_id=7 details={'step': 'try_to_like'}
+[2026-05-13 16:34:24 INFO] LIKE [found_soft_deleted_record] user_id=1 comment_id=7 details={'old_like_id': 15, 'old_is_active': False, 'created_at': '2026-05-13T07:34:09.328861+00:00', 'step': 'recover_old_record'}
+[2026-05-13 16:34:24 INFO] LIKE [totalCount_incremented] user_id=1 comment_id=7 details={'old_count': 0, 'new_count': 1}
+[2026-05-13 16:34:26 INFO] LIKE [toggle_start] user_id=1 comment_id=7 details={'step': 'start'}
+[2026-05-13 16:34:26 INFO] LIKE [already_liked] user_id=1 comment_id=7 details={'like_id': 15, 'created_at': '2026-05-13T07:34:09.328861+00:00', 'step': 'cancel_like'}
+[2026-05-13 16:34:26 INFO] LIKE [totalCount_decremented] user_id=1 comment_id=7 details={'old_count': 1, 'new_count': 0}
+[2026-05-13 16:34:27 INFO] LIKE [toggle_start] user_id=1 comment_id=7 details={'step': 'start'}
+[2026-05-13 16:34:27 INFO] LIKE [not_liked_yet] user_id=1 comment_id=7 details={'step': 'try_to_like'}
+[2026-05-13 16:34:27 INFO] LIKE [found_soft_deleted_record] user_id=1 comment_id=7 details={'old_like_id': 15, 'old_is_active': False, 'created_at': '2026-05-13T07:34:09.328861+00:00', 'step': 'recover_old_record'}
+[2026-05-13 16:34:27 INFO] LIKE [totalCount_incremented] user_id=1 comment_id=7 details={'old_count': 0, 'new_count': 1}
+[2026-05-13 16:34:39 INFO] LIKE [toggle_start] user_id=1 comment_id=7 details={'step': 'start'}
+[2026-05-13 16:34:39 INFO] LIKE [already_liked] user_id=1 comment_id=7 details={'like_id': 15, 'created_at': '2026-05-13T07:34:09.328861+00:00', 'step': 'cancel_like'}
+[2026-05-13 16:34:39 INFO] LIKE [totalCount_decremented] user_id=1 comment_id=7 details={'old_count': 1, 'new_count': 0}
+[2026-05-13 16:42:08 INFO] LIKE [toggle_start] user_id=1 comment_id=5 details={'step': 'start'}
+[2026-05-13 16:42:08 INFO] LIKE [already_liked] user_id=1 comment_id=5 details={'like_id': 14, 'created_at': '2026-05-13T07:34:05.016848+00:00', 'step': 'cancel_like'}
+[2026-05-13 16:42:08 INFO] LIKE [totalCount_decremented] user_id=1 comment_id=5 details={'old_count': 1, 'new_count': 0}
+[2026-05-13 16:42:11 INFO] LIKE [toggle_start] user_id=1 comment_id=5 details={'step': 'start'}
+[2026-05-13 16:42:11 INFO] LIKE [not_liked_yet] user_id=1 comment_id=5 details={'step': 'try_to_like'}
+[2026-05-13 16:42:11 INFO] LIKE [found_soft_deleted_record] user_id=1 comment_id=5 details={'old_like_id': 14, 'old_is_active': False, 'created_at': '2026-05-13T07:34:05.016848+00:00', 'step': 'recover_old_record'}
+[2026-05-13 16:42:11 INFO] LIKE [totalCount_incremented] user_id=1 comment_id=5 details={'old_count': 0, 'new_count': 1}
+[2026-05-13 16:42:19 INFO] LIKE [toggle_start] user_id=1 comment_id=11 details={'step': 'start'}
+[2026-05-13 16:42:19 INFO] LIKE [not_liked_yet] user_id=1 comment_id=11 details={'step': 'try_to_like'}
+[2026-05-13 16:42:19 INFO] LIKE [no_soft_deleted_record] user_id=1 comment_id=11 details={'step': 'create_new_record'}
+[2026-05-13 16:42:19 INFO] LIKE [new_record_created] user_id=1 comment_id=11 details={'new_like_id': 16, 'created_at': '2026-05-13T08:42:19.158066+00:00'}
+[2026-05-13 16:42:19 INFO] LIKE [totalCount_incremented] user_id=1 comment_id=11 details={'old_count': 0, 'new_count': 1}
+[2026-05-13 16:42:53 INFO] LIKE [toggle_start] user_id=1 comment_id=10 details={'step': 'start'}
+[2026-05-13 16:42:53 INFO] LIKE [not_liked_yet] user_id=1 comment_id=10 details={'step': 'try_to_like'}
+[2026-05-13 16:42:53 INFO] LIKE [no_soft_deleted_record] user_id=1 comment_id=10 details={'step': 'create_new_record'}
+[2026-05-13 16:42:53 INFO] LIKE [new_record_created] user_id=1 comment_id=10 details={'new_like_id': 17, 'created_at': '2026-05-13T08:42:53.911467+00:00'}
+[2026-05-13 16:42:53 INFO] LIKE [totalCount_incremented] user_id=1 comment_id=10 details={'old_count': 0, 'new_count': 1}
+[2026-05-13 16:43:06 INFO] LIKE [toggle_start] user_id=1 comment_id=10 details={'step': 'start'}
+[2026-05-13 16:43:06 INFO] LIKE [already_liked] user_id=1 comment_id=10 details={'like_id': 17, 'created_at': '2026-05-13T08:42:53.911467+00:00', 'step': 'cancel_like'}
+[2026-05-13 16:43:06 INFO] LIKE [totalCount_decremented] user_id=1 comment_id=10 details={'old_count': 1, 'new_count': 0}
+[2026-05-13 16:43:18 INFO] LIKE [toggle_start] user_id=1 comment_id=10 details={'step': 'start'}
+[2026-05-13 16:43:18 INFO] LIKE [not_liked_yet] user_id=1 comment_id=10 details={'step': 'try_to_like'}
+[2026-05-13 16:43:18 INFO] LIKE [found_soft_deleted_record] user_id=1 comment_id=10 details={'old_like_id': 17, 'old_is_active': False, 'created_at': '2026-05-13T08:42:53.911467+00:00', 'step': 'recover_old_record'}
+[2026-05-13 16:43:18 INFO] LIKE [totalCount_incremented] user_id=1 comment_id=10 details={'old_count': 0, 'new_count': 1}
+[2026-05-13 16:44:45 INFO] LIKE [toggle_start] user_id=1 comment_id=10 details={'step': 'start'}
+[2026-05-13 16:44:45 INFO] LIKE [already_liked] user_id=1 comment_id=10 details={'like_id': 17, 'created_at': '2026-05-13T08:42:53.911467+00:00', 'step': 'cancel_like'}
+[2026-05-13 16:44:45 INFO] LIKE [totalCount_decremented] user_id=1 comment_id=10 details={'old_count': 1, 'new_count': 0}
+[2026-05-13 16:44:58 INFO] LIKE [toggle_start] user_id=1 comment_id=10 details={'step': 'start'}
+[2026-05-13 16:44:58 INFO] LIKE [not_liked_yet] user_id=1 comment_id=10 details={'step': 'try_to_like'}
+[2026-05-13 16:44:58 INFO] LIKE [found_soft_deleted_record] user_id=1 comment_id=10 details={'old_like_id': 17, 'old_is_active': False, 'created_at': '2026-05-13T08:42:53.911467+00:00', 'step': 'recover_old_record'}
+[2026-05-13 16:44:58 INFO] LIKE [totalCount_incremented] user_id=1 comment_id=10 details={'old_count': 0, 'new_count': 1}
+[2026-05-13 16:45:15 INFO] LIKE [toggle_start] user_id=1 comment_id=10 details={'step': 'start'}
+[2026-05-13 16:45:15 INFO] LIKE [already_liked] user_id=1 comment_id=10 details={'like_id': 17, 'created_at': '2026-05-13T08:42:53.911467+00:00', 'step': 'cancel_like'}
+[2026-05-13 16:45:15 INFO] LIKE [totalCount_decremented] user_id=1 comment_id=10 details={'old_count': 1, 'new_count': 0}
+[2026-05-13 17:04:26 INFO] LIKE [toggle_start] user_id=1 comment_id=10 details={'step': 'start'}
+[2026-05-13 17:04:26 INFO] LIKE [not_liked_yet] user_id=1 comment_id=10 details={'step': 'try_to_like'}
+[2026-05-13 17:04:26 INFO] LIKE [found_soft_deleted_record] user_id=1 comment_id=10 details={'old_like_id': 17, 'old_is_active': False, 'created_at': '2026-05-13T08:42:53.911467+00:00', 'step': 'recover_old_record'}
+[2026-05-13 17:04:26 INFO] LIKE [totalCount_incremented] user_id=1 comment_id=10 details={'old_count': 0, 'new_count': 1}
+[2026-05-13 17:04:29 INFO] LIKE [toggle_start] user_id=1 comment_id=10 details={'step': 'start'}
+[2026-05-13 17:04:29 INFO] LIKE [already_liked] user_id=1 comment_id=10 details={'like_id': 17, 'created_at': '2026-05-13T08:42:53.911467+00:00', 'step': 'cancel_like'}
+[2026-05-13 17:04:29 INFO] LIKE [totalCount_decremented] user_id=1 comment_id=10 details={'old_count': 1, 'new_count': 0}
+[2026-05-13 17:04:30 INFO] LIKE [toggle_start] user_id=1 comment_id=10 details={'step': 'start'}
+[2026-05-13 17:04:30 INFO] LIKE [not_liked_yet] user_id=1 comment_id=10 details={'step': 'try_to_like'}
+[2026-05-13 17:04:30 INFO] LIKE [found_soft_deleted_record] user_id=1 comment_id=10 details={'old_like_id': 17, 'old_is_active': False, 'created_at': '2026-05-13T08:42:53.911467+00:00', 'step': 'recover_old_record'}
+[2026-05-13 17:04:30 INFO] LIKE [totalCount_incremented] user_id=1 comment_id=10 details={'old_count': 0, 'new_count': 1}
+[2026-05-13 17:13:34 INFO] LIKE [toggle_start] user_id=1 comment_id=5 details={'step': 'start'}
+[2026-05-13 17:13:34 INFO] LIKE [already_liked] user_id=1 comment_id=5 details={'like_id': 14, 'created_at': '2026-05-13T07:34:05.016848+00:00', 'step': 'cancel_like'}
+[2026-05-13 17:13:34 INFO] LIKE [totalCount_decremented] user_id=1 comment_id=5 details={'old_count': 1, 'new_count': 0}
+[2026-05-13 17:13:36 INFO] LIKE [toggle_start] user_id=1 comment_id=5 details={'step': 'start'}
+[2026-05-13 17:13:36 INFO] LIKE [not_liked_yet] user_id=1 comment_id=5 details={'step': 'try_to_like'}
+[2026-05-13 17:13:36 INFO] LIKE [found_soft_deleted_record] user_id=1 comment_id=5 details={'old_like_id': 14, 'old_is_active': False, 'created_at': '2026-05-13T07:34:05.016848+00:00', 'step': 'recover_old_record'}
+[2026-05-13 17:13:36 INFO] LIKE [totalCount_incremented] user_id=1 comment_id=5 details={'old_count': 0, 'new_count': 1}

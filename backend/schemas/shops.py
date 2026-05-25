@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field, field_validator
+import re
 from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
+from fastapi import Form
+from pydantic import BaseModel, Field, field_validator
 
 
 # ============ 请求模型 ============
@@ -52,11 +54,93 @@ class MenuItemAddRequest(BaseModel):
     description: Optional[str] = Field(default=None, max_length=500, description="菜品描述（可选）")
 
 
+PLACEHOLDER_TEXT_VALUES = {
+    "string",
+    "请输入店铺名称",
+    "请输入名称",
+    "请输入店铺名",
+    "请输入店铺描述",
+    "请输入描述",
+}
+CODE_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
+UUID_LIKE_PATTERN = re.compile(r"^[0-9a-fA-F-]{8,}$")
+
+
 class ShopUpdate(BaseModel):
     """更新店铺请求（管理员）"""
     name: Optional[str] = Field(default=None, min_length=1, max_length=100, description="店铺名称")
     description: Optional[str] = Field(default=None, max_length=2000, description="店铺描述")
     is_active: Optional[bool] = Field(default=None, description="是否启用（软删除）")
+    location_codes: Optional[List[str]] = Field(
+        default=None,
+        description="区域编码列表（如：['nei_taisan', 'nei_huashan']）"
+    )
+    category_codes: Optional[List[str]] = Field(
+        default=None,
+        description="品类编码列表（如：['local_cuisine', 'hotpot']）"
+    )
+
+    @field_validator("name", "description")
+    @classmethod
+    def normalize_text_fields(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if normalized.lower() in PLACEHOLDER_TEXT_VALUES:
+            return None
+        return normalized
+
+    @field_validator("location_codes", "category_codes")
+    @classmethod
+    def normalize_code_fields(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        if value is None:
+            return None
+
+        normalized_codes: List[str] = []
+        seen_codes = set()
+        for raw_code in value:
+            if not isinstance(raw_code, str):
+                raise ValueError("只能提交字符串类型的 code 值")
+            code = raw_code.strip()
+            if not code or code.lower() == "string":
+                continue
+            if code.isdigit() or UUID_LIKE_PATTERN.fullmatch(code):
+                raise ValueError("location_codes 和 category_codes 只能提交业务 code，不能提交数据库 ID 或 UUID")
+            if not CODE_PATTERN.fullmatch(code):
+                raise ValueError("code 值格式无效，仅支持小写字母、数字和下划线")
+            if code not in seen_codes:
+                seen_codes.add(code)
+                normalized_codes.append(code)
+
+        return normalized_codes or None
+
+    @classmethod
+    def as_form(
+        cls,
+        name: Optional[str] = Form(None, description="店铺名称"),
+        description: Optional[str] = Form(None, description="店铺描述"),
+        is_active: Optional[bool] = Form(None, description="是否启用（软删除）"),
+        location_codes: Optional[List[str]] = Form(
+            None,
+            description="区域编码列表（如：['nei_taisan', 'nei_huashan']）"
+        ),
+        category_codes: Optional[List[str]] = Form(
+            None,
+            description="品类编码列表（如：['local_cuisine', 'hotpot']）"
+        ),
+    ) -> "ShopUpdate":
+        return cls(
+            name=name,
+            description=description,
+            is_active=is_active,
+            location_codes=location_codes,
+            category_codes=category_codes,
+        )
+
+    def get_enabled_updates(self) -> dict:
+        return self.model_dump(exclude_none=True)
 
 
 class RatingCreate(BaseModel):
@@ -89,16 +173,30 @@ class ShopMergeRequest(BaseModel):
 
 class ShopSearchRequest(BaseModel):
     """店铺搜索请求"""
-    keyword: Optional[str] = Field(default=None, max_length=100, description="搜索关键词")
-    category_ids: Optional[List[int]] = Field(default=None, description="类别筛选")
-    dining_method_ids: Optional[List[int]] = Field(default=None, description="点餐方式筛选")
+    keyword: Optional[str] = Field(default=None, max_length=100, description="搜索关键词（店铺名称、描述）")
+    category_codes: Optional[List[str]] = Field(default=None, description="品类筛选（编码列表，如 ['hotpot', 'snacks']）")
+    district_codes: Optional[List[str]] = Field(default=None, description="区域筛选（编码列表，如 ['nei_taisan', 'nei_huashan']）")
     min_rating: Optional[float] = Field(default=None, ge=0, le=5, description="最低评分筛选")
-    is_oncampus: Optional[bool] = Field(default=None, description="校内/校外筛选")
-    sort_by: str = Field(default="created_at", pattern="^(created_at|average_rating|view_count|favorite_count)$", description="排序字段")
+    sort_by: str = Field(default="favorite_count", pattern="^(created_at|average_rating|view_count|favorite_count)$", description="排序字段")
     sort_order: str = Field(default="desc", pattern="^(asc|desc)$", description="排序方向")
+    page: int = Field(default=1, ge=1, description="页码（从1开始）")
+    page_size: int = Field(default=20, ge=1, le=100, description="每页数量")
 
 
 # ============ 响应模型 ============
+
+class RatingDistribution(BaseModel):
+    """评分分布统计"""
+    star_1: int = Field(default=0, description="1星评分人数")
+    star_2: int = Field(default=0, description="2星评分人数")
+    star_3: int = Field(default=0, description="3星评分人数")
+    star_4: int = Field(default=0, description="4星评分人数")
+    star_5: int = Field(default=0, description="5星评分人数")
+    total: int = Field(default=0, description="总评分人数")
+
+    class Config:
+        from_attributes = True
+
 
 class ImageResponse(BaseModel):
     """图片响应"""
@@ -188,6 +286,7 @@ class ShopResponse(BaseModel):
     favorite_count: int = Field(default=0, description="收藏数")
     comment_count: int = Field(default=0, description="评论数")
     average_rating: Decimal = Field(default=0.0, description="平均评分")
+    rating_distribution: Optional[RatingDistribution] = Field(default=None, description="评分分布统计")
     aliases: Optional[List[str]] = Field(default=None, description="别名列表")
     merged_into_id: Optional[int] = Field(default=None, description="合并后店铺ID")
     # 新增字段
@@ -219,6 +318,7 @@ class ShopListItem(BaseModel):
     comment_count: int = Field(description="评论数")
     cover_image: Optional[str] = Field(default=None, description="封面图片")
     dict_data: Optional[List[DictDataSimpleResponse]] = Field(default=None, description="字典数据")
+    is_favorited: bool = Field(default=False, description="当前用户是否已收藏")
     created_at: datetime = Field(description="创建时间")
 
     class Config:

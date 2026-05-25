@@ -24,12 +24,17 @@ from .messages import (
 from .activities import ActivityResponse, ActivityListResponse, ActivityStats
 from .reviews import (
     ShopEditRequestCreate as ReviewShopEditRequestCreate,
+    ShopDuplicateRequestCreate,
     ShopEditRequestApprove, ShopEditRequestReject,
     ShopEditRequestListRequest, ShopEditRequestResponse,
     ProposedDataResponse, EditRequestStats
 )
 from .comments import (
     CommentCreateRequest,
+)
+from .comments_likes import (
+    CommentLikeCreate,
+    CommentLikeResponse,
 )
 from .images import (
     ImageUploadRequest, MenuItemWithImageRequest,
@@ -99,6 +104,7 @@ __all__ = [
     'ActivityStats',
     # Reviews
     'ReviewShopEditRequestCreate',
+    'ShopDuplicateRequestCreate',
     'ShopEditRequestApprove',
     'ShopEditRequestReject',
     'ShopEditRequestListRequest',
@@ -112,4 +118,7 @@ __all__ = [
     'MenuItemImageResponse',
     # Comments
     'CommentCreateRequest',
+    # Comments Likes
+    'CommentLikeCreate',
+    'CommentLikeResponse',
 ]

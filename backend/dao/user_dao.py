@@ -43,6 +43,17 @@ class UserDAO:
         )
 
     @classmethod
+    async def find_by_account_include_banned(cls, account: str) -> Optional[Users]:
+        """
+        按用户名/手机号/邮箱查找用户（包括被封禁用户，用于登录检查）
+        需要显式包含 is_active=False 的记录，因为 SoftDeleteMixin 会自动过滤
+        """
+        return await Users.filter(
+            Q(username=account) | Q(phone=account) | Q(email=account),
+            is_active__in=[True, False]  # 显式包含所有状态的用户
+        ).first()
+
+    @classmethod
     async def find_by_username(cls, username: str) -> Optional[Users]:
         """按用户名查找用户"""
         return await Users.get_or_none(username=username, is_active=True)
@@ -101,38 +112,120 @@ class UserDAO:
     async def get_user_stats(cls, user_id: int) -> dict:
         """
         获取用户统计数据
-        返回：店铺数、评论数、评分数、收藏数、动态数
+        返回：评论数、评分数、收藏数、动态数
         """
-        from models.shops import Shops, Comments, Ratings
+        from models.shops import Comments, Ratings
         from models.users import Activities, Favorites
         from models.logs import UserBehaviorLogs
 
         # 统计各表数据
-        shop_count = await Shops.filter(user_id=user_id, is_active=True).count()
         comment_count = await Comments.filter(user_id=user_id, is_active=True).count()
         rating_count = await Ratings.filter(user_id=user_id, is_active=True).count()
         favorite_count = await Favorites.filter(user_id=user_id, is_active=True).count()
         activity_count = await Activities.filter(user_id=user_id, is_active=True).count()
 
         return {
-            "shop_count": shop_count,
             "comment_count": comment_count,
             "rating_count": rating_count,
             "favorite_count": favorite_count,
             "activity_count": activity_count
         }
 
-    # ============ 用户账户管理 ============
-    # NOTE: account_status 字段需要在数据库模型中添加
-    # @classmethod
-    # async def update_user_account_status(cls, user_id: int, account_status: int) -> Optional[Users]:
-    #    """更新用户账户状态（封禁/解封）"""
-    #    user = await Users.get_or_none(id=user_id, is_active=True)
-    #    if user:
-    #        user.account_status = account_status
-    #        await user.save()
-    #        return user
-    #    return None
+    @classmethod
+    async def get_user_comments(
+        cls,
+        user_id: int,
+        limit: int = 10,
+        offset: int = 0
+    ) -> List[dict]:
+        """
+        获取用户评论列表（包含店铺信息）
+        
+        Args:
+            user_id: 用户ID
+            limit: 每页数量
+            offset: 偏移量
+            
+        Returns:
+            评论列表，包含店铺信息
+        """
+        from models.shops import Comments, Shops
+        
+        comments = await Comments.filter(
+            user_id=user_id,
+            is_active=True
+        ).order_by("-created_at").limit(limit).offset(offset).select_related("shop").all()
+        
+        result = []
+        for comment in comments:
+            result.append({
+                "comment_id": comment.id,
+                "content": comment.content,
+                "created_at": comment.created_at,
+                "reply_count": comment.reply_count,
+                "like_count": comment.like_count,
+                "shop_id": comment.shop_id,
+                "shop_name": comment.shop.name if comment.shop else "未知店铺"
+            })
+            
+        return result
+
+    @classmethod
+    async def get_user_favorites(
+        cls,
+        user_id: int,
+        limit: int = 10,
+        offset: int = 0
+    ) -> List[dict]:
+        """
+        获取用户收藏列表（包含店铺信息）
+        
+        Args:
+            user_id: 用户ID
+            limit: 每页数量
+            offset: 偏移量
+            
+        Returns:
+            收藏列表，包含店铺信息
+        """
+        from models.users import Favorites, Shops
+        
+        favorites = await Favorites.filter(
+            user_id=user_id,
+            is_active=True
+        ).order_by("-created_at").limit(limit).offset(offset).select_related("shop").all()
+        
+        result = []
+        for favorite in favorites:
+            result.append({
+                "favorite_id": favorite.id,
+                "sort_order": favorite.sort_order,
+                "created_at": favorite.created_at,
+                "shop_id": favorite.shop_id,
+                "shop_name": favorite.shop.name if favorite.shop else "未知店铺"
+            })
+            
+        return result
+
+    @classmethod
+    async def get_user_questions_count(cls, user_id: int) -> int:
+        """
+        获取用户问答数（作为提问者的评论数）
+        
+        Args:
+            user_id: 用户ID
+            
+        Returns:
+            问答数
+        """
+        from models.shops import Comments
+        
+        # type="question" 的评论作为问答数
+        return await Comments.filter(
+            user_id=user_id,
+            type="question",
+            is_active=True
+        ).count()
 
     @classmethod
     async def create_user_behavior_log(
@@ -171,3 +264,12 @@ class UserDAO:
             query = query.filter(behavior_type=behavior_type)
             
         return await query.limit(limit).offset(offset).all()
+
+    @classmethod
+    async def update_user_avatar(cls, user_id: int, avatar_url: str) -> Optional[Users]:
+        """更新用户头像"""
+        user = await Users.get_or_none(id=user_id, is_active=True)
+        if user:
+            user.avatar = avatar_url
+            await user.save()
+        return user

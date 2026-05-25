@@ -12,6 +12,22 @@ from tortoise.contrib.fastapi import register_tortoise
 from config import settings
 from routers.users import router as users_router
 from routers.shops import router as shops_router
+from routers.favorites import router as favorites_router
+from routers.comments_likes import router as comments_likes_router
+from routers.complaints import router as complaints_router
+from routers.user_activities import router as user_activities_router
+from routers.admin import router as admin_router
+from routers.messages import router as messages_router
+from routers.user_history import router as user_history_router
+from routers.admin_logs import router as admin_logs_router
+from models import (
+    Users, Activities, Favorites, Messages,
+    Shops, Menu, Ratings, Comments, CommentsLikes,
+    DictTypes, DictData, ShopDictRel,
+    UserBehaviorLogs, ShopEditRequests, Images,
+    Complaints, ComplaintHandlers, Bans,
+    AdminOperationLog
+)
 
 
 @asynccontextmanager
@@ -63,13 +79,21 @@ register_tortoise(
             },
         },
     },
-    generate_schemas=False,  # 使用 aerich 管理迁移
+    generate_schemas=True,  # 自动生成数据库表结构（调试时使用）
     add_exception_handlers=True,
 )
 
 # 注册路由
 app.include_router(users_router, tags=["用户模块"])
 app.include_router(shops_router, tags=["店铺模块"])
+app.include_router(favorites_router, tags=["收藏模块"])
+app.include_router(comments_likes_router, tags=["评论点赞模块"])
+app.include_router(complaints_router, tags=["举报模块"])
+app.include_router(user_activities_router, tags=["用户动态模块"])
+app.include_router(admin_router, tags=["管理员模块"])
+app.include_router(messages_router, tags=["消息通知模块"])
+app.include_router(user_history_router, tags=["用户浏览历史模块"])
+app.include_router(admin_logs_router, tags=["管理员操作日志模块"])
 
 # 配置静态文件服务（图片）
 from pathlib import Path

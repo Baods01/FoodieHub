@@ -1,5 +1,6 @@
 from typing import Optional, List
 from decimal import Decimal
+from datetime import datetime, timedelta
 from tortoise.expressions import Q
 from models.shops import Shops, Menu, Ratings, Comments, CommentsLikes
 from models.dict import DictData, ShopDictRel
@@ -39,8 +40,10 @@ class ShopDAO:
         )
 
     @classmethod
-    async def find_shop_by_id(cls, shop_id: int) -> Optional[Shops]:
-        """根据 ID 查找店铺"""
+    async def find_shop_by_id(cls, shop_id: int, include_merged: bool = False) -> Optional[Shops]:
+        """根据 ID 查找店铺。默认仅返回在线店铺，include_merged=True 时可返回已合并的记录。"""
+        if include_merged:
+            return await Shops.get_or_none(id=shop_id)
         return await Shops.get_or_none(id=shop_id, is_active=True)
 
     @classmethod
@@ -52,6 +55,8 @@ class ShopDAO:
     async def search_shops(
         cls,
         keyword: Optional[str] = None,
+        category_codes: Optional[List[str]] = None,
+        district_codes: Optional[List[str]] = None,
         min_rating: Optional[float] = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
@@ -60,22 +65,63 @@ class ShopDAO:
     ) -> List[Shops]:
         """
         搜索店铺
-        - 支持关键词搜索（名称、描述、别名）
+        - 支持关键词搜索（名称、描述）
+        - 支持分类筛选（通过字典编码）
+        - 支持区域筛选（通过字典编码）
         - 支持最低评分筛选
         - 支持排序
         """
         query = Shops.filter(is_active=True)
         
-        # 关键词搜索
+        # 关键词搜索（支持名称、描述）
         if keyword:
             query = query.filter(
                 Q(name__icontains=keyword) | 
                 Q(description__icontains=keyword)
             )
         
-        # 最低评分筛选
+        # 分类筛选（品类）
+        if category_codes and len(category_codes) > 0:
+            # 获取品类对应的字典数据ID
+            category_dict_data = await DictData.filter(
+                code__in=category_codes,
+                is_active=True
+            ).all()
+            category_ids = [d.id for d in category_dict_data]
+            
+            # 通过关联表筛选
+            shops_with_category = await ShopDictRel.filter(
+                dict_data_id__in=category_ids,
+                is_active=True
+            ).values_list("shop_id", flat=True)
+            
+            if shops_with_category:
+                query = query.filter(id__in=shops_with_category)
+        
+        # 区域筛选
+        if district_codes and len(district_codes) > 0:
+            # 获取区域对应的字典数据ID
+            district_dict_data = await DictData.filter(
+                code__in=district_codes,
+                is_active=True
+            ).all()
+            district_ids = [d.id for d in district_dict_data]
+            
+            # 通过关联表筛选
+            shops_with_district = await ShopDictRel.filter(
+                dict_data_id__in=district_ids,
+                is_active=True
+            ).values_list("shop_id", flat=True)
+            
+            if shops_with_district:
+                query = query.filter(id__in=shops_with_district)
+        
+        # 最低评分筛选（转换为 Decimal 避免浮点数精度问题）
         if min_rating is not None:
-            query = query.filter(average_rating__gte=min_rating)
+            from decimal import Decimal
+            # 将 float 转换为 Decimal，保留一位小数（与数据库字段精度一致）
+            min_rating_decimal = Decimal(str(min_rating)).quantize(Decimal('0.1'))
+            query = query.filter(average_rating__gte=min_rating_decimal)
         
         # 排序
         order_field = sort_by if sort_order == "asc" else f"-{sort_by}"
@@ -83,6 +129,59 @@ class ShopDAO:
         
         # 分页
         return await query.limit(limit).offset(offset).all()
+
+    @classmethod
+    async def get_shop_count(
+        cls,
+        keyword: Optional[str] = None,
+        category_codes: Optional[List[str]] = None,
+        district_codes: Optional[List[str]] = None,
+        min_rating: Optional[float] = None
+    ) -> int:
+        """
+        获取店铺总数（用于分页）
+        """
+        query = Shops.filter(is_active=True)
+        
+        if keyword:
+            query = query.filter(
+                Q(name__icontains=keyword) | 
+                Q(description__icontains=keyword)
+            )
+        
+        if category_codes and len(category_codes) > 0:
+            category_dict_data = await DictData.filter(
+                code__in=category_codes,
+                is_active=True
+            ).all()
+            category_ids = [d.id for d in category_dict_data]
+            shops_with_category = await ShopDictRel.filter(
+                dict_data_id__in=category_ids,
+                is_active=True
+            ).values_list("shop_id", flat=True)
+            if shops_with_category:
+                query = query.filter(id__in=shops_with_category)
+        
+        if district_codes and len(district_codes) > 0:
+            district_dict_data = await DictData.filter(
+                code__in=district_codes,
+                is_active=True
+            ).all()
+            district_ids = [d.id for d in district_dict_data]
+            shops_with_district = await ShopDictRel.filter(
+                dict_data_id__in=district_ids,
+                is_active=True
+            ).values_list("shop_id", flat=True)
+            if shops_with_district:
+                query = query.filter(id__in=shops_with_district)
+        
+        # 最低评分筛选（转换为 Decimal 避免浮点数精度问题）
+        if min_rating is not None:
+            from decimal import Decimal
+            min_rating_decimal = Decimal(str(min_rating)).quantize(Decimal('0.1'))
+            query = query.filter(average_rating__gte=min_rating_decimal)
+        
+        return await query.count()
 
     @classmethod
     async def update_shop(cls, shop_id: int, **kwargs) -> Optional[Shops]:
@@ -131,8 +230,108 @@ class ShopDAO:
     @classmethod
     async def get_shop_dict_data(cls, shop_id: int) -> List[DictData]:
         """获取店铺关联的所有字典数据"""
-        relations = await ShopDictRel.filter(shop_id=shop_id, is_active=True).prefetch_related("dict_data")
+        relations = await ShopDictRel.filter(
+            shop_id=shop_id,
+            is_active=True
+        ).prefetch_related("dict_data", "dict_data__dict_type").all()
         return [rel.dict_data for rel in relations]
+
+    @classmethod
+    async def update_shop_dict_data(
+        cls,
+        shop_id: int,
+        location_codes: Optional[List[str]] = None,
+        category_codes: Optional[List[str]] = None
+    ) -> dict:
+        """
+        批量更新店铺的字典数据关联（区域和品类）
+        
+        Args:
+            shop_id: 店铺ID
+            location_codes: 区域编码列表（None 表示不更新）
+            category_codes: 品类编码列表（None 表示不更新）
+        
+        Returns:
+            更新结果统计
+        """
+        current_rels = await ShopDictRel.filter(
+            shop_id=shop_id,
+            is_active=True
+        ).prefetch_related("dict_data", "dict_data__dict_type").all()
+
+        current_location_codes = set()
+        current_category_codes = set()
+        for rel in current_rels:
+            if rel.dict_data.dict_type.code == "location_type":
+                current_location_codes.add(rel.dict_data.code)
+            elif rel.dict_data.dict_type.code == "category_type":
+                current_category_codes.add(rel.dict_data.code)
+
+        deleted_count = 0
+        added_count = 0
+        added_codes = []
+
+        if location_codes is not None:
+            location_dict_data = await DictData.filter(
+                dict_type__code="location_type",
+                code__in=location_codes,
+                is_active=True
+            ).all()
+            if len(location_dict_data) != len(set(location_codes)):
+                existing_codes = {item.code for item in location_dict_data}
+                missing_codes = sorted(set(location_codes) - existing_codes)
+                raise ValueError(f"以下区域 code 不存在：{', '.join(missing_codes)}")
+
+            location_map = {d.code: d for d in location_dict_data}
+            to_add_location = set(location_codes) - current_location_codes
+            to_remove_location = current_location_codes - set(location_codes)
+
+            for rel in current_rels:
+                if rel.dict_data.dict_type.code == "location_type" and rel.dict_data.code in to_remove_location:
+                    await rel.delete()
+                    deleted_count += 1
+
+            for code in to_add_location:
+                await ShopDictRel.create(
+                    shop_id=shop_id,
+                    dict_data_id=location_map[code].id
+                )
+                added_count += 1
+                added_codes.append(code)
+
+        if category_codes is not None:
+            category_dict_data = await DictData.filter(
+                dict_type__code="category_type",
+                code__in=category_codes,
+                is_active=True
+            ).all()
+            if len(category_dict_data) != len(set(category_codes)):
+                existing_codes = {item.code for item in category_dict_data}
+                missing_codes = sorted(set(category_codes) - existing_codes)
+                raise ValueError(f"以下品类 code 不存在：{', '.join(missing_codes)}")
+
+            category_map = {d.code: d for d in category_dict_data}
+            to_add_category = set(category_codes) - current_category_codes
+            to_remove_category = current_category_codes - set(category_codes)
+
+            for rel in current_rels:
+                if rel.dict_data.dict_type.code == "category_type" and rel.dict_data.code in to_remove_category:
+                    await rel.delete()
+                    deleted_count += 1
+
+            for code in to_add_category:
+                await ShopDictRel.create(
+                    shop_id=shop_id,
+                    dict_data_id=category_map[code].id
+                )
+                added_count += 1
+                added_codes.append(code)
+
+        return {
+            "added": added_count,
+            "removed": deleted_count,
+            "added_codes": added_codes
+        }
 
     # ============ 菜单项操作 ============
 
@@ -186,13 +385,19 @@ class ShopDAO:
         shop_id: int,
         score: int
     ) -> Ratings:
-        """创建或更新用户评分"""
+        """创建或更新用户评分，并生成动态记录"""
+        from services.user_activities_service import UserActivitiesService
+        
         rating = await Ratings.get_or_none(user_id=user_id, shop_id=shop_id, is_active=True)
         if rating:
             rating.score = score
             await rating.save()
         else:
             rating = await Ratings.create(user_id=user_id, shop_id=shop_id, score=score)
+        
+        # 创建评分动态
+        await UserActivitiesService.create_rating_activity(user_id, shop_id, score)
+        
         return rating
 
     @classmethod
@@ -214,6 +419,29 @@ class ShopDAO:
         total_score = sum(r.score for r in ratings)
         return total_score / len(ratings)
 
+    @classmethod
+    async def get_shop_rating_distribution(cls, shop_id: int) -> dict:
+        """获取店铺评分分布统计"""
+        # 使用聚合查询获取各星级评分人数
+        ratings = await Ratings.filter(shop_id=shop_id, is_active=True).all()
+        
+        distribution = {
+            "star_1": 0,
+            "star_2": 0,
+            "star_3": 0,
+            "star_4": 0,
+            "star_5": 0,
+            "total": 0
+        }
+        
+        for rating in ratings:
+            star_key = f"star_{rating.score}"
+            if star_key in distribution:
+                distribution[star_key] += 1
+            distribution["total"] += 1
+        
+        return distribution
+
     # ============ 评论操作 ============
 
     @classmethod
@@ -225,7 +453,7 @@ class ShopDAO:
         type: str = "comment",
         parent_id: Optional[int] = None
     ) -> Comments:
-        """创建评论（纯文字）
+        """创建评论（纯文字），并生成动态记录
         
         Args:
             shop_id: 店铺ID
@@ -237,6 +465,8 @@ class ShopDAO:
         Returns:
             创建的评论对象
         """
+        from services.user_activities_service import UserActivitiesService
+        
         # 确定 root_id
         # 一级评论（parent_id=None 或 parent_id=0）：root_id=None
         # 回复评论（parent_id>0）：root_id=父评论的root_id或父评论ID
@@ -258,6 +488,9 @@ class ShopDAO:
             parent_id=parent_comment_id,  # 当 parent_id=0 时，设置为 None
             root_id=root_id
         )
+        
+        # 创建评论动态
+        await UserActivitiesService.create_comment_activity(user_id, comment.id, shop_id)
         
         # 更新父评论的回复数
         if parent_comment_id:
@@ -538,92 +771,116 @@ class ShopDAO:
         cls,
         shop_id: int,
         user_id: int,
-        proposed_data: dict,
-        request_type: str = "correction"  # "correction" 勘误, "merge" 重复店铺合并
+        proposed_data: dict
     ) -> ShopEditRequests:
-        """创建店铺编辑申请（勘误或重复店铺合并反馈）
-        
-        Args:
-            shop_id: 店铺ID（勘误反馈时为单个店铺ID）
-            user_id: 用户ID
-            proposed_data: 提议修改的字段及新值（JSON格式）
-            request_type: 申请类型，"correction" 勘误, "merge" 重复店铺合并
-            
-        Returns:
-            创建的申请对象
-        """
+        """创建店铺编辑申请（勘误或重复店铺反馈）"""
         return await ShopEditRequests.create(
             shop_id=shop_id,
             user_id=user_id,
-            proposed_data=proposed_data,
-            request_type=request_type
+            proposed_data=proposed_data
         )
 
     @classmethod
-    async def create_merge_request(
+    async def get_shop_edit_request_by_id(
+        cls,
+        request_id: int
+    ) -> Optional[ShopEditRequests]:
+        """根据申请ID获取申请记录"""
+        return await ShopEditRequests.get_or_none(
+            id=request_id,
+            is_active=True
+        )
+
+    @classmethod
+    async def count_recent_correction_requests(
+        cls,
+        shop_id: int,
+        user_id: int,
+        field: str,
+        days: int = 7
+    ) -> int:
+        """统计同一用户在同一店铺对同一字段的近期勘误反馈数量"""
+        since = datetime.utcnow() - timedelta(days=days)
+        reqs = await ShopEditRequests.filter(
+            shop_id=shop_id,
+            user_id=user_id,
+            is_active=True,
+            created_at__gte=since
+        ).all()
+        return sum(
+            1
+            for req in reqs
+            if req.proposed_data.get("type") == "correction"
+            and field in (req.proposed_data.get("changes") or {})
+        )
+
+    @classmethod
+    async def count_today_shop_requests(
+        cls,
+        shop_id: int
+    ) -> int:
+        """统计单个店铺当日提交的反馈数量"""
+        today = datetime.utcnow().date()
+        start_of_day = datetime(today.year, today.month, today.day)
+        return await ShopEditRequests.filter(
+            shop_id=shop_id,
+            is_active=True,
+            created_at__gte=start_of_day
+        ).count()
+
+    @classmethod
+    async def has_duplicate_request_in_period(
         cls,
         user_id: int,
-        shop_ids: List[int],
-        selected_main_shop_id: int,
-        proposed_name: str
-    ) -> ShopEditRequests:
-        """创建重复店铺合并申请
-        
-        Args:
-            user_id: 用户ID
-            shop_ids: 申报的重复店铺ID列表
-            selected_main_shop_id: 选择的主店铺ID
-            proposed_name: 合并后店铺名称
-            
-        Returns:
-            创建的申请对象
-        """
-        proposed_data = {
-            "shop_ids": shop_ids,
-            "selected_main_shop_id": selected_main_shop_id,
-            "proposed_name": proposed_name
-        }
-        return await ShopEditRequests.create(
-            shop_id=selected_main_shop_id,  # 记录主店铺ID
+        candidate_shop_ids: List[int],
+        days: int = 30
+    ) -> bool:
+        """检查同一用户对同一店铺组合是否已提交过重复反馈"""
+        normalized_ids = sorted(set(candidate_shop_ids))
+        since = datetime.utcnow() - timedelta(days=days)
+        reqs = await ShopEditRequests.filter(
             user_id=user_id,
-            proposed_data=proposed_data,
-            request_type="merge"
-        )
+            is_active=True,
+            created_at__gte=since
+        ).all()
+        for req in reqs:
+            if req.proposed_data.get("type") not in {"duplicate", "merge"}:
+                continue
+            existing = req.proposed_data.get("candidate_shop_ids") or []
+            if sorted(set(existing)) == normalized_ids:
+                return True
+        return False
 
     @classmethod
-    async def get_edit_requests_by_status(
+    async def get_shop_edit_requests_list(
         cls,
-        status: str = "pending",
+        status: Optional[str] = None,
+        shop_id: Optional[int] = None,
+        user_id: Optional[int] = None,
         request_type: Optional[str] = None,
         limit: int = 20,
         offset: int = 0
     ) -> List[ShopEditRequests]:
-        """按状态获取编辑申请列表（管理员用）
-        
-        Args:
-            status: 申请状态
-            request_type: 申请类型（"correction" 或 "merge"）
-            limit: 每页数量
-            offset: 偏移量
-            
-        Returns:
-            申请列表（包含用户信息）
-        """
-        query = ShopEditRequests.filter(status=status, is_active=True).order_by("-created_at")
-        
-        if request_type:
-            # 通过 proposed_data 中的 request_type 字段筛选
-            # Tortoise ORM 不直接支持 JSON 查询，这里需要手动过滤
-            pass
-        
-        query = query.prefetch_related("user", "admin")
-        
+        """获取店铺编辑申请列表"""
+        query = ShopEditRequests.filter(is_active=True)
+        if status:
+            query = query.filter(status=status)
+        if shop_id is not None:
+            query = query.filter(shop_id=shop_id)
+        if user_id is not None:
+            query = query.filter(user_id=user_id)
+        query = query.order_by("-created_at").prefetch_related("shop", "user", "admin")
         if limit:
             query = query.limit(limit)
         if offset:
             query = query.offset(offset)
-            
-        return await query.all()
+        reqs = await query.all()
+        if request_type:
+            reqs = [
+                req for req in reqs
+                if req.proposed_data.get("type") == request_type
+            ]
+        return reqs
 
     @classmethod
     async def update_edit_request_status(
@@ -679,12 +936,19 @@ class ShopDAO:
         shop_id: int,
         sort_order: int = 0
     ) -> Favorites:
-        """创建收藏"""
-        return await Favorites.create(
+        """创建收藏，并生成动态记录"""
+        from services.user_activities_service import UserActivitiesService
+        
+        favorite = await Favorites.create(
             user_id=user_id,
             shop_id=shop_id,
             sort_order=sort_order
         )
+        
+        # 创建收藏动态
+        await UserActivitiesService.create_favorite_activity(user_id, shop_id)
+        
+        return favorite
 
     @classmethod
     async def delete_favorite(
@@ -732,6 +996,19 @@ class ShopDAO:
         session_id: Optional[str] = None
     ) -> UserBehaviorLogs:
         """创建浏览记录（自动合并重复）"""
+        existing_log = await UserBehaviorLogs.get_or_none(
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            target_id=shop_id,
+            is_active=True
+        )
+        if existing_log:
+            if session_id is not None:
+                existing_log.session_id = session_id
+            await existing_log.save()
+            return existing_log
+
         return await UserBehaviorLogs.create(
             user_id=user_id,
             behavior_type="view_shop",
@@ -751,5 +1028,133 @@ class ShopDAO:
         return await UserBehaviorLogs.filter(
             user_id=user_id,
             behavior_type="view_shop",
+            target_type="shop",
             is_active=True
-        ).order_by("-created_at").limit(limit).offset(offset).prefetch_related("user").all()
+        ).order_by("-updated_at", "-id").limit(limit).offset(offset).prefetch_related("user").all()
+
+    @classmethod
+    async def count_user_view_history(cls, user_id: int) -> int:
+        """统计用户浏览历史数量"""
+        return await UserBehaviorLogs.filter(
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            is_active=True
+        ).count()
+
+    @classmethod
+    async def delete_view_history_item(cls, user_id: int, history_id: int) -> bool:
+        """删除单条浏览历史"""
+        log = await UserBehaviorLogs.get_or_none(
+            id=history_id,
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            is_active=True
+        )
+        if not log:
+            return False
+        log.is_active = False
+        await log.save()
+        return True
+
+    @classmethod
+    async def clear_user_view_history(cls, user_id: int) -> int:
+        """清空用户全部浏览历史"""
+        return await UserBehaviorLogs.filter(
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            is_active=True
+        ).update(is_active=False)
+
+    @classmethod
+    async def get_user_view_history_with_shop_info(
+        cls,
+        user_id: int,
+        limit: int = 20,
+        offset: int = 0,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        shop_id: Optional[int] = None
+    ) -> List[dict]:
+        """获取用户浏览历史（带店铺信息）"""
+        query = UserBehaviorLogs.filter(
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            is_active=True
+        ).order_by("-updated_at", "-id").limit(limit).offset(offset).prefetch_related("user")
+        
+        # 时间范围筛选
+        if start_time:
+            query = query.filter(created_at__gte=start_time)
+        if end_time:
+            query = query.filter(created_at__lte=end_time)
+            
+        # 店铺ID筛选
+        if shop_id:
+            query = query.filter(target_id=shop_id)
+            
+        logs = await query.all()
+        
+        # 构造返回结果
+        result = []
+        for log in logs:
+            # 获取店铺信息
+            shop = await Shops.get_or_none(id=log.target_id)
+            if shop:
+                # 构造店铺简要信息
+                shop_info = {
+                    "id": shop.id,
+                    "name": shop.name,
+                    "view_count": shop.view_count,
+                    "favorite_count": shop.favorite_count,
+                    "comment_count": shop.comment_count,
+                    "average_rating": shop.average_rating,
+                    "aliases": shop.aliases,
+                    "merged_into_id": shop.merged_into_id,
+                    "price_range": shop.price_range,
+                    "business_hours": shop.business_hours,
+                    "dining_methods": shop.dining_methods,
+                    "address_detail": shop.address_detail,
+                    "tags": shop.tags,
+                    "created_at": shop.created_at,
+                    "updated_at": shop.updated_at
+                }
+                result.append({
+                    "id": log.id,
+                    "shop": shop_info,
+                    "viewed_at": log.created_at,
+                    "updated_at": log.updated_at
+                })
+                
+        return result
+
+    @classmethod
+    async def count_user_view_history_with_filters(
+        cls,
+        user_id: int,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        shop_id: Optional[int] = None
+    ) -> int:
+        """统计用户浏览历史数量（带筛选条件）"""
+        query = UserBehaviorLogs.filter(
+            user_id=user_id,
+            behavior_type="view_shop",
+            target_type="shop",
+            is_active=True
+        )
+        
+        # 时间范围筛选
+        if start_time:
+            query = query.filter(created_at__gte=start_time)
+        if end_time:
+            query = query.filter(created_at__lte=end_time)
+            
+        # 店铺ID筛选
+        if shop_id:
+            query = query.filter(target_id=shop_id)
+            
+        return await query.count()

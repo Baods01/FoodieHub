@@ -28,6 +28,21 @@ class MessageDAO:
         return await query.limit(limit).offset(offset).prefetch_related("sender", "recipient").all()
 
     @classmethod
+    async def get_user_messages_count(
+        cls,
+        user_id: int,
+        message_type: Optional[str] = None
+    ) -> int:
+        """获取用户消息总数"""
+        query = Messages.filter(
+            recipient_id=user_id,
+            is_active=True
+        )
+        if message_type:
+            query = query.filter(type=message_type)
+        return await query.count()
+
+    @classmethod
     async def get_message_by_id(cls, message_id: int) -> Optional[Messages]:
         """根据ID获取消息"""
         return await Messages.get_or_none(id=message_id, is_active=True).prefetch_related("sender", "recipient")
@@ -116,3 +131,39 @@ class MessageDAO:
         """软删除用户所有消息，返回删除数量"""
         result = await Messages.filter(recipient_id=user_id, is_active=True).update(is_active=False)
         return result
+
+    @classmethod
+    async def send_announcement(
+        cls,
+        title: str,
+        content: str,
+        sender_id: Optional[int] = None
+    ) -> int:
+        """
+        发送系统公告给所有用户
+        
+        **功能描述**：创建公告消息并发送给所有活跃用户
+        
+        **参数**：
+        - title: 公告标题
+        - content: 公告内容
+        - sender_id: 发送者ID（管理员）
+        
+        **返回**：发送成功的消息数量
+        """
+        from tortoise.expressions import F
+        
+        active_users = await Users.filter(is_active=True).only("id")
+        
+        message_count = 0
+        for user in active_users:
+            await Messages.create(
+                recipient_id=user.id,
+                sender_id=sender_id,
+                title=title,
+                content=content,
+                type="announcement"
+            )
+            message_count += 1
+        
+        return message_count
