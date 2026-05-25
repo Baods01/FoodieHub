@@ -70,7 +70,6 @@ class ShopUpdate(BaseModel):
     """更新店铺请求（管理员）"""
     name: Optional[str] = Field(default=None, min_length=1, max_length=100, description="店铺名称")
     description: Optional[str] = Field(default=None, max_length=2000, description="店铺描述")
-    is_active: Optional[bool] = Field(default=None, description="是否启用（软删除）")
     location_codes: Optional[List[str]] = Field(
         default=None,
         description="区域编码列表（如：['nei_taisan', 'nei_huashan']）"
@@ -121,7 +120,6 @@ class ShopUpdate(BaseModel):
         cls,
         name: Optional[str] = Form(None, description="店铺名称"),
         description: Optional[str] = Form(None, description="店铺描述"),
-        is_active: Optional[bool] = Form(None, description="是否启用（软删除）"),
         location_codes: Optional[List[str]] = Form(
             None,
             description="区域编码列表（如：['nei_taisan', 'nei_huashan']）"
@@ -134,7 +132,6 @@ class ShopUpdate(BaseModel):
         return cls(
             name=name,
             description=description,
-            is_active=is_active,
             location_codes=location_codes,
             category_codes=category_codes,
         )

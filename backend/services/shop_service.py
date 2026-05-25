@@ -882,11 +882,6 @@ class ShopService:
             related_entity_id=request.id
         )
 
-    @classmethod
-    async def delete_shop(cls, shop_id: int) -> bool:
-        """管理员软删除店铺"""
-        return await ShopDAO.delete_shop(shop_id)
-
     # ============ 评分操作 ============
 
     @classmethod

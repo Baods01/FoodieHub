@@ -194,16 +194,6 @@ class ShopDAO:
         return shop
 
     @classmethod
-    async def delete_shop(cls, shop_id: int) -> bool:
-        """软删除店铺"""
-        shop = await Shops.get_or_none(id=shop_id, is_active=True)
-        if shop:
-            shop.is_active = False
-            await shop.save()
-            return True
-        return False
-
-    @classmethod
     async def increment_view_count(cls, shop_id: int) -> None:
         """增加店铺浏览量"""
         shop = await Shops.get_or_none(id=shop_id, is_active=True)

@@ -289,7 +289,6 @@ async def update_shop(
     **可选字段：**
     - `name`: 店铺名称
     - `description`: 店铺描述
-    - `is_active`: 是否启用（软删除）
     - `location_codes`: 区域编码列表（如：`['nei_taisan', 'nei_huashan']`）
     - `category_codes`: 品类编码列表（如：`['local_cuisine', 'hotpot']`）
 
@@ -300,7 +299,6 @@ async def update_shop(
 
     **管理员权限：**
     - 修改店铺基本信息
-    - 软删除店铺
     """
     try:
         # 检查是否为管理员
@@ -322,42 +320,6 @@ async def update_shop(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="更新店铺信息失败"
-        )
-
-
-@router.delete("/{shop_id}", response_model=ResponseModel[dict], summary="删除店铺")
-async def delete_shop(
-    shop_id: int,
-    current_user: UserResponse = Depends(require_login)
-):
-    """
-    删除店铺（仅管理员）
-
-    **管理员权限：**
-    - 软删除店铺
-    """
-    try:
-        # 检查是否为管理员
-        if current_user.role != 1:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限执行此操作"
-            )
-        success = await ShopService.delete_shop(shop_id)
-        if success:
-            return ResponseModel.success(data={}, message="删除成功")
-        raise ValueError("店铺不存在")
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="删除店铺失败"
         )
 
 
@@ -501,7 +463,7 @@ async def approve_shop_correction_request(
     current_user: UserResponse = Depends(require_login)
 ):
     """管理员审核通过某条店铺勘误反馈请求
-
+ 
     请求体示例：
     {
       "remark": "string"
