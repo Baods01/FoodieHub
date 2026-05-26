@@ -7,7 +7,9 @@ from models.shops import Shops, Menu, Ratings, Comments
 from models.users import Users, Favorites, Activities
 from models.images import Images
 from models.dict import DictData, ShopDictRel
+from models.logs import UserBehaviorLogs
 from models.reviews import ShopEditRequests
+from services.admin_log_service import AdminLogService
 from dao.shop_dao import ShopDAO
 from dao.message_dao import MessageDAO
 
@@ -578,7 +580,7 @@ class ShopService:
         proposed_data = request.proposed_data or {}
         request_type = proposed_data.get("type")
         if request_type == "correction":
-            await cls._apply_correction_request(request)
+            await cls._apply_correction_request(request, admin_id=admin_id)
         elif request_type in {"duplicate", "merge"}:
             if not main_shop_id:
                 raise ValueError("重复店铺反馈审批时必须指定主店铺ID")
@@ -612,7 +614,7 @@ class ShopService:
         if request_type != "correction":
             raise ValueError("该申请不是店铺勘误反馈请求")
 
-        await cls._apply_correction_request(request)
+        await cls._apply_correction_request(request, admin_id=admin_id)
 
         updated_request = await ShopDAO.update_edit_request_status(
             request_id=request_id,
@@ -649,7 +651,7 @@ class ShopService:
         return updated_request
 
     @classmethod
-    async def _apply_correction_request(cls, request: ShopEditRequests) -> None:
+    async def _apply_correction_request(cls, request: ShopEditRequests, admin_id: int = 0) -> None:
         proposed_data = request.proposed_data or {}
         changes = proposed_data.get("changes") or {}
         shop_id = request.shop_id
@@ -661,6 +663,20 @@ class ShopService:
         if not changes:
             raise ValueError("没有可应用的勘误修改项")
 
+        # 记录修改前的快照
+        before_snapshot = {
+            "shop_id": shop.id,
+            "shop_name": shop.name,
+            "current_values": {"name": shop.name}
+        }
+        # 获取当前区域和品类信息
+        current_dict_data = await ShopDAO.get_shop_dict_data(shop_id)
+        area_names = [d.name for d in current_dict_data if d.dict_type and d.dict_type.code == "location_type"]
+        category_names = [d.name for d in current_dict_data if d.dict_type and d.dict_type.code == "category"]
+        before_snapshot["current_values"]["area"] = area_names[0] if area_names else None
+        before_snapshot["current_values"]["category"] = category_names[0] if category_names else None
+        before_snapshot["proposed_changes"] = {}
+
         if "name" in changes:
             name = changes.get("name")
             if not isinstance(name, str) or not name.strip():
@@ -668,6 +684,7 @@ class ShopService:
             existing = await ShopDAO.find_shop_by_name(name.strip())
             if existing and existing.id != shop_id:
                 raise ValueError("该店铺名称已被其他店铺占用")
+            before_snapshot["proposed_changes"]["name"] = {"from": shop.name, "to": name.strip()}
             await ShopDAO.update_shop(shop_id, name=name.strip())
 
         if "area" in changes:
@@ -682,9 +699,12 @@ class ShopService:
                 shop_id=shop_id,
                 is_active=True
             ).prefetch_related("dict_data", "dict_data__dict_type").all()
+            old_area = None
             for rel in current_rels:
                 if rel.dict_data and rel.dict_data.dict_type and rel.dict_data.dict_type.code == "location_type":
+                    old_area = rel.dict_data.name
                     await rel.delete()
+            before_snapshot["proposed_changes"]["area"] = {"from": old_area, "to": dict_data.name}
             await ShopDAO.add_dict_data_to_shop(shop_id, dict_data.id)
 
         if "category" in changes:
@@ -699,10 +719,58 @@ class ShopService:
                 shop_id=shop_id,
                 is_active=True
             ).prefetch_related("dict_data", "dict_data__dict_type").all()
+            old_category = None
             for rel in current_rels:
                 if rel.dict_data and rel.dict_data.dict_type and rel.dict_data.dict_type.code == "category":
+                    old_category = rel.dict_data.name
                     await rel.delete()
+            before_snapshot["proposed_changes"]["category"] = {"from": old_category, "to": dict_data.name}
             await ShopDAO.add_dict_data_to_shop(shop_id, dict_data.id)
+
+        # 记录管理员操作日志 - 店铺勘误
+        try:
+            # 获取修改后的店铺信息
+            updated_shop = await ShopDAO.find_shop_by_id(shop_id)
+            updated_dict_data = await ShopDAO.get_shop_dict_data(shop_id)
+            updated_area_names = [d.name for d in updated_dict_data if d.dict_type and d.dict_type.code == "location_type"]
+            updated_category_names = [d.name for d in updated_dict_data if d.dict_type and d.dict_type.code == "category"]
+
+            after_snapshot = {
+                "shop_id": shop_id,
+                "shop_name": updated_shop.name,
+                "updated_values": {
+                    "name": updated_shop.name,
+                    "area": updated_area_names[0] if updated_area_names else None,
+                    "category": updated_category_names[0] if updated_category_names else None
+                }
+            }
+
+            # 生成操作描述
+            change_desc = []
+            for field, info in before_snapshot.get("proposed_changes", {}).items():
+                change_desc.append(f"{field}: '{info['from']}'→'{info['to']}'")
+
+            # 获取管理员信息
+            admin_user = await Users.get_or_none(id=admin_id)
+            admin_account = admin_user.username if admin_user else f"admin_{admin_id}"
+
+            await AdminLogService.create_admin_log(
+                operator_id=admin_id,
+                operator_account=admin_account,
+                operation_type="approve",
+                operation_module="shop",
+                operation_ip="unknown",
+                target_object_id=shop_id,
+                target_object_type="shop_correction",
+                before_snapshot=before_snapshot,
+                after_snapshot=after_snapshot,
+                operation_result="success",
+                operation_description=f"店铺勘误: #{shop_id}({shop.name}) 修改了 [{', '.join(change_desc)}]"
+            )
+        except Exception as log_err:
+            import traceback
+            print(f"[AdminLog] 店铺勘误日志记录失败: {log_err}")
+            traceback.print_exc()
 
     @classmethod
     async def _apply_duplicate_request(cls, request: ShopEditRequests, main_shop_id: int, admin_id: int) -> None:
@@ -767,6 +835,12 @@ class ShopService:
             # 迁移图片
             await Images.filter(entity_type="shop", entity_id=duplicate_id, is_active=True).update(entity_id=main_shop_id)
 
+            # 迁移浏览日志（将从属店铺的浏览记录指向主店铺）
+            await UserBehaviorLogs.filter(
+                target_type="shop",
+                target_id=duplicate_id
+            ).update(target_id=main_shop_id)
+
             # 迁移菜单
             await Menu.filter(shop_id=duplicate_id, is_active=True).update(shop_id=main_shop_id)
 
@@ -810,6 +884,69 @@ class ShopService:
         # 记录 main_shop_id 到请求中
         request.proposed_data["main_shop_id"] = main_shop_id
         await request.save()
+
+        # 记录管理员操作日志 - 店铺合并
+        try:
+            # 构建合并前快照
+            duplicate_name = []
+            for dup_id in duplicate_shop_ids:
+                dup_shop = await Shops.get_or_none(id=dup_id)
+                if dup_shop:
+                    duplicate_name.append(dup_shop.name)
+            
+            before_snapshot = {
+                "main_shop": {
+                    "id": main_shop.id,
+                    "name": main_shop.name,
+                    "view_count": main_shop.view_count - view_count_add,
+                    "favorite_count": main_shop.favorite_count,
+                    "comment_count": main_shop.comment_count,
+                    "average_rating": str(main_shop.average_rating)
+                },
+                "duplicate_shops": [
+                    {
+                        "id": dup_id,
+                        "name": name
+                    }
+                    for dup_id, name in zip(duplicate_shop_ids, duplicate_name)
+                ]
+            }
+
+            after_snapshot = {
+                "main_shop": {
+                    "id": main_shop.id,
+                    "name": main_shop.name,
+                    "view_count": main_shop.view_count,
+                    "favorite_count": main_shop.favorite_count,
+                    "comment_count": main_shop.comment_count,
+                    "average_rating": str(main_shop.average_rating)
+                },
+                "merged_shop_ids": duplicate_shop_ids,
+                "merged_shop_names": duplicate_name
+            }
+
+            # 获取管理员信息
+            admin_user = await Users.get_or_none(id=admin_id)
+            admin_account = admin_user.username if admin_user else f"admin_{admin_id}"
+
+            await AdminLogService.create_admin_log(
+                operator_id=admin_id,
+                operator_account=admin_account,
+                operation_type="approve",
+                operation_module="shop",
+                operation_ip="unknown",
+                target_object_id=main_shop_id,
+                target_object_type="shop_merge",
+                before_snapshot=before_snapshot,
+                after_snapshot=after_snapshot,
+                operation_result="success",
+                operation_description=f"店铺合并: {request.shop_id}→{main_shop_id} (主店铺: #{main_shop_id}({main_shop.name}), 合并店铺: #{','.join(str(s) for s in duplicate_shop_ids)})"
+            )
+        except Exception as log_err:
+            # 日志记录失败不影响主流程
+            import traceback
+            print(f"[AdminLog] 店铺合并日志记录失败: {log_err}")
+            traceback.print_exc()
 
         # 发送合并通知给反馈用户与收藏用户
         await cls._send_merge_notice(request, main_shop_id, duplicate_shop_ids, admin_id)

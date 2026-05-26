@@ -79,12 +79,13 @@ async def create_shop(
     - `drinks`: 饮品
     - `desserts`: 甜点/面包
 
-    **区域编码（5个）：**
+    **区域编码（6个）：**
     - `nei_taisan`: 泰山区
     - `nei_huashan`: 华山区
     - `nei_qilin`: 启林区
     - `nei_liuyi`: 六一区
     - `wai_outside`: 校外
+    - `zhuxiaoqu`: 主校区
 
     **后端自动生成：**
     - `id`: 店铺ID（自增主键）
