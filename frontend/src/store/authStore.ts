@@ -6,6 +6,7 @@ interface AuthState {
   isLoggedIn: boolean;
   userId: number | null;
   userName: string;
+  userRole: number;
   userAvatar: string | null;
   userEmail: string;
   userPhone: string;
@@ -19,12 +20,16 @@ interface AuthState {
 
   /** 应用启动时从 localStorage 恢复 token 并验证 */
   init: () => Promise<void>;
+
+  /** 当前是否为管理员（role === 1） */
+  isAdmin: () => boolean;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   isLoggedIn: false,
   userId: null,
   userName: '',
+  userRole: 0,
   userAvatar: null,
   userEmail: '',
   userPhone: '',
@@ -36,6 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       isLoggedIn: true,
       userId: user.id,
       userName: user.username,
+      userRole: user.role,
       userAvatar: user.avatar,
       userEmail: user.email,
       userPhone: user.phone,
@@ -48,10 +54,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       isLoggedIn: false,
       userId: null,
       userName: '',
+      userRole: 0,
       userAvatar: null,
       userEmail: '',
       userPhone: '',
     });
+  },
+
+  isAdmin: () => {
+    return get().userRole === 1;
   },
 
   init: async () => {
@@ -67,12 +78,12 @@ export const useAuthStore = create<AuthState>((set) => ({
           isLoggedIn: true,
           userId: user.id,
           userName: user.username,
+          userRole: user.role,
           userAvatar: user.avatar,
           userEmail: user.email,
           userPhone: user.phone,
         });
       } else {
-        // Token 无效，清理
         localStorage.removeItem('foodiehub_token');
       }
     } catch {

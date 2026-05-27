@@ -101,7 +101,7 @@ registeredUsers.push({
     email: 'test@scau.edu.cn',
     avatar: null,
     bio: '食探社测试用户',
-    role: 0,
+    role: 1,
     created_at: new Date().toISOString(),
   },
 });

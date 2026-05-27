@@ -9,6 +9,8 @@ import NotificationsPage from '../pages/NotificationsPage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import UploadShopPage from '../pages/UploadShopPage';
+import AdminLoginPage from '../admin/login/AdminLoginPage';
+import AdminApp from '../admin/AdminApp';
 
 export const router = createBrowserRouter([
   {
@@ -27,4 +29,8 @@ export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
   { path: '/upload-shop', element: <UploadShopPage /> },
+
+  // 管理后台（独立认证 + react-admin 接管）
+  { path: '/admin/login', element: <AdminLoginPage /> },
+  { path: '/admin/*', element: <AdminApp /> },
 ]);
