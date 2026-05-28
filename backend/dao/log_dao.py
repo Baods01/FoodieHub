@@ -147,7 +147,9 @@ class LogDAO:
         if end_time:
             qs = qs.filter(created_at__lte=end_time)
 
-        return await qs.annotate(count=Count("id")) \
+        result = await qs.annotate(count=Count("id")) \
             .group_by("action") \
-            .values("action", "count") \
-            .order_by("-count")
+            .values("action", "count")
+        # values() 不支持链式 order_by，Python 层排序
+        result.sort(key=lambda x: -x.get("count", 0))
+        return result

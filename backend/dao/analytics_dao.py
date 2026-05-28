@@ -90,7 +90,7 @@ class AnalyticsDAO:
         conn = Tortoise.get_connection("default")
         sql = """
             WITH RECURSIVE dates AS (
-                SELECT CURDATE() - INTERVAL ? DAY AS dt
+                SELECT CURDATE() - INTERVAL %s DAY AS dt
                 UNION ALL
                 SELECT dt + INTERVAL 1 DAY FROM dates WHERE dt < CURDATE()
             )
@@ -144,7 +144,7 @@ class AnalyticsDAO:
 
         from tortoise import Tortoise
         conn = Tortoise.get_connection("default")
-        placeholders = ",".join("?" for _ in dict_data_ids)
+        placeholders = ",".join("%s" for _ in dict_data_ids)
         sql = f"""
             SELECT
                 dr.dict_data_id,

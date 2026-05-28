@@ -49,10 +49,7 @@ class ShopsDAO:
 
         # 关键词搜索
         if keyword:
-            qs = qs.filter(
-                Q(name__icontains=keyword)
-                | Q(aliases__icontains=keyword)
-            )
+            qs = qs.filter(name__icontains=keyword)
 
         # 品类筛选（通过 DictRel 多态关联找 shop_id）
         if category_ids:
@@ -95,9 +92,7 @@ class ShopsDAO:
         qs = Shops.filter(is_active=True, is_banned=False)
 
         if keyword:
-            qs = qs.filter(
-                Q(name__icontains=keyword) | Q(aliases__icontains=keyword)
-            )
+            qs = qs.filter(name__icontains=keyword)
 
         if category_ids:
             shop_ids = await DictRel.filter(

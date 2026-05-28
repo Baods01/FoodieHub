@@ -11,6 +11,7 @@
   settings.DATABASE_URL  → 读取 .env 中的值或默认值
 """
 
+import os
 from pydantic_settings import BaseSettings
 from typing import Dict, Any, List
 
@@ -52,7 +53,7 @@ class Settings(BaseSettings):
         }
 
     class Config:
-        env_file = ".env"
+        env_file = os.path.join(os.path.dirname(__file__), ".env")
         env_file_encoding = "utf-8"
 
 
