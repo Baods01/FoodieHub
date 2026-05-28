@@ -35,6 +35,7 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
     print(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} 启动中...")
+    from services import activity_signals  # noqa: F401 — 注册 post_save 钩子
     yield
     # 关闭时执行
     print(f"👋 {settings.APP_NAME} 正在关闭...")
