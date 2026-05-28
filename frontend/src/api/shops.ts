@@ -144,5 +144,13 @@ export async function fetchFavorites(page = 1, pageSize = 20): Promise<{ items: 
 }
 
 // ============ 字典接口 ============
-// 字典数据通过 DictService 管理，暂未开放 HTTP 接口
-// 前端需要字典选项时，可以从 DictRelDAO 查询或由后端在适当时机预置
+
+export async function fetchDictTypes(): Promise<{ id: number; name: string }[]> {
+  const res = await apiClient.get('/dict/types');
+  return (res.data as any).data;
+}
+
+export async function fetchDictData(typeName: string): Promise<{ id: number; name: string }[]> {
+  const res = await apiClient.get('/dict/data', { params: { type_name: typeName } });
+  return (res.data as any).data;
+}

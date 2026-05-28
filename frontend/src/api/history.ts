@@ -1,10 +1,19 @@
-// 浏览历史接口
-// 浏览历史已从独立接口移除，改为通过 OperationLog 记录。
-// 如需获取用户浏览历史，未来可通过以下方式：
-// GET /users/me/history（待开发）
+import apiClient from './client';
+import type { ApiResponse } from '../types/common';
 
 export interface HistoryItem {
-  shop_id: number;
-  shop_name: string;
-  viewed_at: string;
+  id: number;
+  operator_id: number;
+  action: string;
+  target_type: string;
+  target_id: number;
+  created_at: string;
+}
+
+/** 获取当前用户的浏览历史 */
+export async function fetchHistory(page = 1, pageSize = 20): Promise<{ items: HistoryItem[]; total: number }> {
+  const res = await apiClient.get<ApiResponse<{ items: HistoryItem[]; total: number }>>('/users/me/history', {
+    params: { page, page_size: pageSize },
+  });
+  return res.data.data;
 }

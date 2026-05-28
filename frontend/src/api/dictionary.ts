@@ -1,10 +1,5 @@
-// 字典数据接口
-// 字典数据（品类、区域等）当前通过 seed SQL 预置在数据库，
-// 后端尚未开放独立的字典 HTTP 接口。
-//
-// 前端需要字典选项时，可：
-// 1. 从店铺搜索接口的 dict_data 字段间接获取
-// 2. 等待后端提供 GET /dict/types 和 GET /dict/data 接口
+import apiClient from './client';
+import type { ApiResponse } from '../types/common';
 
 export interface DictItem {
   id: number;
@@ -15,4 +10,18 @@ export interface DictType {
   id: number;
   name: string;
   target_table: string;
+}
+
+/** 获取所有字典类型 */
+export async function fetchDictTypes(): Promise<DictType[]> {
+  const res = await apiClient.get<ApiResponse<DictType[]>>('/dict/types');
+  return res.data.data;
+}
+
+/** 按类型名称查字典数据（如 "品类"、"区域"） */
+export async function fetchDictData(typeName: string): Promise<DictItem[]> {
+  const res = await apiClient.get<ApiResponse<DictItem[]>>('/dict/data', {
+    params: { type_name: typeName },
+  });
+  return res.data.data;
 }
