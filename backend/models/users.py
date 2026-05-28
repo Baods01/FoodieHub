@@ -9,15 +9,15 @@ class Users(BaseModel):
     Users 表 - 用户表
     """
     id = fields.IntField(pk=True, description="用户唯一标识")
-    username = fields.CharField(max_length=50, unique=True, null=False, description="登录用户名")
+    username = fields.CharField(max_length=50, unique=True, null=False, description="登录用户名（同时作为显示名）")
     password = fields.CharField(max_length=255, null=False, description="加密后的密码")
     phone = fields.CharField(max_length=20, unique=True, null=False, description="手机号")
     email = fields.CharField(max_length=100, unique=True, null=False, description="电子邮箱，用于通知")
     avatar = fields.CharField(max_length=255, null=True, description="头像图片URL")
     bio = fields.TextField(null=True, description="个人简介")
-    nickname = fields.CharField(max_length=30, null=True, description="昵称（用户显示名）")
     gender = fields.CharField(max_length=10, null=True, description="性别：male/female/other")
     role = fields.IntField(default=0, null=False, description="角色：0:user（普通用户）、1:admin（管理员）")
+    is_banned = fields.BooleanField(default=False, description="是否被封禁：true=封禁中，false=正常")
 
     class Meta:
         table = "users"
@@ -36,6 +36,7 @@ class Activities(BaseModel):
     target_id = fields.IntField(null=False, description="关联目标ID（如评论ID、店铺ID等）")
     target_type = fields.CharField(max_length=50, null=False, description="目标实体类型，便于前端跳转")
     content = fields.CharField(max_length=255, null=True, description='动态摘要，如"评论了店铺XX"')
+    shop = fields.ForeignKeyField("models.Shops", null=True, related_name="activities", on_delete=fields.SET_NULL, description="关联店铺ID，前端跳转用")
 
     class Meta:
         table = "activities"

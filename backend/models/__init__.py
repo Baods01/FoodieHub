@@ -1,43 +1,49 @@
-# 按照依赖顺序导入模型，避免循环导入
+"""
+数据模型统一导出
+
+按依赖顺序导入，避免循环引用。
+所有模型通过字符串 FK 引用（如 "models.Users"），
+因此 users / shops 的导入顺序不会产生运行时循环导入错误。
+"""
+
 # 1. 基础模型（无依赖）
 from .base import BaseModel
 
 # 2. 核心模型（无跨模块依赖）
 from .dict import DictTypes, DictData, ShopDictRel
 
-# 3. 用户模块（依赖 Shops，通过字符串引用）
+# 3. 用户模块
 from .users import Users, Activities, Favorites, Messages
 
-# 4. 店铺模块（依赖 Users，通过字符串引用）
-from .shops import Shops, Menu, Ratings, Comments, CommentsLikes
+# 4. 店铺模块
+from .shops import Shops, Menu, Ratings
 
-# 5. 其他模块（依赖 Users 和 Shops）
-from .logs import UserBehaviorLogs
-from .reviews import ShopEditRequests
+# 5. 资源模块
 from .images import Images
-from .complaints import Complaints, ComplaintHandlers
-from .bans import Bans
-from .admin_logs import AdminOperationLog
+
+# 6. 互动模块（评论 + 问答）
+from .interaction import ShopComments, CommentReplies, ShopQuestions, QuestionAnswers, ContentLikes
+
+# 7. 治理模块（举报 + 勘误）
+from .governance import Complaints, ShopEditRequests
+
+# 8. 日志模块
+from .logs import OperationLog
 
 __all__ = [
     'BaseModel',
-    'Users',
-    'Activities',
-    'Favorites',
-    'Messages',
-    'Shops',
-    'Menu',
-    'Ratings',
-    'Comments',
-    'CommentsLikes',
-    'DictTypes',
-    'DictData',
-    'ShopDictRel',
-    'UserBehaviorLogs',
-    'ShopEditRequests',
+    # 字典
+    'DictTypes', 'DictData', 'ShopDictRel',
+    # 用户
+    'Users', 'Activities', 'Favorites', 'Messages',
+    # 店铺
+    'Shops', 'Menu', 'Ratings',
+    # 图片
     'Images',
-    'Complaints',
-    'ComplaintHandlers',
-    'Bans',
-    'AdminOperationLog',
+    # 互动
+    'ShopComments', 'CommentReplies', 'ShopQuestions', 'QuestionAnswers', 'ContentLikes',
+    # 治理
+    'Complaints', 'ShopEditRequests',
+    # 日志
+    'OperationLog',
 ]

@@ -1,6 +1,7 @@
 from tortoise.models import Model
 from tortoise import fields
 from .base import BaseModel
+from constants import DICT_TARGET_TABLES
 
 
 class DictTypes(BaseModel):
@@ -10,9 +11,17 @@ class DictTypes(BaseModel):
     id = fields.IntField(pk=True, description="唯一标识")
     code = fields.CharField(max_length=50, unique=True, null=False, description="类型编码，如 category、dining_method、location_type")
     name = fields.CharField(max_length=50, unique=True, null=False, description="类型名称，如店铺类别、点餐方式、位置类型")
-    target_table = fields.CharField(max_length=50, null=False, description="目标表名，标识该字典类型属于哪个表，如 shops、users、menu_items")
+    target_table = fields.CharField(
+        max_length=50, null=False,
+        description=f"目标表名，标识该字典类型属于哪个表。合法值：{DICT_TARGET_TABLES}"
+    )
     description = fields.CharField(max_length=255, null=True, description="类型描述")
     sort_order = fields.IntField(default=0, description="排序顺序（类型间排序）")
+
+    @classmethod
+    def validate_target_table(cls, value: str) -> bool:
+        """校验 target_table 是否在允许列表中"""
+        return value in DICT_TARGET_TABLES
 
     class Meta:
         table = "dict_types"
