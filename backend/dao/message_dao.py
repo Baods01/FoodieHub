@@ -1,169 +1,150 @@
-from typing import Optional, List
-from tortoise.expressions import Q
+"""
+message_dao.py — 消息通知数据访问层
 
-from models.users import Messages
-from models.users import Users
+对应 models/users.py：Messages
+"""
+
+from typing import Optional, List
+from models.users import Messages, Users
 
 
 class MessageDAO:
-    """消息数据访问层"""
+    """消息表 — Messages"""
 
-    @classmethod
-    async def get_user_messages(
-        cls,
+    # ==================== 查询 ====================
+
+    @staticmethod
+    async def get_by_id(message_id: int) -> Optional[Messages]:
+        return await Messages.get_or_none(
+            id=message_id, is_active=True
+        ).prefetch_related("sender", "recipient")
+
+    @staticmethod
+    async def list_by_user(
         user_id: int,
         unread_only: bool = False,
-        limit: int = 20,
-        offset: int = 0
-    ) -> List[Messages]:
-        """获取用户消息列表"""
-        query = Messages.filter(
-            recipient_id=user_id,
-            is_active=True
-        ).order_by("-created_at")
-        
+        type: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict:
+        """
+        用户消息列表，按时间倒序。附带未读数方便 badge 展示。
+        返回：{"items": [...], "total": int, "page": int, "page_size": int, "unread_count": int}
+        """
+        qs = Messages.filter(recipient_id=user_id, is_active=True)
+
         if unread_only:
-            query = query.filter(is_read=False)
-        
-        return await query.limit(limit).offset(offset).prefetch_related("sender", "recipient").all()
+            qs = qs.filter(is_read=False)
+        if type:
+            qs = qs.filter(type=type)
 
-    @classmethod
-    async def get_user_messages_count(
-        cls,
-        user_id: int,
-        message_type: Optional[str] = None
-    ) -> int:
-        """获取用户消息总数"""
-        query = Messages.filter(
-            recipient_id=user_id,
-            is_active=True
-        )
-        if message_type:
-            query = query.filter(type=message_type)
-        return await query.count()
-
-    @classmethod
-    async def get_message_by_id(cls, message_id: int) -> Optional[Messages]:
-        """根据ID获取消息"""
-        return await Messages.get_or_none(id=message_id, is_active=True).prefetch_related("sender", "recipient")
-
-    @classmethod
-    async def mark_message_as_read(cls, message_id: int) -> bool:
-        """标记消息为已读"""
-        message = await Messages.get_or_none(id=message_id, is_active=True)
-        if message:
-            message.is_read = True
-            await message.save()
-            return True
-        return False
-
-    @classmethod
-    async def mark_all_messages_as_read(cls, user_id: int) -> int:
-        """标记用户所有未读消息为已读，返回标记数量"""
-        result = await Messages.filter(
-            recipient_id=user_id,
-            is_active=True,
-            is_read=False
-        ).update(is_read=True)
-        return result
-
-    @classmethod
-    async def get_unread_count(cls, user_id: int) -> int:
-        """获取用户未读消息数量"""
-        return await Messages.filter(
-            recipient_id=user_id,
-            is_active=True,
-            is_read=False
+        total = await qs.count()
+        items = await qs.order_by("-created_at") \
+            .offset((page - 1) * page_size) \
+            .limit(page_size) \
+            .prefetch_related("sender", "recipient") \
+            .all()
+        unread_count = await Messages.filter(
+            recipient_id=user_id, is_active=True, is_read=False,
         ).count()
 
-    @classmethod
-    async def create_system_message(
-        cls,
-        title: str,
-        content: str,
-        related_entity_type: Optional[str] = None,
-        related_entity_id: Optional[int] = None
-    ) -> Messages:
-        """创建系统消息（广播给所有用户）"""
-        message = await Messages.create(
-            title=title,
-            content=content,
-            type="announcement",
-            related_entity_type=related_entity_type,
-            related_entity_id=related_entity_id
-        )
-        return message
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "unread_count": unread_count,
+        }
 
-    @classmethod
-    async def create_user_message(
-        cls,
+    @staticmethod
+    async def count_by_user(user_id: int,
+                            type: Optional[str] = None) -> int:
+        qs = Messages.filter(recipient_id=user_id, is_active=True)
+        if type:
+            qs = qs.filter(type=type)
+        return await qs.count()
+
+    @staticmethod
+    async def get_unread_count(user_id: int) -> int:
+        return await Messages.filter(
+            recipient_id=user_id, is_active=True, is_read=False,
+        ).count()
+
+    # ==================== 读操作（状态变更） ====================
+
+    @staticmethod
+    async def mark_read(message_id: int) -> bool:
+        msg = await Messages.get_or_none(id=message_id, is_active=True)
+        if not msg:
+            return False
+        msg.is_read = True
+        await msg.save()
+        return True
+
+    @staticmethod
+    async def mark_all_read(user_id: int) -> int:
+        """标记全部未读为已读，返回标记数。"""
+        return await Messages.filter(
+            recipient_id=user_id, is_active=True, is_read=False,
+        ).update(is_read=True)
+
+    # ==================== 写操作 ====================
+
+    @staticmethod
+    async def create(
         recipient_id: int,
         sender_id: Optional[int],
+        type: str,
         title: str,
         content: str,
-        type: str,
         related_entity_type: Optional[str] = None,
-        related_entity_id: Optional[int] = None
+        related_entity_id: Optional[int] = None,
     ) -> Messages:
-        """创建用户消息"""
         return await Messages.create(
             recipient_id=recipient_id,
             sender_id=sender_id,
+            type=type,
             title=title,
             content=content,
-            type=type,
             related_entity_type=related_entity_type,
-            related_entity_id=related_entity_id
+            related_entity_id=related_entity_id,
         )
 
-    @classmethod
-    async def delete_message(cls, message_id: int) -> bool:
-        """软删除消息"""
-        message = await Messages.get_or_none(id=message_id, is_active=True)
-        if message:
-            message.is_active = False
-            await message.save()
-            return True
-        return False
-
-    @classmethod
-    async def delete_messages_by_user(cls, user_id: int) -> int:
-        """软删除用户所有消息，返回删除数量"""
-        result = await Messages.filter(recipient_id=user_id, is_active=True).update(is_active=False)
-        return result
-
-    @classmethod
+    @staticmethod
     async def send_announcement(
-        cls,
         title: str,
         content: str,
-        sender_id: Optional[int] = None
+        sender_id: Optional[int] = None,
     ) -> int:
         """
-        发送系统公告给所有用户
-        
-        **功能描述**：创建公告消息并发送给所有活跃用户
-        
-        **参数**：
-        - title: 公告标题
-        - content: 公告内容
-        - sender_id: 发送者ID（管理员）
-        
-        **返回**：发送成功的消息数量
+        系统公告：发给所有活跃用户，逐条插入。
+        返回发送条数。
         """
-        from tortoise.expressions import F
-        
         active_users = await Users.filter(is_active=True).only("id")
-        
-        message_count = 0
         for user in active_users:
             await Messages.create(
                 recipient_id=user.id,
                 sender_id=sender_id,
                 title=title,
                 content=content,
-                type="announcement"
+                type="announcement",
             )
-            message_count += 1
-        
-        return message_count
+        return len(active_users)
+
+    # ==================== 删除 ====================
+
+    @staticmethod
+    async def delete(message_id: int) -> bool:
+        msg = await Messages.get_or_none(id=message_id, is_active=True)
+        if not msg:
+            return False
+        msg.is_active = False
+        await msg.save()
+        return True
+
+    @staticmethod
+    async def clear_by_user(user_id: int) -> int:
+        """清空用户所有消息，返回清除数。"""
+        return await Messages.filter(
+            recipient_id=user_id, is_active=True,
+        ).update(is_active=False)

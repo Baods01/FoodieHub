@@ -1,260 +1,209 @@
-from typing import List, Dict, Optional
-from datetime import datetime, timedelta
-from tortoise.expressions import Q
+"""
+analytics_dao.py — 统计分析数据访问层
 
-from models.shops import Shops, Ratings, Comments
-from models.users import Users, Activities
-from models.dict import DictData, DictTypes, ShopDictRel
-from models.logs import UserBehaviorLogs
+职责：
+- 提供管理后台所需的聚合统计数据
+- 复杂聚合使用 raw SQL（WITH RECURSIVE CTE、标量子查询等），
+  展示 MySQL 数据库技术
+- 不包含业务语义（不出现"品类""区域"等词汇），字典参数由上游传入
+"""
+
+from typing import Optional, List
+from models.shops import Shops
+from models.governance import Complaints, ShopEditRequests
 
 
 class AnalyticsDAO:
-    """统计分析数据访问层"""
+    """平台统计分析"""
 
-    # ============ 平台概览统计 ============
+    # ==================== raw SQL：概览 ====================
 
-    @classmethod
-    async def get_platform_statistics(cls) -> dict:
-        """获取平台统计数据"""
-        shop_count = await cls.get_active_shop_count()
-        user_count = await cls.get_active_user_count()
-        comment_count = await cls.get_comment_count()
-        
+    @staticmethod
+    async def get_overview() -> dict:
+        """
+        平台概览卡片数据。一条 SQL 完成多表计数。
+
+        SQL：
+            SELECT
+                (SELECT COUNT(*) FROM shops    WHERE is_active=1 AND is_banned=0) AS total_shops,
+                (SELECT COUNT(*) FROM users    WHERE is_active=1)                   AS total_users,
+                (SELECT COUNT(*) FROM shop_comments WHERE is_active=1)             AS total_comments,
+                (SELECT COUNT(*) FROM shop_questions WHERE is_active=1)            AS total_questions,
+                (SELECT COUNT(*) FROM complaints WHERE status='pending' AND is_active=1) AS pending_complaints,
+                (SELECT COUNT(*) FROM shop_edit_requests WHERE status='pending' AND is_active=1) AS pending_edits,
+                (SELECT ROUND(AVG(average_rating), 1) FROM shops WHERE is_active=1 AND is_banned=0 AND average_rating > 0) AS avg_rating
+        """
+        from tortoise import Tortoise
+        conn = Tortoise.get_connection("default")
+        sql = """
+            SELECT
+                (SELECT COUNT(*) FROM shops              WHERE is_active = 1 AND is_banned = 0) AS total_shops,
+                (SELECT COUNT(*) FROM users              WHERE is_active = 1)                    AS total_users,
+                (SELECT COUNT(*) FROM shop_comments      WHERE is_active = 1)                    AS total_comments,
+                (SELECT COUNT(*) FROM shop_questions     WHERE is_active = 1)                    AS total_questions,
+                (SELECT COUNT(*) FROM complaints         WHERE status = 'pending' AND is_active = 1) AS pending_complaints,
+                (SELECT COUNT(*) FROM shop_edit_requests WHERE status = 'pending' AND is_active = 1) AS pending_edits,
+                (SELECT ROUND(AVG(average_rating), 1)
+                 FROM shops
+                 WHERE is_active = 1 AND is_banned = 0 AND average_rating > 0)                  AS avg_rating
+        """
+        result = await conn.execute_query(sql)
+        row = result[1][0] if result[1] else {}
         return {
-            "shop_count": shop_count,
-            "user_count": user_count,
-            "comment_count": comment_count,
-            "timestamp": datetime.now().isoformat()
+            "total_shops": row.get("total_shops", 0),
+            "total_users": row.get("total_users", 0),
+            "total_comments": row.get("total_comments", 0),
+            "total_questions": row.get("total_questions", 0),
+            "pending_complaints": row.get("pending_complaints", 0),
+            "pending_edits": row.get("pending_edits", 0),
+            "avg_rating": row.get("avg_rating", 0.0),
         }
 
-    @classmethod
-    async def get_active_shop_count(cls) -> int:
-        """获取活跃店铺数量"""
-        return await Shops.filter(is_active=True).count()
+    # ==================== raw SQL：每日趋势（CTE） ====================
 
-    @classmethod
-    async def get_active_user_count(cls) -> int:
-        """获取活跃用户数量"""
-        return await Users.filter(is_active=True).count()
+    @staticmethod
+    async def get_daily_trends(days: int = 7) -> list:
+        """
+        近 N 天每日新增趋势。一条 SQL 完成日期序列生成 + 多表 LEFT JOIN 聚合。
 
-    @classmethod
-    async def get_comment_count(cls) -> int:
-        """获取评论总数"""
-        return await Comments.filter(is_active=True).count()
+        SQL（MySQL 8+ WITH RECURSIVE）：
+            WITH RECURSIVE dates AS (
+                SELECT CURDATE() - INTERVAL %s DAY AS dt
+                UNION ALL
+                SELECT dt + INTERVAL 1 DAY FROM dates WHERE dt < CURDATE()
+            )
+            SELECT
+                dates.dt AS `date`,
+                COALESCE(COUNT(DISTINCT s.id),  0) AS new_shops,
+                COALESCE(COUNT(DISTINCT u.id),  0) AS new_users,
+                COALESCE(COUNT(DISTINCT sc.id), 0) AS new_comments,
+                COALESCE(COUNT(DISTINCT sq.id), 0) AS new_questions
+            FROM dates
+            LEFT JOIN shops          s  ON s.is_active = 1         AND DATE(s.created_at)  = dates.dt
+            LEFT JOIN users          u  ON u.is_active = 1         AND DATE(u.created_at)  = dates.dt
+            LEFT JOIN shop_comments  sc ON sc.is_active = 1        AND DATE(sc.created_at) = dates.dt
+            LEFT JOIN shop_questions sq ON sq.is_active = 1        AND DATE(sq.created_at) = dates.dt
+            GROUP BY dates.dt
+            ORDER BY dates.dt
+        """
+        from tortoise import Tortoise
+        conn = Tortoise.get_connection("default")
+        sql = """
+            WITH RECURSIVE dates AS (
+                SELECT CURDATE() - INTERVAL ? DAY AS dt
+                UNION ALL
+                SELECT dt + INTERVAL 1 DAY FROM dates WHERE dt < CURDATE()
+            )
+            SELECT
+                dates.dt             AS `date`,
+                COALESCE(COUNT(DISTINCT s.id),  0)  AS new_shops,
+                COALESCE(COUNT(DISTINCT u.id),  0)  AS new_users,
+                COALESCE(COUNT(DISTINCT sc.id), 0)  AS new_comments,
+                COALESCE(COUNT(DISTINCT sq.id), 0)  AS new_questions
+            FROM dates
+            LEFT JOIN shops          s  ON s.is_active = 1    AND DATE(s.created_at)  = dates.dt
+            LEFT JOIN users          u  ON u.is_active = 1    AND DATE(u.created_at)  = dates.dt
+            LEFT JOIN shop_comments  sc ON sc.is_active = 1   AND DATE(sc.created_at) = dates.dt
+            LEFT JOIN shop_questions sq ON sq.is_active = 1   AND DATE(sq.created_at) = dates.dt
+            GROUP BY dates.dt
+            ORDER BY dates.dt
+        """
+        result = await conn.execute_query(sql, [days])
+        rows = result[1] if result[1] else []
+        return [
+            {
+                "date": r.get("date").strftime("%Y-%m-%d") if r.get("date") else "",
+                "new_shops": r.get("new_shops", 0),
+                "new_users": r.get("new_users", 0),
+                "new_comments": r.get("new_comments", 0),
+                "new_questions": r.get("new_questions", 0),
+            }
+            for r in rows
+        ]
 
-    # ============ 店铺统计 ============
+    # ==================== 字典参数聚合 ====================
 
-    @classmethod
-    async def get_shop_count_by_status(cls) -> dict:
-        """获取店铺状态分布统计"""
-        active = await Shops.filter(is_active=True).count()
-        inactive = await Shops.filter(is_active=False).count()
-        
-        return {
-            "active": active,
-            "inactive": inactive,
-            "total": active + inactive
-        }
+    @staticmethod
+    async def count_shops_by_dict_data(dict_data_ids: list) -> list:
+        """
+        统计一组字典标签下各标签关联的店铺数。
 
-    @classmethod
-    async def get_shop_count_by_category(cls) -> List[Dict]:
-        """获取店铺品类分布统计"""
-        from tortoise.aggregation import Count
-        
-        # 获取品类字典类型
-        category_type = await DictTypes.get_or_none(
-            code="category",
-            is_active=True
-        )
-        
-        if not category_type:
+        Service 层调用示例：
+            # 品类分布
+            cat_ids = await DictDataDAO.get_ids_by_type_name('品类')
+            AnalyticsDAO.count_shops_by_dict_data(cat_ids)
+
+            # 区域分布
+            area_ids = await DictDataDAO.get_ids_by_type_name('区域')
+            AnalyticsDAO.count_shops_by_dict_data(area_ids)
+
+        返回：[{"dict_data_id": 1, "dict_data_name": "火锅", "shop_count": 12}, ...]
+        """
+        if not dict_data_ids:
             return []
-        
-        # 统计各品类的店铺数量
-        return await ShopDictRel.filter(
-            dict_data__dict_type=category_type,
-            shop__is_active=True
-        ).group_by("dict_data_id").annotate(count=Count("id")).all()
 
-    @classmethod
-    async def get_shop_count_by_area(cls) -> List[Dict]:
-        """获取店铺区域分布统计"""
-        from tortoise.aggregation import Count
-        
-        # 获取区域字典类型
-        location_type = await DictTypes.get_or_none(
-            code="location_type",
-            is_active=True
-        )
-        
-        if not location_type:
-            return []
-        
-        # 统计各区域的店铺数量
-        return await ShopDictRel.filter(
-            dict_data__dict_type=location_type,
-            shop__is_active=True
-        ).group_by("dict_data_id").annotate(count=Count("id")).all()
+        from tortoise import Tortoise
+        conn = Tortoise.get_connection("default")
+        placeholders = ",".join("?" for _ in dict_data_ids)
+        sql = f"""
+            SELECT
+                dr.dict_data_id,
+                dd.name          AS dict_data_name,
+                COUNT(dr.entity_id) AS shop_count
+            FROM dict_rels dr
+            JOIN dict_data dd ON dd.id  = dr.dict_data_id
+            JOIN shops s      ON s.id   = dr.entity_id AND s.is_active = 1 AND s.is_banned = 0
+            WHERE dr.entity_type = 'shop'
+              AND dr.is_active = 1
+              AND dr.dict_data_id IN ({placeholders})
+            GROUP BY dr.dict_data_id, dd.name
+            ORDER BY shop_count DESC
+        """
+        result = await conn.execute_query(sql, dict_data_ids)
+        rows = result[1] if result[1] else []
+        return [
+            {
+                "dict_data_id": r.get("dict_data_id"),
+                "dict_data_name": r.get("dict_data_name"),
+                "shop_count": r.get("shop_count", 0),
+            }
+            for r in rows
+        ]
 
-    # ============ 用户统计 ============
+    # ==================== ORM 简单查询 ====================
 
-    @classmethod
-    async def get_user_count_by_role(cls) -> dict:
-        """获取用户角色分布统计"""
-        user_count = await Users.filter(is_active=True, role=0).count()
-        admin_count = await Users.filter(is_active=True, role=1).count()
-        
+    @staticmethod
+    async def get_top_rated_shops(limit: int = 10) -> list:
+        """评分最高的店铺。"""
+        shops = await Shops.filter(
+            is_active=True, is_banned=False, average_rating__gt=0,
+        ).order_by("-average_rating", "-favorite_count").limit(limit).all()
+        return [
+            {"id": s.id, "name": s.name, "average_rating": s.average_rating}
+            for s in shops
+        ]
+
+    @staticmethod
+    async def get_most_favorited_shops(limit: int = 10) -> list:
+        """收藏最多的店铺。"""
+        shops = await Shops.filter(
+            is_active=True, is_banned=False,
+        ).order_by("-favorite_count").limit(limit).all()
+        return [
+            {"id": s.id, "name": s.name, "favorite_count": s.favorite_count}
+            for s in shops
+        ]
+
+    @staticmethod
+    async def get_pending_counts() -> dict:
+        """待处理工单数。"""
+        pending_complaints = await Complaints.filter(
+            status="pending", is_active=True,
+        ).count()
+        pending_edits = await ShopEditRequests.filter(
+            status="pending", is_active=True,
+        ).count()
         return {
-            "user": user_count,
-            "admin": admin_count,
-            "total": user_count + admin_count
-        }
-
-    # ============ 近7日新增趋势 ============
-
-    @classmethod
-    async def get_recent_activity_trend(
-        cls,
-        days: int = 7,
-        activity_type: Optional[str] = None
-    ) -> List[Dict]:
-        """获取活动趋势数据"""
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-        
-        query = UserBehaviorLogs.filter(
-            created_at__gte=start_date,
-            created_at__lte=end_date
-        )
-        
-        if activity_type:
-            query = query.filter(behavior_type=activity_type)
-        
-        logs = await query.order_by("created_at").all()
-        
-        # 按日期分组统计
-        trend_data = []
-        for i in range(days):
-            date = end_date - timedelta(days=i)
-            date_str = date.strftime("%Y-%m-%d")
-            date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
-            date_end = date.replace(hour=23, minute=59, second=59)
-            
-            count = sum(1 for log in logs if 
-                       date_start <= log.created_at.replace(tzinfo=None) <= date_end)
-            
-            trend_data.insert(0, {
-                "date": date_str,
-                "count": count
-            })
-        
-        return trend_data
-
-    @classmethod
-    async def get_recent_shops_trend(cls, days: int = 7) -> List[Dict]:
-        """获取店铺新增趋势"""
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-        
-        shops = await Shops.filter(created_at__gte=start_date, created_at__lte=end_date).all()
-        
-        # 按日期分组统计
-        trend_data = []
-        for i in range(days):
-            date = end_date - timedelta(days=i)
-            date_str = date.strftime("%Y-%m-%d")
-            
-            count = sum(1 for shop in shops if 
-                       date.strftime("%Y-%m-%d") == shop.created_at.strftime("%Y-%m-%d"))
-            
-            trend_data.insert(0, {
-                "date": date_str,
-                "count": count
-            })
-        
-        return trend_data
-
-    @classmethod
-    async def get_recent_users_trend(cls, days: int = 7) -> List[Dict]:
-        """获取用户注册趋势"""
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-        
-        users = await Users.filter(created_at__gte=start_date, created_at__lte=end_date).all()
-        
-        # 按日期分组统计
-        trend_data = []
-        for i in range(days):
-            date = end_date - timedelta(days=i)
-            date_str = date.strftime("%Y-%m-%d")
-            
-            count = sum(1 for user in users if 
-                       date.strftime("%Y-%m-%d") == user.created_at.strftime("%Y-%m-%d"))
-            
-            trend_data.insert(0, {
-                "date": date_str,
-                "count": count
-            })
-        
-        return trend_data
-
-    @classmethod
-    async def get_recent_comments_trend(cls, days: int = 7) -> List[Dict]:
-        """获取评论新增趋势"""
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-        
-        comments = await Comments.filter(created_at__gte=start_date, created_at__lte=end_date).all()
-        
-        # 按日期分组统计
-        trend_data = []
-        for i in range(days):
-            date = end_date - timedelta(days=i)
-            date_str = date.strftime("%Y-%m-%d")
-            
-            count = sum(1 for comment in comments if 
-                       date.strftime("%Y-%m-%d") == comment.created_at.strftime("%Y-%m-%d"))
-            
-            trend_data.insert(0, {
-                "date": date_str,
-                "count": count
-            })
-        
-        return trend_data
-
-    # ============ 活跃用户统计 ============
-
-    @classmethod
-    async def get_active_users_count(cls, days: int = 7) -> int:
-        """获取最近N日活跃用户数"""
-        from tortoise.aggregation import Count
-        
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-        
-        # 统计有行为日志的用户数量（去重）
-        result = await UserBehaviorLogs.filter(
-            created_at__gte=start_date,
-            created_at__lte=end_date,
-            user_id__isnull=False
-        ).annotate(user_count=Count("user_id", distinct=True)).first()
-        
-        return result.user_count if result else 0
-
-    # ============ 评分统计 ============
-
-    @classmethod
-    async def get_rating_distribution(cls, shop_id: int) -> dict:
-        """获取店铺评分分布"""
-        from tortoise.aggregation import Count
-        
-        ratings = await Ratings.filter(shop_id=shop_id, is_active=True).all()
-        
-        distribution = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-        for rating in ratings:
-            distribution[rating.score] += 1
-        
-        return {
-            "total": len(ratings),
-            "distribution": distribution
+            "pending_complaints": pending_complaints,
+            "pending_edit_requests": pending_edits,
         }

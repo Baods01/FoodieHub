@@ -1,103 +1,93 @@
-from typing import Optional, List
+"""
+favorite_dao.py — 收藏数据访问层
 
+对应 models/users.py：Favorites
+仅操作 Favorites 表，不处理 toggle 业务逻辑（Service 层职责）。
+"""
+
+from typing import Optional, List
 from models.users import Favorites
 from models.shops import Shops
 
 
 class FavoriteDAO:
-    """收藏数据访问层"""
+    """收藏表 — Favorites"""
 
-    @classmethod
-    async def is_favorited(cls, user_id: int, shop_id: int) -> bool:
-        """
-        检查用户是否已收藏某店铺
-        """
+    # ==================== 查询 ====================
+
+    @staticmethod
+    async def get_by_id(favorite_id: int) -> Optional[Favorites]:
+        return await Favorites.get_or_none(id=favorite_id, is_active=True)
+
+    @staticmethod
+    async def is_favorited(user_id: int, shop_id: int) -> bool:
         return await Favorites.filter(
-            user_id=user_id,
-            shop_id=shop_id,
-            is_active=True
+            user_id=user_id, shop_id=shop_id, is_active=True,
         ).exists()
 
-    @classmethod
-    async def add_favorite(cls, user_id: int, shop_id: int) -> Favorites:
+    @staticmethod
+    async def list_by_user(
+        user_id: int,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict:
         """
-        添加收藏（自动取消之前的收藏）
-        - 同一用户对同一店铺只能有一条激活的收藏记录
-        - 添加新收藏时，自动软删除之前的收藏
+        用户收藏列表，按 sort_order → 收藏时间倒序，附店铺信息。
+        返回：{"items": [...], "total": int, "page": int, "page_size": int}
         """
-        # 先取消之前的收藏
-        await Favorites.filter(
-            user_id=user_id,
-            shop_id=shop_id,
-            is_active=True
-        ).update(is_active=False)
-        
-        # 创建新的收藏
-        return await Favorites.create(
-            user_id=user_id,
-            shop_id=shop_id,
-            sort_order=0
-        )
+        qs = Favorites.filter(user_id=user_id, is_active=True)
+        total = await qs.count()
+        items = await qs.order_by("sort_order", "-created_at") \
+            .offset((page - 1) * page_size) \
+            .limit(page_size) \
+            .select_related("shop") \
+            .all()
+        return {"items": items, "total": total, "page": page, "page_size": page_size}
 
-    @classmethod
-    async def remove_favorite(cls, user_id: int, shop_id: int) -> bool:
-        """
-        删除收藏（软删除）
-        """
-        favorite = await Favorites.filter(
-            user_id=user_id,
-            shop_id=shop_id,
-            is_active=True
-        ).first()
-        if favorite:
-            favorite.is_active = False
-            await favorite.save()
-            return True
-        return False
-
-    @classmethod
-    async def get_user_favorites(cls, user_id: int, limit: int = 20, offset: int = 0) -> List[Favorites]:
-        """
-        获取用户所有收藏
-        """
-        return await Favorites.filter(
-            user_id=user_id,
-            is_active=True
-        ).order_by('sort_order', '-created_at').limit(limit).offset(offset).select_related('shop').all()
-
-    @classmethod
-    async def get_user_favorites_count(cls, user_id: int) -> int:
-        """
-        获取用户收藏总数
-        """
+    @staticmethod
+    async def count_by_user(user_id: int) -> int:
         return await Favorites.filter(user_id=user_id, is_active=True).count()
 
-    @classmethod
-    async def get_shop_favorite_count(cls, shop_id: int) -> int:
-        """
-        获取店铺收藏数
-        """
+    @staticmethod
+    async def count_by_shop(shop_id: int) -> int:
         return await Favorites.filter(shop_id=shop_id, is_active=True).count()
 
-    @classmethod
-    async def get_user_favorite_shop_ids(cls, user_id: int) -> List[int]:
-        """
-        获取用户收藏的店铺ID列表
-        """
-        favorites = await Favorites.filter(
-            user_id=user_id,
-            is_active=True
-        ).values_list('shop_id', flat=True)
-        return list(favorites)
+    @staticmethod
+    async def get_shop_ids_by_user(user_id: int) -> List[int]:
+        """获取用户收藏的所有店铺 ID 列表，用于批量判断收藏状态。"""
+        return await Favorites.filter(
+            user_id=user_id, is_active=True,
+        ).values_list("shop_id", flat=True)
 
-    @classmethod
-    async def update_sort_order(cls, favorite_id: int, sort_order: int) -> bool:
+    # ==================== 写操作 ====================
+
+    @staticmethod
+    async def create(user_id: int, shop_id: int,
+                     sort_order: int = 0) -> Favorites:
         """
-        更新收藏的排序序号
+        纯插入一条收藏记录。不处理重复/切换逻辑。
         """
-        favorite = await Favorites.filter(id=favorite_id, is_active=True).first()
-        if favorite:
-            favorite.sort_order = sort_order
-            await favorite.save()
-            return True
-        return False
+        return await Favorites.create(
+            user_id=user_id, shop_id=shop_id, sort_order=sort_order,
+        )
+
+    @staticmethod
+    async def remove(user_id: int, shop_id: int) -> bool:
+        """
+        软删除某用户对某店铺的收藏（全部激活记录）。
+        返回是否删除了至少一条。
+        """
+        count = await Favorites.filter(
+            user_id=user_id, shop_id=shop_id, is_active=True,
+        ).update(is_active=False)
+        return count > 0
+
+    @staticmethod
+    async def update_sort_order(favorite_id: int,
+                                sort_order: int) -> bool:
+        fav = await Favorites.get_or_none(id=favorite_id, is_active=True)
+        if not fav:
+            return False
+        fav.sort_order = sort_order
+        await fav.save()
+        return True

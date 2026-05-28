@@ -1,275 +1,159 @@
+"""
+user_dao.py — 用户数据访问层
+
+仅处理 Users 表。
+其他关联数据（评论、收藏、问答、统计）已移出，见下方 TODO 列表。
+"""
+
 from typing import Optional, List
-
 from tortoise.expressions import Q
-
 from models.users import Users
-from models.logs import UserBehaviorLogs
 
 
 class UserDAO:
-    """用户数据访问层"""
+    """用户表 — Users"""
 
-    @classmethod
-    async def create_user(
-        cls,
+    # ==================== 单条查询 ====================
+
+    @staticmethod
+    async def get_by_id(user_id: int) -> Optional[Users]:
+        return await Users.get_or_none(id=user_id, is_active=True)
+
+    @staticmethod
+    async def get_by_username(username: str) -> Optional[Users]:
+        return await Users.get_or_none(username=username, is_active=True)
+
+    @staticmethod
+    async def get_by_phone(phone: str) -> Optional[Users]:
+        return await Users.get_or_none(phone=phone, is_active=True)
+
+    @staticmethod
+    async def get_by_email(email: str) -> Optional[Users]:
+        return await Users.get_or_none(email=email, is_active=True)
+
+    @staticmethod
+    async def get_by_account(account: str) -> Optional[Users]:
+        """
+        登录用：按用户名/手机号/邮箱匹配，仅查正常用户（is_active=True）。
+        如果用户被封禁，此处返回 None，提示"账号或密码错误"（不暴露封禁信息给未登录者）。
+        """
+        return await Users.get_or_none(
+            Q(username=account) | Q(phone=account) | Q(email=account),
+            is_active=True,
+        )
+
+    @staticmethod
+    async def get_by_account_include_banned(account: str) -> Optional[Users]:
+        """
+        登录用（含封禁用户）：按用户名/手机号/邮箱匹配，查全部状态。
+        用于区分"账号不存在"和"账号被封禁"，在 Service 层给出不同提示。
+        """
+        return await Users.filter(
+            Q(username=account) | Q(phone=account) | Q(email=account),
+        ).first()
+
+    # ==================== 列表 ====================
+
+    @staticmethod
+    async def list(
+        is_active: Optional[bool] = None,
+        is_banned: Optional[bool] = None,
+        keyword: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict:
+        """
+        管理员后台：用户列表，分页 + 筛选 + 搜索。
+        返回：{"items": [...], "total": int, "page": int, "page_size": int}
+        """
+        qs = Users.all()
+
+        if is_active is not None:
+            qs = qs.filter(is_active=is_active)
+        if is_banned is not None:
+            qs = qs.filter(is_banned=is_banned)
+        if keyword:
+            qs = qs.filter(
+                Q(username__icontains=keyword)
+                | Q(phone__icontains=keyword)
+                | Q(email__icontains=keyword)
+            )
+
+        total = await qs.count()
+        items = await qs.order_by("-created_at") \
+            .offset((page - 1) * page_size) \
+            .limit(page_size) \
+            .all()
+
+        return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+    # ==================== 写操作 ====================
+
+    @staticmethod
+    async def exists(**kwargs) -> bool:
+        """检查用户是否存在。"""
+        return await Users.filter(**kwargs).exists()
+
+    @staticmethod
+    async def check_duplicate(username: str, phone: str, email: str) -> Optional[str]:
+        """
+        注册查重：若用户名/手机号/邮箱已存在，返回对应的字段名。
+        都不存在返回 None。
+        """
+        if await Users.filter(username=username, is_active=True).exists():
+            return "username"
+        if await Users.filter(phone=phone, is_active=True).exists():
+            return "phone"
+        if await Users.filter(email=email, is_active=True).exists():
+            return "email"
+        return None
+
+    @staticmethod
+    async def create(
         username: str,
         password: str,
         phone: str,
         email: str,
-        **kwargs
+        **kwargs,
     ) -> Users:
-        """创建新用户"""
         return await Users.create(
             username=username,
             password=password,
             phone=phone,
             email=email,
-            **kwargs
+            **kwargs,
         )
 
-    @classmethod
-    async def find_by_id(cls, user_id: int) -> Optional[Users]:
-        """根据 ID 查找用户"""
-        return await Users.get_or_none(id=user_id, is_active=True)
-
-    @classmethod
-    async def find_by_account(cls, account: str) -> Optional[Users]:
-        """
-        按用户名/手机号/邮箱查找用户（登录用）
-        """
-        return await Users.get_or_none(
-            Q(username=account) | Q(phone=account) | Q(email=account),
-            is_active=True
-        )
-
-    @classmethod
-    async def find_by_account_include_banned(cls, account: str) -> Optional[Users]:
-        """
-        按用户名/手机号/邮箱查找用户（包括被封禁用户，用于登录检查）
-        需要显式包含 is_active=False 的记录，因为 SoftDeleteMixin 会自动过滤
-        """
-        return await Users.filter(
-            Q(username=account) | Q(phone=account) | Q(email=account),
-            is_active__in=[True, False]  # 显式包含所有状态的用户
-        ).first()
-
-    @classmethod
-    async def find_by_username(cls, username: str) -> Optional[Users]:
-        """按用户名查找用户"""
-        return await Users.get_or_none(username=username, is_active=True)
-
-    @classmethod
-    async def find_by_phone(cls, phone: str) -> Optional[Users]:
-        """按手机号查找用户"""
-        return await Users.get_or_none(phone=phone, is_active=True)
-
-    @classmethod
-    async def find_by_email(cls, email: str) -> Optional[Users]:
-        """按邮箱查找用户"""
-        return await Users.get_or_none(email=email, is_active=True)
-
-    @classmethod
-    async def exists(cls, **kwargs) -> bool:
-        """检查用户是否存在（支持任意字段）"""
-        kwargs.setdefault("is_active", True)
-        return await Users.filter(**kwargs).exists()
-
-    @classmethod
-    async def check_duplicate(cls, username: str, phone: str, email: str) -> Optional[str]:
-        """
-        检查用户名、手机号、邮箱是否已存在
-        返回已存在的字段名称，如果都不存在则返回 None
-        """
-        if await cls.exists(username=username):
-            return "username"
-        if await cls.exists(phone=phone):
-            return "phone"
-        if await cls.exists(email=email):
-            return "email"
-        return None
-
-    @classmethod
-    async def update_user(cls, user_id: int, **kwargs) -> Optional[Users]:
-        """更新用户信息"""
+    @staticmethod
+    async def update(user_id: int, **kwargs) -> Optional[Users]:
+        """更新用户信息（含头像）。"""
         user = await Users.get_or_none(id=user_id, is_active=True)
-        if user:
-            for key, value in kwargs.items():
-                setattr(user, key, value)
-            await user.save()
+        if not user:
+            return None
+        for k, v in kwargs.items():
+            setattr(user, k, v)
+        await user.save()
         return user
 
-    @classmethod
-    async def delete_user(cls, user_id: int) -> bool:
-        """软删除用户"""
+    @staticmethod
+    async def delete(user_id: int) -> bool:
+        """软删除用户（注销账号）。"""
         user = await Users.get_or_none(id=user_id, is_active=True)
-        if user:
-            user.is_active = False
-            await user.save()
-            return True
-        return False
+        if not user:
+            return False
+        user.is_active = False
+        await user.save()
+        return True
 
-    @classmethod
-    async def get_user_stats(cls, user_id: int) -> dict:
-        """
-        获取用户统计数据
-        返回：评论数、评分数、收藏数、动态数
-        """
-        from models.shops import Comments, Ratings
-        from models.users import Activities, Favorites
-        from models.logs import UserBehaviorLogs
 
-        # 统计各表数据
-        comment_count = await Comments.filter(user_id=user_id, is_active=True).count()
-        rating_count = await Ratings.filter(user_id=user_id, is_active=True).count()
-        favorite_count = await Favorites.filter(user_id=user_id, is_active=True).count()
-        activity_count = await Activities.filter(user_id=user_id, is_active=True).count()
-
-        return {
-            "comment_count": comment_count,
-            "rating_count": rating_count,
-            "favorite_count": favorite_count,
-            "activity_count": activity_count
-        }
-
-    @classmethod
-    async def get_user_comments(
-        cls,
-        user_id: int,
-        limit: int = 10,
-        offset: int = 0
-    ) -> List[dict]:
-        """
-        获取用户评论列表（包含店铺信息）
-        
-        Args:
-            user_id: 用户ID
-            limit: 每页数量
-            offset: 偏移量
-            
-        Returns:
-            评论列表，包含店铺信息
-        """
-        from models.shops import Comments, Shops
-        
-        comments = await Comments.filter(
-            user_id=user_id,
-            is_active=True
-        ).order_by("-created_at").limit(limit).offset(offset).select_related("shop").all()
-        
-        result = []
-        for comment in comments:
-            result.append({
-                "comment_id": comment.id,
-                "content": comment.content,
-                "created_at": comment.created_at,
-                "reply_count": comment.reply_count,
-                "like_count": comment.like_count,
-                "shop_id": comment.shop_id,
-                "shop_name": comment.shop.name if comment.shop else "未知店铺"
-            })
-            
-        return result
-
-    @classmethod
-    async def get_user_favorites(
-        cls,
-        user_id: int,
-        limit: int = 10,
-        offset: int = 0
-    ) -> List[dict]:
-        """
-        获取用户收藏列表（包含店铺信息）
-        
-        Args:
-            user_id: 用户ID
-            limit: 每页数量
-            offset: 偏移量
-            
-        Returns:
-            收藏列表，包含店铺信息
-        """
-        from models.users import Favorites, Shops
-        
-        favorites = await Favorites.filter(
-            user_id=user_id,
-            is_active=True
-        ).order_by("-created_at").limit(limit).offset(offset).select_related("shop").all()
-        
-        result = []
-        for favorite in favorites:
-            result.append({
-                "favorite_id": favorite.id,
-                "sort_order": favorite.sort_order,
-                "created_at": favorite.created_at,
-                "shop_id": favorite.shop_id,
-                "shop_name": favorite.shop.name if favorite.shop else "未知店铺"
-            })
-            
-        return result
-
-    @classmethod
-    async def get_user_questions_count(cls, user_id: int) -> int:
-        """
-        获取用户问答数（作为提问者的评论数）
-        
-        Args:
-            user_id: 用户ID
-            
-        Returns:
-            问答数
-        """
-        from models.shops import Comments
-        
-        # type="question" 的评论作为问答数
-        return await Comments.filter(
-            user_id=user_id,
-            type="question",
-            is_active=True
-        ).count()
-
-    @classmethod
-    async def create_user_behavior_log(
-        cls,
-        user_id: int,
-        behavior_type: str,
-        target_type: Optional[str] = None,
-        target_id: Optional[int] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        session_id: Optional[str] = None
-    ) -> UserBehaviorLogs:
-        """创建用户行为日志"""
-        return await UserBehaviorLogs.create(
-            user_id=user_id,
-            behavior_type=behavior_type,
-            target_type=target_type,
-            target_id=target_id,
-            ip_address=ip_address,
-            user_agent=user_agent,
-            session_id=session_id
-        )
-
-    @classmethod
-    async def get_user_behavior_logs(
-        cls,
-        user_id: int,
-        behavior_type: Optional[str] = None,
-        limit: int = 20,
-        offset: int = 0
-    ) -> List[UserBehaviorLogs]:
-        """获取用户行为日志列表"""
-        query = UserBehaviorLogs.filter(user_id=user_id, is_active=True).order_by("-created_at")
-        
-        if behavior_type:
-            query = query.filter(behavior_type=behavior_type)
-            
-        return await query.limit(limit).offset(offset).all()
-
-    @classmethod
-    async def update_user_avatar(cls, user_id: int, avatar_url: str) -> Optional[Users]:
-        """更新用户头像"""
-        user = await Users.get_or_none(id=user_id, is_active=True)
-        if user:
-            user.avatar = avatar_url
-            await user.save()
-        return user
+# ===========================================================================
+# TODO — 以下方法已从 UserDAO 移出，请在对应文件实现后取消注释并删掉此提示：
+#
+#   方法                                → 目标 DAO 文件
+#   get_user_comments()                 → comment_dao.py
+#   get_user_favorites()                → favorite_dao.py
+#   get_user_questions_count()          → question_dao.py
+#   get_user_stats() (跨表聚合统计)       → analytics_dao.py
+#   create_user_behavior_log()          → ❌ 改用 LogDAO.log()
+#   get_user_behavior_logs()            → ❌ 改用 LogDAO.list(operator_id=...)
+# ===========================================================================
