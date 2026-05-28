@@ -8,7 +8,7 @@ class Shops(BaseModel):
     Shops 表 - 店铺表
 
     核心字段仅保留名称，其余标签属性（品类、区域、就餐方式等）
-    统一通过 DictData + ShopDictRel 字典体系管理。
+    统一通过 DictData + DictRel 字典体系管理。
     描述、人均价格、营业时间等易主观/过时的字段已移除。
     """
     id = fields.IntField(pk=True, description="店铺唯一标识")
@@ -25,7 +25,7 @@ class Shops(BaseModel):
     is_banned = fields.BooleanField(default=False, description="是否被封禁：true=封禁中，false=正常")
 
     # 关联表定义
-    dict_relations = fields.ReverseRelation["ShopDictRel"]
+    dict_relations = fields.ReverseRelation["DictRel"]
 
     class Meta:
         table = "shops"

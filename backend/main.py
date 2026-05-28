@@ -23,7 +23,7 @@ from routers.admin_logs import router as admin_logs_router
 from models import (
     Users, Activities, Favorites, Messages,
     Shops, Menu, Ratings, Comments, CommentsLikes,
-    DictTypes, DictData, ShopDictRel,
+    DictTypes, DictData, DictRel,
     UserBehaviorLogs, ShopEditRequests, Images,
     Complaints, ComplaintHandlers, Bans,
     AdminOperationLog

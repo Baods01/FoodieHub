@@ -10,7 +10,7 @@
 from .base import BaseModel
 
 # 2. 核心模型（无跨模块依赖）
-from .dict import DictTypes, DictData, ShopDictRel
+from .dict import DictTypes, DictData, DictRel
 
 # 3. 用户模块
 from .users import Users, Activities, Favorites, Messages
@@ -33,7 +33,7 @@ from .logs import OperationLog
 __all__ = [
     'BaseModel',
     # 字典
-    'DictTypes', 'DictData', 'ShopDictRel',
+    'DictTypes', 'DictData', 'DictRel',
     # 用户
     'Users', 'Activities', 'Favorites', 'Messages',
     # 店铺

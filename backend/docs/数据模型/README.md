@@ -66,7 +66,7 @@ Router → Service → DAO → Model (数据模型层)
 models/
   __init__.py       统一导出，按依赖顺序导入
   base.py           基类（BaseModel）
-  dict.py           字典体系（DictTypes / DictData / ShopDictRel）
+  dict.py           字典体系（DictTypes / DictData / DictRel）
   users.py          用户模块（Users / Activities / Favorites / Messages）
   shops.py          店铺模块（Shops / Menu / Ratings）
   images.py         图片模块（Images）
@@ -80,7 +80,7 @@ models/
 | 功能区 | 对应文件 | 包含模型 |
 |:---|:---|:---|
 | 基础 | `base.py` | BaseModel（所有模型的基类） |
-| 标签管理 | `dict.py` | 字典类型 + 字典数据 + 多对多关联 |
+| 标签管理 | `dict.py` | 字典类型 + 字典数据 + 多态关联 |
 | 身份与空间 | `users.py` | 用户、动态、收藏、消息 |
 | 资产底座 | `shops.py` | 店铺、菜单、评分 |
 | 资源文件 | `images.py` | 图片（多态关联） |
@@ -134,26 +134,25 @@ Shops ──┬── ShopDictRel → DictData → DictTypes   (标签体系，�
 
 "一切可枚举的标签属性通过字典管理"。
 
-店铺的**品类**、**区域**、**就餐方式**等所有可穷举打标签的属性，均通过 DictTypes + DictData + ShopDictRel 三表实现。当需要新增标签类型时，只需在 DictData 中添加数据行，无需修改表结构。
+店铺的**品类**、**区域**、**就餐方式**等所有可穷举打标签的属性，均通过 DictTypes + DictData + DictRel 三表实现。当需要新增标签类型时，只需在 DictData 中添加数据行，无需修改表结构。
 
 ### 4.2 DictTypes — 字典类型表
 
 | 字段 | 类型 | 说明 |
 |:---|:---|:---|
 | id | INT PK | 自增主键 |
-| code | VARCHAR(50) UNIQUE | 类型编码，如 `category`、`location_type`、`dining_method` |
-| name | VARCHAR(50) UNIQUE | 类型名称，如"品类"、"区域"、"就餐方式" |
-| target_table | VARCHAR(50) | 目标业务表名。合法值见 `constants.DICT_TARGET_TABLES`，当前为 `shops`、`complaints`、`users`、`menu_items` |
+| name | VARCHAR(50) UNIQUE | 类型名称（业务唯一标识），如"品类""区域""就餐方式" |
+| target_table | VARCHAR(50) | 所属业务表名。标记这个字典类型属于哪张表，供前端/开发者筛选。合法值见 `constants.DICT_TARGET_TABLES` |
 | description | VARCHAR(255) | 可选的类型描述 |
 | sort_order | INT | 类型间的排序顺序 |
 
 **预设的字典类型：**
 
-| code | name | target_table |
+| name | target_table | 用途 |
 |:---|:---|:---|
-| `category` | 品类 | shops |
-| `location_type` | 区域 | shops |
-| `dining_method` | 就餐方式 | shops |
+| 品类 | shops | 店铺的菜品类别（火锅、烧烤等） |
+| 区域 | shops | 店铺的地理区域（华农西门、泰山区等） |
+| 就餐方式 | shops | 堂食、自取、外卖 |
 
 ### 4.3 DictData — 字典数据表
 
@@ -161,29 +160,33 @@ Shops ──┬── ShopDictRel → DictData → DictTypes   (标签体系，�
 |:---|:---|:---|
 | id | INT PK | 自增主键 |
 | dict_type | FK → DictTypes | 所属字典类型 |
-| code | VARCHAR(50) | 数据编码，同一类型内唯一。如 `hotpot`、`snacks` |
-| name | VARCHAR(50) | 显示名称，如"火锅"、"小吃快餐" |
-| value | VARCHAR(255) | 额外值（保留，可不使用） |
+| name | VARCHAR(50) | 标签名称，如"火锅""华农西门"。同一类型下唯一 |
 | sort_order | INT | 同一类型内的排序 |
 | is_default | BOOLEAN | 是否为默认选中值 |
 | extra | JSON | 扩展字段（图标、颜色等） |
 
-**唯一约束：** `(dict_type_id, code)` — 同一类型下不允许重复编码。
+**删除的字段：** `code`（用 name 替代）、`value`（从未使用）
 
-### 4.4 ShopDictRel — 店铺字典关联表
+**唯一约束：** `(dict_type_id, name)` — 同一类型下名称唯一。
+
+### 4.4 DictRel — 字典数据关联表（多态）
 
 | 字段 | 类型 | 说明 |
 |:---|:---|:---|
 | id | INT PK | 自增主键 |
-| shop | FK → Shops | 店铺 |
-| dict_data | FK → DictData | 字典数据项 |
+| entity_type | VARCHAR(32) | 关联实体类型，如 `shop` / `complaint` / `user` 等 |
+| entity_id | BIGINT | 关联实体主键 ID |
+| dict_data | FK → DictData | 字典数据ID |
 
-**唯一约束：** `(shop_id, dict_data_id)` — 一个店铺不会两次关联同一个字典项。
+**唯一约束：** `(entity_type, entity_id, dict_data_id)` — 防止重复关联。
+**索引：** `(entity_type, entity_id)` — 快速查某个实体的全部标签。
+
+**设计说明：** 采用多态关联，取代原有的 `ShopDictRel`。任何实体（店铺、举报、用户等）需要标签属性，直接复用 DictRel，无需新建关联表。与 Images、ContentLikes 保持统一的多态设计风格。
 
 **典型查询模式：**
 ```python
-# 获取店铺的所有标签（品类 + 区域 + 就餐方式）
-relations = await ShopDictRel.filter(shop_id=shop_id).prefetch_related("dict_data", "dict_data__dict_type")
+# 获取店铺的所有标签
+rels = await DictRel.filter(entity_type='shop', entity_id=shop_id).prefetch_related('dict_data', 'dict_data__dict_type')
 ```
 
 ---
@@ -289,7 +292,7 @@ relations = await ShopDictRel.filter(shop_id=shop_id).prefetch_related("dict_dat
 | business_hours（营业时间） | 易变且不准确 |
 | dining_methods（就餐方式） | 通过 DictData 字典管理 |
 | address_detail（详细地址） | 用户可能没去过，填不准；找店靠名字搜索而非地址 |
-| tags（标签） | 通过 DictData + ShopDictRel 字典体系管理 |
+| tags（标签） | 通过 DictData + DictRel 字典体系管理 |
 
 `average_rating` 使用 `FloatField` 而非 `DecimalField`，因为 Decimal 在 JSON 序列化时会变成字符串（如 `"4.5"`），前端需要额外转换。
 
@@ -616,13 +619,14 @@ class BaseModel(TimestampMixin, SoftDeleteMixin, Model):
 ### 12.1 迁移状态
 
 已通过 `aerich init-db` 在 `foodiehub_db` 数据库重建全部表结构。
-迁移文件：`backend/migrations/models/0_20260528162829_init.py`
+迁移文件：
+- `0_20260528172517_init.py` — 完整建表（含 DictRel 多态、精简后无 code/value 的字典）
 
 | 表名 | 迁移中 | 模型中 | 备注 |
 |:---|:---:|:---:|:---|
 | dict_types | ✅ | ✅ | |
 | dict_data | ✅ | ✅ | |
-| shop_dict_rel | ✅ | ✅ | |
+| dict_rels | ✅ | ✅ | 多态关联，替代原 shop_dict_rel |
 | shops | ✅ | ✅ | 已精简字段 |
 | menu_items | ✅ | ✅ | `price` 改为 FLOAT，`extra` 已删除 |
 | ratings | ✅ | ✅ | |
