@@ -146,6 +146,23 @@ async def reject_complaint(
     return ResponseModel.success(data=result.model_dump())
 
 
+# ==================== 店铺合并 ====================
+
+@router.post("/shops/merge", response_model=ResponseModel, summary="合并店铺（管理员直接操作）")
+async def merge_shops(
+    main_shop_id: int = Query(...),
+    duplicate_shop_ids: str = Query(..., description="从属店铺ID列表，逗号分隔如 '2,3'"),
+    current_user: UserResponse = Depends(require_admin),
+):
+    try:
+        ids = [int(x.strip()) for x in duplicate_shop_ids.split(",") if x.strip()]
+        result = await ShopService.merge_shops(main_shop_id, ids)
+        await LogService.log(action="merge_shops", operator=current_user, target_type="shop", target_id=main_shop_id, detail={"duplicate_ids": ids})
+        return ResponseModel.success(data=result, message="合并成功")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
 # ==================== 勘误管理 ====================
 
 @router.get("/edit-requests", response_model=ResponseModel, summary="勘误列表")
@@ -159,12 +176,15 @@ async def list_edit_requests(
     return ResponseModel.success(data=data.model_dump())
 
 
-@router.post("/edit-requests/{request_id}/approve", response_model=ResponseModel, summary="通过勘误")
+@router.post("/edit-requests/{request_id}/approve", response_model=ResponseModel, summary="通过勘误/重复反馈")
 async def approve_edit_request(
     request_id: int,
+    main_shop_id: Optional[int] = Query(None, description="重复反馈专用：指定主店铺ID"),
     current_user: UserResponse = Depends(require_admin),
 ):
-    result = await GovernanceService.approve_edit_request(request_id, current_user.id)
+    result = await GovernanceService.approve_edit_request(
+        request_id, current_user.id, main_shop_id=main_shop_id,
+    )
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="申请不存在")
     return ResponseModel.success(data=result.model_dump())

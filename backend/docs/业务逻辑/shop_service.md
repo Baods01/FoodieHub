@@ -23,6 +23,7 @@ ShopService 提供店铺、菜单、评分的完整操作。创建店铺时同�
 | `update(shop_id, name, dict_data_ids, is_active)` | 字段可选 | `Optional[ShopResponse]` | 管理员更新 |
 | `ban_shop(shop_id)` | | `bool` | 封禁店铺 |
 | `unban_shop(shop_id)` | | `bool` | 解封店铺 |
+| `merge_shops(main_shop_id, duplicate_shop_ids)` | 主店铺 + 从属列表 | `ShopResponse` | ⭐ 合并店铺（迁移评论/评分/收藏/图片/菜单/标签） |
 | `delete(shop_id)` | | `bool` | 软删除 |
 
 ### Menu

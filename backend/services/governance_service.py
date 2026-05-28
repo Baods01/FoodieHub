@@ -39,10 +39,25 @@ class GovernanceService:
     async def approve_edit_request(
         request_id: int,
         admin_id: int,
+        main_shop_id: Optional[int] = None,
     ) -> Optional[EditRequestResponse]:
-        obj = await EditRequestDAO.approve(request_id, admin_id)
-        if not obj:
+        obj = await EditRequestDAO.get_by_id(request_id)
+        if not obj or obj.status != "pending":
             return None
+
+        proposed = obj.proposed_data or {}
+
+        # 重复店铺反馈：审批时执行合并
+        if proposed.get("type") == "merge" and main_shop_id is not None:
+            from services.shop_service import ShopService
+            candidate_ids = proposed.get("candidate_shop_ids", [])
+            all_ids = set(candidate_ids)
+            all_ids.add(obj.shop_id)
+            all_ids.discard(main_shop_id)
+            if all_ids:
+                await ShopService.merge_shops(main_shop_id, list(all_ids))
+
+        obj = await EditRequestDAO.approve(request_id, admin_id)
         admin = await Users.get_or_none(id=admin_id)
         await LogDAO.log(
             action="approve_edit_request",
