@@ -1,4 +1,5 @@
 from typing import Optional
+from models.users import Users
 from dao.complaint_dao import ComplaintDAO
 from dao.log_dao import LogDAO
 from dao.message_dao import MessageDAO
@@ -69,9 +70,10 @@ class ComplaintService:
             return None
 
         # 记录管理员操作日志
+        admin = await Users.get_or_none(id=admin_id)
         await LogDAO.log(
             action=f"complaint_{action}",
-            operator_id=admin_id,
+            operator=admin,
             target_type="complaint",
             target_id=complaint_id,
             detail={"result": result_description},
@@ -102,9 +104,10 @@ class ComplaintService:
         if not obj:
             return None
 
+        admin = await Users.get_or_none(id=admin_id)
         await LogDAO.log(
             action="complaint_dismiss",
-            operator_id=admin_id,
+            operator=admin,
             target_type="complaint",
             target_id=complaint_id,
             detail={"reason": result_description},

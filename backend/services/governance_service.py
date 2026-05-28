@@ -1,4 +1,5 @@
 from typing import Optional
+from models.users import Users
 from dao.edit_request_dao import EditRequestDAO
 from dao.log_dao import LogDAO
 from schemas.governance import EditRequestResponse, EditRequestListResponse
@@ -42,9 +43,10 @@ class GovernanceService:
         obj = await EditRequestDAO.approve(request_id, admin_id)
         if not obj:
             return None
+        admin = await Users.get_or_none(id=admin_id)
         await LogDAO.log(
             action="approve_edit_request",
-            operator_id=admin_id,
+            operator=admin,
             target_type="shop_edit_request",
             target_id=request_id,
         )
@@ -63,9 +65,10 @@ class GovernanceService:
         obj = await EditRequestDAO.reject(request_id, admin_id)
         if not obj:
             return None
+        admin = await Users.get_or_none(id=admin_id)
         await LogDAO.log(
             action="reject_edit_request",
-            operator_id=admin_id,
+            operator=admin,
             target_type="shop_edit_request",
             target_id=request_id,
         )

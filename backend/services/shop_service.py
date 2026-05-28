@@ -81,14 +81,18 @@ class ShopService:
         for s in shops:
             cover = await ImageDAO.get_first_by_entity("shop", s.id)
             tags = await DictRelDAO.get_entity_dicts("shop", s.id)
+            dict_data = [
+                {"id": t["dict_data_id"], "name": t["dict_data_name"]}
+                for t in tags
+            ]
             items.append(ShopListItem(
                 id=s.id, name=s.name,
+                dict_data=dict_data,
                 average_rating=s.average_rating,
                 view_count=s.view_count,
                 favorite_count=s.favorite_count,
                 comment_count=s.comment_count,
                 cover_image=cover.url if cover else None,
-                dict_data=tags,
                 is_favorited=s.id in fav_shop_ids,
                 created_at=s.created_at,
             ))
@@ -167,8 +171,15 @@ class ShopService:
         imgs = await ImageDAO.get_by_entity("shop", shop.id)
         dist = await ShopsDAO.get_rating_distribution(shop.id)
 
+        # DictRelDAO 返回 {dict_data_id, dict_data_name}，转成 DictDataSimpleResponse 格式
+        dict_data = [
+            {"id": t["dict_data_id"], "name": t["dict_data_name"]}
+            for t in tags
+        ]
+
         return ShopResponse(
             id=shop.id, name=shop.name,
+            dict_data=dict_data,
             view_count=shop.view_count,
             favorite_count=shop.favorite_count,
             comment_count=shop.comment_count,
@@ -177,7 +188,6 @@ class ShopService:
             aliases=shop.aliases,
             merged_into_id=shop.merged_into_id,
             is_banned=shop.is_banned,
-            dict_data=tags,
             menu_items=[MenuItemResponse.model_validate(m) for m in menus],
             images=[ImageBriefResponse(id=i.id, url=i.url) for i in imgs],
             is_favorited=is_fav,
