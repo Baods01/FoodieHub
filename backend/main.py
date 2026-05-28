@@ -15,6 +15,9 @@ from routers.shops import router as shops_router
 from routers.interaction import router as interaction_router
 from routers.messages import router as messages_router
 from routers.admin import router as admin_router
+from routers.dict import router as dict_router
+from routers.activities import router as activities_router
+from routers.history import router as history_router
 from models import (
     Users, Activities, Favorites, Messages,
     Shops, Menu, Ratings,
@@ -69,6 +72,9 @@ app.include_router(shops_router)
 app.include_router(interaction_router)
 app.include_router(messages_router)
 app.include_router(admin_router)
+app.include_router(dict_router)
+app.include_router(activities_router)
+app.include_router(history_router)
 
 # 配置静态文件服务
 from pathlib import Path
