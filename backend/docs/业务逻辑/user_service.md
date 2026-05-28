@@ -20,6 +20,8 @@ UserService 提供用户注册、登录、认证、信息更新、账号删除�
 | `authenticate(account, password)` | 同上 | `Optional[UserResponse]` | OAuth2 表单专用认证 |
 | `get_by_id(user_id)` | int | `Optional[UserResponse]` | |
 | `update_profile(user_id, data)` | `UserUpdate` | `Optional[UserResponse]` | 更新头像/简介/性别 |
+| `ban_user(user_id)` | int | `bool` | 封禁用户 |
+| `unban_user(user_id)` | int | `bool` | 解封用户 |
 | `delete_account(user_id)` | int | `bool` | 软删除 |
 | `list(is_active, is_banned, keyword, page, page_size)` | 筛选可选 | `dict` | 管理员用户列表 |
 

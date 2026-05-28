@@ -70,6 +70,16 @@ class UserService:
         return UserResponse.model_validate(user) if user else None
 
     @staticmethod
+    async def ban_user(user_id: int) -> bool:
+        user = await UserDAO.update(user_id, is_banned=True)
+        return user is not None
+
+    @staticmethod
+    async def unban_user(user_id: int) -> bool:
+        user = await UserDAO.update(user_id, is_banned=False)
+        return user is not None
+
+    @staticmethod
     async def delete_account(user_id: int) -> bool:
         return await UserDAO.delete(user_id)
 

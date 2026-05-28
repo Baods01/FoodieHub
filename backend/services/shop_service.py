@@ -123,6 +123,16 @@ class ShopService:
         return await ShopService._build_response(shop_id)
 
     @staticmethod
+    async def ban_shop(shop_id: int) -> bool:
+        shop = await ShopsDAO.update(shop_id, is_banned=True)
+        return shop is not None
+
+    @staticmethod
+    async def unban_shop(shop_id: int) -> bool:
+        shop = await ShopsDAO.update(shop_id, is_banned=False)
+        return shop is not None
+
+    @staticmethod
     async def delete(shop_id: int) -> bool:
         return await ShopsDAO.delete(shop_id)
 

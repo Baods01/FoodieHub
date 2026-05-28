@@ -11,6 +11,7 @@ from .comment_service import CommentService
 from .question_service import QuestionService
 from .shop_service import ShopService
 from .analytics_service import AnalyticsService
+from .like_service import LikeService
 
 __all__ = [
     "DictService",
@@ -24,4 +25,5 @@ __all__ = [
     "QuestionService",
     "ShopService",
     "AnalyticsService",
+    "LikeService",
 ]
