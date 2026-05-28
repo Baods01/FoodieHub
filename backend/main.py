@@ -28,10 +28,8 @@ from models import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} 启动中...")
     from services import activity_signals  # noqa: F401
     yield
-    print(f"👋 {settings.APP_NAME} 正在关闭...")
 
 
 app = FastAPI(

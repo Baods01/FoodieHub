@@ -1,7 +1,7 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 
-from schemas.shops import ShopCreate, ShopUpdate, ShopResponse, ShopListItem, MenuItemResponse
+from schemas.shops import ShopCreate, ShopUpdate, ShopResponse, MenuItemResponse, RatingCreate, RatingResponse
 from schemas.common import ResponseModel
 from schemas.users import UserResponse
 from services import ShopService, FavoriteService
@@ -93,10 +93,10 @@ async def delete_shop(shop_id: int, current_user: UserResponse = Depends(require
 @router.post("/shops/{shop_id}/rating", response_model=ResponseModel, summary="评分")
 async def rate_shop(
     shop_id: int,
-    score: int = Query(..., ge=1, le=5),
+    data: RatingCreate,
     current_user: UserResponse = Depends(require_login),
 ):
-    result = await ShopService.rate(shop_id, current_user.id, score)
+    result = await ShopService.rate(shop_id, current_user.id, data.score)
     return ResponseModel.success(data=result, message="评分成功")
 
 

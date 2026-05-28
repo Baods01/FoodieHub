@@ -4,7 +4,7 @@ from typing import Optional
 from schemas.common import ResponseModel
 from schemas.users import UserResponse
 from schemas.interaction import (
-    CommentCreate, LikeToggleRequest,
+    CommentCreate, QuestionCreate, LikeToggleRequest,
 )
 from services import CommentService, QuestionService
 from services.like_service import LikeService
@@ -39,10 +39,10 @@ async def list_comments(
 @router.put("/comments/{comment_id}", response_model=ResponseModel, summary="更新评论")
 async def update_comment(
     comment_id: int,
-    content: str = Query(..., min_length=1),
+    data: CommentCreate,
     current_user: UserResponse = Depends(require_login),
 ):
-    result = await CommentService.update(comment_id, content)
+    result = await CommentService.update(comment_id, data.content)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="评论不存在")
     return ResponseModel.success(data=result, message="更新成功")
@@ -113,11 +113,10 @@ async def list_questions(
 @router.put("/questions/{question_id}", response_model=ResponseModel, summary="更新问题")
 async def update_question(
     question_id: int,
-    title: Optional[str] = Query(None),
-    content: Optional[str] = Query(None),
+    data: QuestionCreate,
     current_user: UserResponse = Depends(require_login),
 ):
-    result = await QuestionService.update(question_id, title=title, content=content)
+    result = await QuestionService.update(question_id, title=data.title, content=data.content)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="问题不存在")
     return ResponseModel.success(data=result, message="更新成功")

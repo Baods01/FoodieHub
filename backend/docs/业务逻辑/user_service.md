@@ -16,7 +16,7 @@ UserService 提供用户注册、登录、认证、信息更新、账号删除�
 | 方法 | 参数 | 返回 | 说明 |
 |:---|:---|:---|:---|
 | `register(data)` | `UserCreate` | `UserResponse` | ⭐ 注册（含查重、密码哈希） |
-| `login(account, password)` | 用户名/手机/邮箱 + 密码 | `LoginResponse` | ⭐ 登录，区分"不存在"和"被封禁" |
+| `login(login_type, account, password)` | 类型 + 账号 + 密码 | `LoginResponse` | ⭐ 登录，按类型（username/phone/email）精确匹配 |
 | `authenticate(account, password)` | 同上 | `Optional[UserResponse]` | OAuth2 表单专用认证 |
 | `get_by_id(user_id)` | int | `Optional[UserResponse]` | |
 | `update_profile(user_id, data)` | `UserUpdate` | `Optional[UserResponse]` | 更新头像/简介/性别 |
@@ -41,7 +41,7 @@ except ValueError as e:
 
 # 登录
 try:
-    resp = await UserService.login("张三", "pass123")
+    resp = await UserService.login("username", "张三", "pass123")
     token = resp.access_token
 except ValueError as e:
     return {"error": str(e)}

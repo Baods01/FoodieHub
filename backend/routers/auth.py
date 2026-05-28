@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 
 from schemas.users import (
-    UserCreate, UserResponse, UserUpdate, UserPhoneLogin, UserEmailLogin,
+    UserCreate, UserResponse, UserUpdate, UserLogin,
 )
 from schemas.common import ResponseModel
 from services import UserService
@@ -21,32 +21,28 @@ async def register(data: UserCreate):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.post("/login", summary="OAuth2 表单登录")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = await UserService.authenticate(form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="账号或密码错误",
+@router.post("/login/oauth", include_in_schema=False)
+async def login_oauth(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Swagger UI Authorize 专用 — 接受 OAuth2 标准表单。"""
+    try:
+        resp = await UserService.login("username", form_data.username, form_data.password)
+        return JSONResponse(content={"access_token": resp.access_token, "token_type": "bearer"})
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="账号或密码错误")
+
+
+@router.post("/login", response_model=ResponseModel, summary="登录")
+async def login(data: UserLogin):
+    try:
+        resp = await UserService.login(data.type, data.account, data.password)
+        return ResponseModel.success(
+            data={
+                "access_token": resp.access_token,
+                "token_type": resp.token_type,
+                "user": resp.user,
+            },
+            message="登录成功",
         )
-    token = create_access_token(user.id)
-    return JSONResponse(content={"access_token": token, "token_type": "bearer"})
-
-
-@router.post("/login-phone")
-async def login_phone(data: UserPhoneLogin):
-    try:
-        resp = await UserService.login(data.phone, data.password)
-        return JSONResponse(content={"access_token": resp.access_token, "token_type": "bearer"})
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-
-@router.post("/login-email")
-async def login_email(data: UserEmailLogin):
-    try:
-        resp = await UserService.login(data.email, data.password)
-        return JSONResponse(content={"access_token": resp.access_token, "token_type": "bearer"})
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 

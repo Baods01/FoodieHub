@@ -18,7 +18,7 @@ def create_access_token(user_id: int) -> str:
 
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/users/login", auto_error=False, scheme_name="OAuth2PasswordBearer",
+    tokenUrl="/users/login/oauth", auto_error=False, scheme_name="OAuth2PasswordBearer",
 )
 
 

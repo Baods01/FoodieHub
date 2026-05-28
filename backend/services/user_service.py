@@ -29,8 +29,17 @@ class UserService:
         return UserResponse.model_validate(user)
 
     @staticmethod
-    async def login(account: str, password: str) -> LoginResponse:
-        user = await UserDAO.get_by_account_include_banned(account)
+    async def login(login_type: str, account: str, password: str) -> LoginResponse:
+        # 按登录类型调对应的 DAO 方法
+        if login_type == "username":
+            user = await UserDAO.get_by_username(account)
+        elif login_type == "phone":
+            user = await UserDAO.get_by_phone(account)
+        elif login_type == "email":
+            user = await UserDAO.get_by_email(account)
+        else:
+            raise ValueError("无效的登录方式")
+
         if not user:
             raise ValueError("账号或密码错误")
 

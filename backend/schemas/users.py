@@ -30,9 +30,9 @@ class UserCreate(BaseModel):
 
 class UserLogin(BaseModel):
     """用户登录请求"""
-    account: str = Field(description="用户名/手机号/邮箱")
-    password: str = Field(min_length=6, max_length=128, description="密码")
-    remember_me: bool = Field(default=False, description="记住我")
+    type: str = Field(..., pattern="^(username|phone|email)$", description="登录方式：username / phone / email")
+    account: str = Field(..., min_length=1, description="用户名/手机号/邮箱（根据 type 传入对应的值）")
+    password: str = Field(..., min_length=6, max_length=128, description="密码")
 
 
 class UserPhoneLogin(BaseModel):
