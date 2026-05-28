@@ -1,200 +1,31 @@
-from typing import Optional
-
-from models.users import Favorites, Users, Activities
-from models.shops import Shops
-
 from dao.favorite_dao import FavoriteDAO
-from schemas.favorites import (
-    FavoriteCreate,
-    FavoriteResponse,
-    FavoriteActionResponse
-)
-from services.user_activities_service import UserActivitiesService
+from schemas.favorites import FavoriteResponse
 
 
 class FavoriteService:
-    """收藏业务逻辑服务"""
+    """收藏业务逻辑"""
 
     @staticmethod
-    async def toggle_favorite(user_id: int, shop_id: int) -> FavoriteActionResponse:
-        """
-        收藏/取消收藏店铺（切换状态）
-        - 如果已收藏，则取消收藏
-        - 如果未收藏，则添加收藏
-        """
-        # 检查用户是否存在
-        user = await Users.get_or_none(id=user_id, is_active=True)
-        if not user:
-            return FavoriteActionResponse(
-                success=False,
-                message="用户不存在",
-                is_favorited=False,
-                favorite_count=0
-            )
-
-        # 检查店铺是否存在
-        shop = await Shops.get_or_none(id=shop_id, is_active=True)
-        if not shop:
-            return FavoriteActionResponse(
-                success=False,
-                message="店铺不存在",
-                is_favorited=False,
-                favorite_count=0
-            )
-
-        # 检查是否已收藏
-        is_favorited = await FavoriteDAO.is_favorited(user_id, shop_id)
-
-        if is_favorited:
-            # 取消收藏
-            success = await FavoriteDAO.remove_favorite(user_id, shop_id)
-            if success:
-                favorite_count = await FavoriteDAO.get_shop_favorite_count(shop_id)
-                return FavoriteActionResponse(
-                    success=True,
-                    message="已取消收藏",
-                    is_favorited=False,
-                    favorite_count=favorite_count
-                )
+    async def toggle(user_id: int, shop_id: int) -> dict:
+        is_fav = await FavoriteDAO.is_favorited(user_id, shop_id)
+        if is_fav:
+            await FavoriteDAO.remove(user_id, shop_id)
         else:
-            # 添加收藏
-            await FavoriteDAO.add_favorite(user_id, shop_id)
-            # 创建收藏动态
-            await UserActivitiesService.create_favorite_activity(user_id, shop_id)
-            favorite_count = await FavoriteDAO.get_shop_favorite_count(shop_id)
-            return FavoriteActionResponse(
-                success=True,
-                message="已收藏",
-                is_favorited=True,
-                favorite_count=favorite_count
-            )
-
-        return FavoriteActionResponse(
-            success=False,
-            message="操作失败",
-            is_favorited=is_favorited,
-            favorite_count=await FavoriteDAO.get_shop_favorite_count(shop_id)
-        )
+            await FavoriteDAO.create(user_id, shop_id)
+        count = await FavoriteDAO.count_by_shop(shop_id)
+        return {"is_favorited": not is_fav, "favorite_count": count}
 
     @staticmethod
-    async def favorite_shop(user_id: int, shop_id: int) -> FavoriteActionResponse:
-        """
-        收藏店铺
-        """
-        # 检查用户是否存在
-        user = await Users.get_or_none(id=user_id, is_active=True)
-        if not user:
-            return FavoriteActionResponse(
-                success=False,
-                message="用户不存在",
-                is_favorited=False,
-                favorite_count=0
-            )
-
-        # 检查店铺是否存在
-        shop = await Shops.get_or_none(id=shop_id, is_active=True)
-        if not shop:
-            return FavoriteActionResponse(
-                success=False,
-                message="店铺不存在",
-                is_favorited=False,
-                favorite_count=0
-            )
-
-        # 检查是否已收藏
-        is_favorited = await FavoriteDAO.is_favorited(user_id, shop_id)
-        if is_favorited:
-            return FavoriteActionResponse(
-                success=False,
-                message="已收藏",
-                is_favorited=True,
-                favorite_count=await FavoriteDAO.get_shop_favorite_count(shop_id)
-            )
-
-        # 添加收藏
-        await FavoriteDAO.add_favorite(user_id, shop_id)
-        # 创建收藏动态
-        await UserActivitiesService.create_favorite_activity(user_id, shop_id)
-        favorite_count = await FavoriteDAO.get_shop_favorite_count(shop_id)
-        return FavoriteActionResponse(
-            success=True,
-            message="已收藏",
-            is_favorited=True,
-            favorite_count=favorite_count
-        )
+    async def list(user_id: int, page: int = 1, page_size: int = 20) -> dict:
+        result = await FavoriteDAO.list_by_user(user_id, page=page, page_size=page_size)
+        items = [FavoriteResponse.model_validate(fav) for fav in result["items"]]
+        return {
+            "items": items,
+            "total": result["total"],
+            "page": result["page"],
+            "page_size": result["page_size"],
+        }
 
     @staticmethod
-    async def unfavorite_shop(user_id: int, shop_id: int) -> FavoriteActionResponse:
-        """
-        取消收藏
-        """
-        # 检查用户是否存在
-        user = await Users.get_or_none(id=user_id, is_active=True)
-        if not user:
-            return FavoriteActionResponse(
-                success=False,
-                message="用户不存在",
-                is_favorited=False,
-                favorite_count=0
-            )
-
-        # 检查店铺是否存在
-        shop = await Shops.get_or_none(id=shop_id, is_active=True)
-        if not shop:
-            return FavoriteActionResponse(
-                success=False,
-                message="店铺不存在",
-                is_favorited=False,
-                favorite_count=0
-            )
-
-        # 检查是否已收藏
-        is_favorited = await FavoriteDAO.is_favorited(user_id, shop_id)
-        if not is_favorited:
-            return FavoriteActionResponse(
-                success=False,
-                message="未收藏",
-                is_favorited=False,
-                favorite_count=await FavoriteDAO.get_shop_favorite_count(shop_id)
-            )
-
-        # 删除收藏
-        success = await FavoriteDAO.remove_favorite(user_id, shop_id)
-        favorite_count = await FavoriteDAO.get_shop_favorite_count(shop_id)
-        
-        if success:
-            return FavoriteActionResponse(
-                success=True,
-                message="已取消收藏",
-                is_favorited=False,
-                favorite_count=favorite_count
-            )
-        
-        return FavoriteActionResponse(
-            success=False,
-            message="操作失败",
-            is_favorited=True,
-            favorite_count=favorite_count
-        )
-
-    @staticmethod
-    async def get_user_favorites(user_id: int, limit: int = 20, offset: int = 0) -> list[FavoriteResponse]:
-        """
-        获取用户收藏列表
-        """
-        favorites = await FavoriteDAO.get_user_favorites(user_id, limit, offset)
-        return [FavoriteResponse.model_validate(f) for f in favorites]
-
-    @staticmethod
-    async def get_user_favorites_count(user_id: int) -> int:
-        """
-        获取用户收藏总数
-        """
-        return await FavoriteDAO.get_user_favorites_count(user_id)
-
-    @staticmethod
-    async def get_shop_favorite_count(shop_id: int) -> int:
-        """
-        获取店铺收藏数
-        """
-        return await FavoriteDAO.get_shop_favorite_count(shop_id)
+    async def list_shop_ids(user_id: int):
+        return await FavoriteDAO.get_shop_ids_by_user(user_id)

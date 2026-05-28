@@ -1,15 +1,27 @@
-from .password_service import PasswordService
-from .user_service import UserService
-from .shop_service import ShopService
+"""模块化 Service 导入"""
+
+from .dict_service import DictService
+from .log_service import LogService
 from .favorite_service import FavoriteService
-from .comments_likes_service import CommentsLikesService
-from .user_activities_service import UserActivitiesService
+from .message_service import MessageService
+from .complaint_service import ComplaintService
+from .governance_service import GovernanceService
+from .user_service import UserService
+from .comment_service import CommentService
+from .question_service import QuestionService
+from .shop_service import ShopService
+from .analytics_service import AnalyticsService
 
 __all__ = [
-    "PasswordService",
-    "UserService",
-    "ShopService",
+    "DictService",
+    "LogService",
     "FavoriteService",
-    "CommentsLikesService",
-    "UserActivitiesService",
+    "MessageService",
+    "ComplaintService",
+    "GovernanceService",
+    "UserService",
+    "CommentService",
+    "QuestionService",
+    "ShopService",
+    "AnalyticsService",
 ]
