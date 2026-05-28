@@ -7,7 +7,7 @@ from .users import (
     PasswordChange, PhoneUpdate, EmailUpdate,
     LoginResponse, UserStats, UserProfileResponse,
 )
-from .shops import ShopCreate, ShopUpdate, ShopResponse, ShopListItem
+from .shops import ShopCreate, ShopUpdate, ShopResponse, ShopListItem, MenuItemResponse, MenuItemAddRequest, RatingCreate, RatingResponse, RatingDistribution
 from .dict import (
     DictTypeCreate, DictTypeUpdate, DictTypeResponse, DictTypeWithChildrenResponse,
     DictDataCreate, DictDataUpdate, DictDataResponse,
@@ -17,8 +17,17 @@ from .messages import (
     MessageMarkReadRequest, MessageDeleteRequest,
     MessageResponse, MessageUserResponse, UnreadCountResponse, MessageTypesResponse,
 )
-from .activities import ActivityResponse, ActivityListResponse, ActivityStats
+from .activities import ActivityResponse, ActivityListResponse
 from .images import ImageUploadRequest, ImageResponse
+from .governance import EditRequestCreate, EditRequestResponse, EditRequestListResponse
+from .logs import LogResponse, LogListResponse
+from .interaction import (
+    CommentCreate, CommentResponse, CommentListResponse,
+    ReplyCreate, ReplyResponse, ReplyListResponse,
+    QuestionCreate, QuestionResponse, QuestionListResponse,
+    AnswerCreate, AnswerResponse, AnswerListResponse,
+    LikeToggleRequest, LikeToggleResponse, InteractionUserBrief,
+)
 from .complaints import (
     ComplaintCreateRequest, ComplaintHandleRequest,
     ComplaintResponse, ComplaintStatsResponse,
@@ -42,7 +51,17 @@ __all__ = [
     'MessageMarkReadRequest', 'MessageDeleteRequest',
     'MessageResponse', 'MessageUserResponse', 'UnreadCountResponse', 'MessageTypesResponse',
     # Activities
-    'ActivityResponse', 'ActivityListResponse', 'ActivityStats',
+    'ActivityResponse', 'ActivityListResponse',
+    # Governance
+    'EditRequestCreate', 'EditRequestResponse', 'EditRequestListResponse',
+    # Logs
+    'LogResponse', 'LogListResponse',
+    # Interaction
+    'CommentCreate', 'CommentResponse', 'CommentListResponse',
+    'ReplyCreate', 'ReplyResponse', 'ReplyListResponse',
+    'QuestionCreate', 'QuestionResponse', 'QuestionListResponse',
+    'AnswerCreate', 'AnswerResponse', 'AnswerListResponse',
+    'LikeToggleRequest', 'LikeToggleResponse', 'InteractionUserBrief',
     # Images
     'ImageUploadRequest', 'ImageResponse',
     # Complaints

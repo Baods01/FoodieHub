@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import List
-from pydantic import BaseModel
+from typing import Optional, List
+from pydantic import BaseModel, Field
 
 
 class FavoriteCreate(BaseModel):
@@ -13,6 +13,7 @@ class FavoriteResponse(BaseModel):
     id: int
     user_id: int
     shop_id: int
+    shop_name: Optional[str] = Field(default=None, description="店铺名称（冗余，DAO prefetch 后填充）")
     sort_order: int
     created_at: datetime
 
@@ -35,11 +36,11 @@ class FavoriteActionResponse(BaseModel):
     """收藏操作响应（通用）"""
     success: bool
     message: str
-    is_favorited: bool  # 当前状态
-    favorite_count: int  # 店铺收藏总数
+    is_favorited: bool
+    favorite_count: int
 
 
 class UserFavoritesResponse(BaseModel):
     """用户收藏列表响应"""
-    total: int
-    favorites: List[FavoriteResponse]
+    items: List[FavoriteResponse] = Field(description="收藏列表")
+    total: int = Field(description="总记录数")
