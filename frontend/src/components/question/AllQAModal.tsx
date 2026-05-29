@@ -83,9 +83,8 @@ export default function AllQAModal({
           q.id === questionId
             ? {
                 ...q,
-                answers: [...(q as any).answers, newAnswer],
-                answerCount: (q as any).answerCount + 1,
-                latestAnswerAt: newAnswer.createdAt,
+                answers: [...(q.answers || []), newAnswer],
+                answerCount: (q.answerCount || 0) + 1,
               }
             : q,
         ),

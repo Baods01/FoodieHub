@@ -56,18 +56,16 @@ export function QASection({ shopId, isLoggedIn, onLoginPrompt, maxCount = 3, onV
     }
   };
 
-  const handleReply = async (questionId: number, content: string, targetUserName?: string) => {
-    const fullContent = targetUserName ? `@${targetUserName} ${content}` : content;
+  const handleReply = async (questionId: number, content: string, replyToUserId?: number) => {
     try {
-      const newAnswer = await postAnswer(questionId, fullContent);
+      const newAnswer = await postAnswer(questionId, content, replyToUserId);
       setQuestions((prev) =>
         prev.map((q) =>
           q.id === questionId
             ? {
                 ...q,
-                answers: [...(q as any).answers, newAnswer],
-                answerCount: (q as any).answerCount + 1,
-                latestAnswerAt: newAnswer.createdAt,
+                answers: [...(q.answers || []), newAnswer],
+                answerCount: (q.answerCount || 0) + 1,
               }
             : q,
         ),

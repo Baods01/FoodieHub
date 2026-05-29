@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { fetchShopDetail, submitRating, toggleFavorite } from '../api/shops';
+import { toggleFavorite } from '../api/favorites';
+import { fetchShopDetail, submitRating } from '../api/shops';
 import type { ShopDetail } from '../types/shop';
-import { getCategoryName, getAreaName } from '../types/shop';
+import { getCategoryName, getAreaName, getDiningMethods } from '../types/shop';
 import { ShopCarousel } from '../components/shop/ShopCarousel';
 import { ShopInfoSection } from '../components/shop/ShopInfoSection';
 import { RatingSection } from '../components/shop/RatingSection';
@@ -98,7 +99,7 @@ export function ShopDetailPage() {
           category={getCategoryName(shop.dict_data)}
           area={getAreaName(shop.dict_data)}
           description={shop.description}
-          diningMethods={[]}
+          diningMethods={getDiningMethods(shop.dict_data)}
           isFavorited={shop.is_favorited}
           favoriteCount={shop.favorite_count}
           isLoggedIn={isLoggedIn}

@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MessageCircle } from 'lucide-react';
 import type { Question, Answer } from '../../types/question';
+import { fetchAnswers, toggleLike } from '../../api/comments';
+import { LikeButton } from '../comment/LikeButton';
 
 interface QuestionCardProps {
   question: Question;
@@ -35,6 +37,27 @@ export function QuestionCard({ question, onReply }: QuestionCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [replyVisible, setReplyVisible] = useState<Record<number, boolean>>({});
   const [replyText, setReplyText] = useState<Record<number, string>>({});
+  const [questionReplyVisible, setQuestionReplyVisible] = useState(false);
+  const [questionReplyText, setQuestionReplyText] = useState('');
+  const [answers, setAnswers] = useState<Answer[] | undefined>(undefined);
+
+  // 从后端加载回答
+  useEffect(() => {
+    fetchAnswers(question.id).then(setAnswers).catch(() => {});
+  }, []);
+
+  // 合并父组件乐观更新到本地状态
+  useEffect(() => {
+    if (question.answers && question.answers.length > 0) {
+      setAnswers((prev) => {
+        const existingIds = new Set((prev ?? []).map((a) => a.id));
+        const newOnes = question.answers!.filter((a) => !existingIds.has(a.id));
+        return newOnes.length > 0 ? [...(prev ?? []), ...newOnes] : prev;
+      });
+    }
+  }, [question.answers]);
+
+  const displayAnswers = answers;
 
   const toggleReply = (answerId: number) => {
     setReplyVisible((prev) => ({ ...prev, [answerId]: !prev[answerId] }));
@@ -46,7 +69,7 @@ export function QuestionCard({ question, onReply }: QuestionCardProps) {
   const handleSendReply = (answer: Answer) => {
     const text = replyText[answer.id]?.trim();
     if (!text) return;
-    onReply(question.id, text, (answer.user?.username ?? ''));
+    onReply(question.id, text, (answer.user?.id));
     setReplyText((prev) => ({ ...prev, [answer.id]: '' }));
     setReplyVisible((prev) => ({ ...prev, [answer.id]: false }));
   };
@@ -70,7 +93,7 @@ export function QuestionCard({ question, onReply }: QuestionCardProps) {
               <span className="text-xs text-gray-400">{timeAgo(question.created_at)}</span>
               <span className="flex items-center gap-1 text-xs text-gray-400">
                 <MessageCircle size={12} />
-                {(question as any).answerCount}
+                {question.answerCount ?? 0}
               </span>
             </div>
           </div>
@@ -93,14 +116,46 @@ export function QuestionCard({ question, onReply }: QuestionCardProps) {
           {/* Question content */}
           <div className="px-4 py-3 bg-gray-50">
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{question.content}</p>
+            {/* Reply to question button */}
+            <button
+              type="button"
+              onClick={() => setQuestionReplyVisible((v) => !v)}
+              className="text-xs text-orange-500 hover:text-orange-600 mt-2"
+            >
+              {questionReplyVisible ? '取消回复' : '回复'}
+            </button>
+            {/* Reply to question input */}
+            {questionReplyVisible && (
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  value={questionReplyText}
+                  onChange={(e) => setQuestionReplyText(e.target.value)}
+                  placeholder="写下你的回答..."
+                  className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+                />
+                <button
+                  type="button"
+                  disabled={!questionReplyText.trim()}
+                  onClick={() => {
+                    onReply(question.id, questionReplyText.trim());
+                    setQuestionReplyText('');
+                    setQuestionReplyVisible(false);
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-sm bg-orange-500 text-white hover:bg-orange-600 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  发送
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Answers */}
           <div className="divide-y divide-gray-100">
-            {(question as any).answers.length === 0 ? (
+            {(displayAnswers?.length ?? 0) === 0 ? (
               <p className="px-4 py-6 text-center text-sm text-gray-400">还没有回答</p>
             ) : (
-              (question as any).answers.map((answer: any) => (
+              (displayAnswers ?? []).map((answer: Answer) => (
                 <div key={answer.id} className="px-4 py-3">
                   <div className="flex items-start gap-3">
                     <UserAvatar avatar={(answer.user?.avatar ?? null)} name={(answer.user?.username ?? '')} />
@@ -122,14 +177,20 @@ export function QuestionCard({ question, onReply }: QuestionCardProps) {
                       <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">
                         {answer.content}
                       </p>
-                      {/* Reply button & inline reply box */}
-                      <button
-                        type="button"
-                        onClick={() => toggleReply(answer.id)}
-                        className="text-xs text-orange-500 hover:text-orange-600 mt-1"
-                      >
-                        {replyVisible[answer.id] ? '取消回复' : '回复'}
-                      </button>
+                      <div className="flex items-center gap-3 mt-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleReply(answer.id)}
+                          className="text-xs text-orange-500 hover:text-orange-600"
+                        >
+                          {replyVisible[answer.id] ? '取消回复' : '回复'}
+                        </button>
+                        <LikeButton
+                          count={answer.like_count}
+                          isLiked={answer.has_liked}
+                          onClick={() => toggleLike('question_answer', answer.id)}
+                        />
+                      </div>
 
                       {replyVisible[answer.id] && (
                         <div className="mt-2 flex gap-2">

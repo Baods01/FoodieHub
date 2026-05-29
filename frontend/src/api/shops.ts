@@ -71,11 +71,6 @@ export interface DictType {
   target_table: string;
 }
 
-export interface FavoriteResult {
-  is_favorited: boolean;
-  favorite_count: number;
-}
-
 // ============ 店铺接口 ============
 
 export async function fetchShops(filter: ShopFilter): Promise<{ items: ShopCardData[]; total: number }> {
@@ -128,18 +123,6 @@ export async function fetchMenu(shopId: number): Promise<MenuItem[]> {
 
 export async function addMenuItem(shopId: number, name: string, price?: number, description?: string): Promise<MenuItem> {
   const res = await apiClient.post<ApiResponse<MenuItem>>(`/shops/${shopId}/menu`, { name, price, description });
-  return res.data.data;
-}
-
-// ============ 收藏接口 ============
-
-export async function toggleFavorite(shopId: number): Promise<FavoriteResult> {
-  const res = await apiClient.post<ApiResponse<FavoriteResult>>('/favorites/toggle', { shop_id: shopId });
-  return res.data.data;
-}
-
-export async function fetchFavorites(page = 1, pageSize = 20): Promise<{ items: any[]; total: number }> {
-  const res = await apiClient.get<ApiResponse<{ items: any[]; total: number }>>('/favorites/user', { params: { page, page_size: pageSize } });
   return res.data.data;
 }
 

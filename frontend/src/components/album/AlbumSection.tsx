@@ -13,8 +13,6 @@ interface AlbumSectionProps {
 export function AlbumSection({ images, isLoggedIn, onUpload, maxCount = 6, onViewAll }: AlbumSectionProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  if (images.length === 0) return null;
-
   const previewImages = onViewAll ? images.slice(0, maxCount) : images;
 
   return (
@@ -34,23 +32,31 @@ export function AlbumSection({ images, isLoggedIn, onUpload, maxCount = 6, onVie
         )}
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-3 gap-2">
-        {previewImages.map((src, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => setLightboxIndex(i)}
-            className="aspect-square rounded-lg overflow-hidden bg-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-400"
-          >
-            <img
-              src={src}
-              alt={`相册图片 ${i + 1}`}
-              className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-            />
-          </button>
-        ))}
-      </div>
+      {/* Empty state */}
+      {images.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-lg">
+          <Image size={36} className="text-gray-300" />
+          <p className="text-gray-400 text-sm mt-3">暂无图片</p>
+        </div>
+      ) : (
+        /* Grid */
+        <div className="grid grid-cols-3 gap-2">
+          {previewImages.map((src, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setLightboxIndex(i)}
+              className="aspect-square rounded-lg overflow-hidden bg-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-400"
+            >
+              <img
+                src={src}
+                alt={`相册图片 ${i + 1}`}
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+              />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* View all (preview mode) */}
       {onViewAll && images.length > maxCount && (

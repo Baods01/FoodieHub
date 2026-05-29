@@ -144,12 +144,13 @@ export function CommentSection({
   const handleReply = (
     commentId: number,
     content: string,
+    replyToUserId?: number,
   ) => {
-    postReply(commentId, content).then((newReply: any) => {
+    postReply(commentId, content, replyToUserId).then((newReply: any) => {
       setComments((prev) =>
         prev.map((c) =>
           c.id === commentId
-            ? { ...c, replies: [...((c as any).replies || []), newReply], reply_count: c.reply_count + 1 }
+            ? { ...c, replies: [...(c.replies || []), newReply], reply_count: c.reply_count + 1 }
             : c,
         ),
       );

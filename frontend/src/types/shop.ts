@@ -2,6 +2,7 @@
 export interface DictDataItem {
   id: number;
   name: string;
+  dict_type_name: string;
   extra?: Record<string, any>;
 }
 
@@ -80,14 +81,22 @@ export interface ShopFilter {
   page_size?: number;
 }
 
-/** 从 dict_data 中提取品类中文名（首项） */
-export function getCategoryName(dictData: DictDataItem[]): string {
-  // 品类 ID 范围：1-8（预设）
-  return dictData.find(d => d.id >= 1 && d.id <= 8)?.name ?? '';
+/** 按 dict_type_name 分组提取标签名 */
+export function getDictNamesByType(dictData: DictDataItem[], typeName: string): string[] {
+  return dictData.filter(d => d.dict_type_name === typeName).map(d => d.name);
 }
 
-/** 从 dict_data 中提取区域中文名（首项） */
+/** 取品类中文名（首项） */
+export function getCategoryName(dictData: DictDataItem[]): string {
+  return getDictNamesByType(dictData, '品类')[0] ?? '';
+}
+
+/** 取区域中文名（首项） */
 export function getAreaName(dictData: DictDataItem[]): string {
-  // 区域 ID 范围：9-14（预设）
-  return dictData.find(d => d.id >= 9 && d.id <= 14)?.name ?? '';
+  return getDictNamesByType(dictData, '区域')[0] ?? '';
+}
+
+/** 取就餐方式列表 */
+export function getDiningMethods(dictData: DictDataItem[]): string[] {
+  return getDictNamesByType(dictData, '就餐方式');
 }

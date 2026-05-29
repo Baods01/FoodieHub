@@ -21,6 +21,7 @@ export interface ReplyData {
   content: string;
   reply_to_user: { id: number; username: string } | null;
   like_count: number;
+  has_liked: boolean;
   created_at: string;
 }
 
@@ -41,6 +42,7 @@ export interface AnswerData {
   content: string;
   reply_to_user: { id: number; username: string } | null;
   like_count: number;
+  has_liked: boolean;
   created_at: string;
 }
 

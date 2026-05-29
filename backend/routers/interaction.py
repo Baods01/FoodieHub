@@ -32,7 +32,8 @@ async def list_comments(
     page_size: int = Query(20, ge=1, le=100),
     current_user: UserResponse = Depends(get_current_user),
 ):
-    result = await CommentService.list_by_shop(shop_id, page=page, page_size=page_size)
+    uid = current_user.id if current_user else None
+    result = await CommentService.list_by_shop(shop_id, page=page, page_size=page_size, user_id=uid)
     return ResponseModel.success(data=result, message="获取成功")
 
 
@@ -74,7 +75,8 @@ async def create_reply(
 
 @router.get("/comments/{comment_id}/replies", response_model=ResponseModel, summary="回复列表")
 async def list_replies(comment_id: int, current_user: UserResponse = Depends(get_current_user)):
-    items = await CommentService.list_replies(comment_id)
+    uid = current_user.id if current_user else None
+    items = await CommentService.list_replies(comment_id, user_id=uid)
     return ResponseModel.success(data=items, message="获取成功")
 
 
@@ -106,7 +108,8 @@ async def list_questions(
     page_size: int = Query(20, ge=1, le=100),
     current_user: UserResponse = Depends(get_current_user),
 ):
-    result = await QuestionService.list_by_shop(shop_id, page=page, page_size=page_size)
+    uid = current_user.id if current_user else None
+    result = await QuestionService.list_by_shop(shop_id, page=page, page_size=page_size, user_id=uid)
     return ResponseModel.success(data=result, message="获取成功")
 
 
@@ -148,7 +151,8 @@ async def create_answer(
 
 @router.get("/questions/{question_id}/answers", response_model=ResponseModel, summary="回答列表")
 async def list_answers(question_id: int, current_user: UserResponse = Depends(get_current_user)):
-    items = await QuestionService.list_answers(question_id)
+    uid = current_user.id if current_user else None
+    items = await QuestionService.list_answers(question_id, user_id=uid)
     return ResponseModel.success(data=items, message="获取成功")
 
 

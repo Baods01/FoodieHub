@@ -108,7 +108,7 @@ export default function AllCommentsModal({
       setComments((prev) =>
         prev.map((c) =>
           c.id === parentId
-            ? { ...c, replies: [...((c as any).replies || []), newReply], replyCount: c.reply_count + 1 }
+            ? { ...c, replies: [...(c.replies || []), newReply], replyCount: c.reply_count + 1 }
             : c,
         ),
       );

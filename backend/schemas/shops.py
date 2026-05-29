@@ -89,6 +89,7 @@ class DictDataSimpleResponse(BaseModel):
     """字典数据简略响应（店铺标签用）"""
     id: int = Field(description="字典数据ID")
     name: str = Field(description="标签名称")
+    dict_type_name: str = Field(description="字典类型名称，如'品类'/'区域'/'就餐方式'")
     extra: Optional[dict] = Field(default=None, description="扩展信息")
 
     class Config:

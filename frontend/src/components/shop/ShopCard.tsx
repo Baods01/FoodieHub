@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Star, Eye } from 'lucide-react';
 import type { ShopCardData } from '../../types/shop';
-import { getCategoryName, getAreaName } from '../../types/shop';
+import { getCategoryName, getAreaName, getDiningMethods } from '../../types/shop';
 
 interface ShopCardProps {
   shop: ShopCardData;
@@ -44,6 +44,16 @@ export function ShopCard({ shop, onClick }: ShopCardProps) {
             {getAreaName(shop.dict_data)}
           </span>
         </div>
+        {/* Dining methods */}
+        {getDiningMethods(shop.dict_data).length > 0 && (
+          <div className="flex gap-1.5 mt-1 flex-wrap">
+            {getDiningMethods(shop.dict_data).map((m) => (
+              <span key={m} className="px-1.5 py-0.5 text-xs rounded bg-gray-50 text-gray-400">
+                {m}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Rating & views */}
         <div className="flex justify-between mt-2 text-sm text-gray-400">

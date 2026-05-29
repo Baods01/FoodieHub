@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 
 from schemas.common import ResponseModel
 from schemas.users import UserResponse
-from dao.log_dao import LogDAO
+from services.history_service import HistoryService
 from utils.auth import require_login
 
 router = APIRouter(tags=["浏览历史模块"])
@@ -15,5 +15,5 @@ async def get_my_history(
     current_user: UserResponse = Depends(require_login),
 ):
     """当前用户的店铺浏览历史。"""
-    data = await LogDAO.get_user_view_logs(current_user.id, action="view_shop", page=page, page_size=page_size)
+    data = await HistoryService.get_view_history(current_user.id, page=page, page_size=page_size)
     return ResponseModel.success(data=data)

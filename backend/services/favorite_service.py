@@ -18,7 +18,18 @@ class FavoriteService:
     @staticmethod
     async def list(user_id: int, page: int = 1, page_size: int = 20) -> dict:
         result = await FavoriteDAO.list_by_user(user_id, page=page, page_size=page_size)
-        items = [FavoriteResponse.model_validate(fav) for fav in result["items"]]
+        items = []
+        for fav in result["items"]:
+            # 手动提取 shop 关联字段（model_validate 无法自动从外键提取 shop_name）
+            shop = getattr(fav, "shop", None)
+            items.append({
+                "id": fav.id,
+                "user_id": fav.user_id,
+                "shop_id": fav.shop_id,
+                "shop_name": shop.name if shop else None,
+                "shop_cover": shop.cover_image if shop else None,
+                "created_at": fav.created_at.isoformat(),
+            })
         return {
             "items": items,
             "total": result["total"],

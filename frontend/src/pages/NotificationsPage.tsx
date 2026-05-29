@@ -4,6 +4,7 @@ import { Bell, MessageSquare, ThumbsUp, Megaphone } from 'lucide-react';
 import { Dialog, Transition } from '@headlessui/react';
 import { fetchNotifications, markAsRead } from '../api/notifications';
 import type { NotificationItem, NotifType } from '../types/notification';
+import { getNotifTypeLabel, getNotifRoute } from '../types/notification';
 import { ErrorState } from '../components/ui/ErrorState';
 
 // ====== 类型配置 ======
@@ -17,9 +18,9 @@ interface TabDef {
 }
 
 const tabs: TabDef[] = [
-  { key: 'reply',        label: '回复我的', icon: MessageSquare, color: 'text-blue-500',  bgColor: 'bg-blue-50' },
-  { key: 'like',         label: '收到的赞', icon: ThumbsUp,      color: 'text-red-500',   bgColor: 'bg-red-50' },
-  { key: 'announcement', label: '系统通知', icon: Megaphone,     color: 'text-orange-500', bgColor: 'bg-orange-50' },
+  { key: 'reply_comment', label: '回复我的', icon: MessageSquare, color: 'text-blue-500',  bgColor: 'bg-blue-50' },
+  { key: 'like_comment',  label: '收到的赞', icon: ThumbsUp,      color: 'text-red-500',   bgColor: 'bg-red-50' },
+  { key: 'announcement',  label: '系统通知', icon: Megaphone,     color: 'text-orange-500', bgColor: 'bg-orange-50' },
 ];
 
 // ====== 相对时间 ======
@@ -59,7 +60,7 @@ function ListSkeleton() {
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const [all, setAll] = useState<NotificationItem[]>([]);
-  const [activeTab, setActiveTab] = useState<NotifType>('reply');
+  const [activeTab, setActiveTab] = useState<NotifType>('reply_comment');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [announcement, setAnnouncement] = useState<NotificationItem | null>(null);
@@ -77,32 +78,33 @@ export default function NotificationsPage() {
 
   // 各分类计数
   const counts: Record<NotifType, number> = {
-    reply: all.filter((n) => n.type === 'reply').length,
-    like: all.filter((n) => n.type === 'like').length,
+    reply_comment: all.filter((n) => n.type === 'reply_comment').length,
+    like_comment: all.filter((n) => n.type === 'like_comment').length,
     announcement: all.filter((n) => n.type === 'announcement').length,
   };
   const unreadCounts: Record<NotifType, number> = {
-    reply: all.filter((n) => n.type === 'reply' && !n.isRead).length,
-    like: all.filter((n) => n.type === 'like' && !n.isRead).length,
-    announcement: all.filter((n) => n.type === 'announcement' && !n.isRead).length,
+    reply_comment: all.filter((n) => n.type === 'reply_comment' && !n.is_read).length,
+    like_comment: all.filter((n) => n.type === 'like_comment' && !n.is_read).length,
+    announcement: all.filter((n) => n.type === 'announcement' && !n.is_read).length,
   };
 
   const currentList = all
     .filter((n) => n.type === activeTab)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   // 点击消息
   const handleClick = (item: NotificationItem) => {
     // 标记已读
-    if (!item.isRead) {
+    if (!item.is_read) {
       markAsRead([item.id]);
-      setAll((prev) => prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n)));
+      setAll((prev) => prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n)));
     }
 
     if (item.type === 'announcement') {
       setAnnouncement(item);
-    } else if (item.shopId > 0) {
-      navigate(`/shop/${item.shopId}`);
+    } else {
+      const route = getNotifRoute(item.related_entity_type, item.related_entity_id);
+      if (route) navigate(route);
     }
   };
 
@@ -195,10 +197,10 @@ export default function NotificationsPage() {
                       className="w-full flex items-start gap-3 px-5 py-3.5 text-left hover:bg-gray-50/50 transition-colors"
                     >
                       {/* Unread dot */}
-                      {!item.isRead && (
+                      {!item.is_read && (
                         <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0 mt-1.5" />
                       )}
-                      {item.isRead && <span className="w-2 flex-shrink-0" />}
+                      {item.is_read && <span className="w-2 flex-shrink-0" />}
 
                       {/* Icon */}
                       <div className={`w-8 h-8 rounded-full ${tabCfg.bgColor} flex items-center justify-center flex-shrink-0 ${tabCfg.color}`}>
@@ -207,17 +209,17 @@ export default function NotificationsPage() {
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${item.isRead ? 'text-gray-500' : 'text-gray-800 font-medium'}`}>
-                          {item.description}
+                        <p className={`text-sm ${item.is_read ? 'text-gray-500' : 'text-gray-800 font-medium'}`}>
+                          {item.content}
                         </p>
                         {item.type === 'announcement' && item.title && (
-                          <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{item.fullContent}</p>
+                          <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{item.content}</p>
                         )}
                       </div>
 
                       {/* Time */}
                       <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">
-                        {relativeTime(item.createdAt)}
+                        {relativeTime(item.created_at)}
                       </span>
                     </button>
                   );
@@ -244,10 +246,10 @@ export default function NotificationsPage() {
                       <Dialog.Title className="text-base font-bold">{announcement.title}</Dialog.Title>
                     </div>
                     <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
-                      {announcement.fullContent}
+                      {announcement.content}
                     </p>
                     <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
-                      <span className="text-xs text-gray-400">{relativeTime(announcement.createdAt)}</span>
+                      <span className="text-xs text-gray-400">{relativeTime(announcement.created_at)}</span>
                       <button
                         type="button"
                         onClick={() => setAnnouncement(null)}

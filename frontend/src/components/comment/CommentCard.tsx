@@ -1,17 +1,61 @@
-import { useState } from 'react';
-import type { Comment } from '../../types/comment';
+import { useState, useEffect } from 'react';
+import type { Comment, CommentReply } from '../../types/comment';
+import { fetchReplies, toggleLike } from '../../api/comments';
 import { LikeButton } from './LikeButton';
 import { ReplyBox } from './ReplyBox';
 
 interface CommentCardProps {
   comment: Comment;
   onLike: (id: number) => void;
-  onReply: (commentId: number, content: string, targetUserName?: string) => void;
+  onReply: (commentId: number, content: string, replyToUserId?: number) => void;
 }
 
 export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
   const [replyBoxVisible, setReplyBoxVisible] = useState(false);
-  const [replyTarget, setReplyTarget] = useState<string | undefined>(undefined);
+  const [replyTargetId, setReplyTargetId] = useState<number | undefined>(undefined);
+  const [replyTargetName, setReplyTargetName] = useState<string | undefined>(undefined);
+  const [replies, setReplies] = useState<CommentReply[] | undefined>(undefined);
+  const [showReplies, setShowReplies] = useState(false);
+
+  // 从后端加载回复
+  useEffect(() => {
+    if (comment.reply_count > 0) {
+      fetchReplies(comment.id).then(setReplies).catch(() => {});
+    }
+  }, []);
+
+  // 合并父组件乐观更新到本地状态，避免覆盖已有回复
+  useEffect(() => {
+    if (comment.replies && comment.replies.length > 0) {
+      setReplies((prev) => {
+        const existingIds = new Set((prev ?? []).map((r) => r.id));
+        const newOnes = comment.replies!.filter((r) => !existingIds.has(r.id));
+        return newOnes.length > 0 ? [...(prev ?? []), ...newOnes] : prev;
+      });
+    }
+  }, [comment.replies]);
+
+  const displayReplies = replies;
+
+  const handleReplyLike = (replyId: number) => {
+    setReplies((prev) =>
+      (prev ?? []).map((r) =>
+        r.id === replyId
+          ? { ...r, has_liked: !r.has_liked, like_count: r.has_liked ? r.like_count - 1 : r.like_count + 1 }
+          : r,
+      ),
+    );
+    toggleLike('comment_reply', replyId).catch(() => {
+      // revert on failure
+      setReplies((prev) =>
+        (prev ?? []).map((r) =>
+          r.id === replyId
+            ? { ...r, has_liked: !r.has_liked, like_count: r.has_liked ? r.like_count - 1 : r.like_count + 1 }
+            : r,
+        ),
+      );
+    });
+  };
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -35,9 +79,10 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
   };
 
   const handleReply = (content: string) => {
-    onReply(comment.id, content, replyTarget);
+    onReply(comment.id, content, replyTargetId);
     setReplyBoxVisible(false);
-    setReplyTarget(undefined);
+    setReplyTargetId(undefined);
+    setReplyTargetName(undefined);
   };
 
   return (
@@ -75,9 +120,9 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
       </p>
 
       {/* Images grid: max 3, grid-cols-3 gap-1 */}
-      {(comment as any).images.length > 0 && (
+      {(comment.images?.length ?? 0) > 0 && (
         <div className="mt-2 grid max-w-xs grid-cols-3 gap-1">
-          {(comment as any).images.slice(0, 3).map((img: any, idx: any) => (
+          {(comment.images?.slice(0, 3) ?? []).map((img, idx) => (
             <div key={idx} className="aspect-square overflow-hidden rounded-lg">
               <img
                 src={img}
@@ -99,7 +144,8 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
         <button
           type="button"
           onClick={() => {
-            setReplyTarget(undefined);
+            setReplyTargetId(undefined);
+            setReplyTargetName(undefined);
             setReplyBoxVisible((prev) => !prev);
           }}
           className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors duration-200 hover:text-orange-400"
@@ -109,10 +155,21 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
         </button>
       </div>
 
+      {/* Toggle replies */}
+      {(displayReplies?.length ?? 0) > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowReplies((v) => !v)}
+          className="mt-2 text-sm text-orange-500 hover:text-orange-600 transition-colors"
+        >
+          {showReplies ? '收起回复' : `查看全部 ${displayReplies.length} 条回复`}
+        </button>
+      )}
+
       {/* Replies */}
-      {(comment as any).replies.length > 0 && (
+      {showReplies && (displayReplies?.length ?? 0) > 0 && (
         <div className="ml-8 mt-2 border-l-2 border-gray-100 pl-4 space-y-3">
-          {(comment as any).replies.map((reply: any) => (
+          {(displayReplies ?? []).map((reply) => (
             <div key={reply.id} className="py-1">
               <div className="flex items-center gap-2">
                 <div className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full bg-gray-200">
@@ -141,16 +198,24 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
                 )}
                 {reply.content}
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setReplyTarget((reply.user?.username ?? ''));
-                  setReplyBoxVisible(true);
-                }}
-                className="mt-1 text-xs text-gray-400 hover:text-orange-400 transition-colors duration-200"
-              >
-                回复
-              </button>
+              <div className="flex items-center gap-3 mt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReplyTargetId(reply.user?.id);
+                    setReplyTargetName(reply.user?.username ?? '');
+                    setReplyBoxVisible(true);
+                  }}
+                  className="text-xs text-gray-400 hover:text-orange-400 transition-colors duration-200"
+                >
+                  回复
+                </button>
+                <LikeButton
+                  count={reply.like_count}
+                  isLiked={reply.has_liked}
+                  onClick={() => handleReplyLike(reply.id)}
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -161,11 +226,12 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
         <div className="ml-8 mt-2">
           <ReplyBox
             parentId={comment.id}
-            targetUserName={replyTarget}
+            targetUserName={replyTargetName}
             onSubmit={handleReply}
             onCancel={() => {
               setReplyBoxVisible(false);
-              setReplyTarget(undefined);
+              setReplyTargetId(undefined);
+              setReplyTargetName(undefined);
             }}
           />
         </div>

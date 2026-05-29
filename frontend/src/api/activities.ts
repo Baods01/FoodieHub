@@ -9,6 +9,7 @@ export interface ActivityItem {
   target_type: string;
   content: string | null;
   shop_id: number | null;
+  shop_name: string | null;
   created_at: string;
 }
 

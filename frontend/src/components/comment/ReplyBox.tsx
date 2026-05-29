@@ -8,9 +8,7 @@ interface ReplyBoxProps {
 }
 
 export function ReplyBox({ targetUserName, onSubmit, onCancel }: ReplyBoxProps) {
-  const [content, setContent] = useState(
-    targetUserName ? `@${targetUserName} ` : '',
-  );
+  const [content, setContent] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -45,15 +43,20 @@ export function ReplyBox({ targetUserName, onSubmit, onCancel }: ReplyBoxProps) 
 
   return (
     <div className="mt-2 space-y-2">
-      <textarea
-        ref={textareaRef}
-        value={content}
-        onChange={handleInput}
-        onKeyDown={handleKeyDown}
-        placeholder="回复..."
-        rows={2}
-        className="w-full resize-none rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none transition-colors duration-200 focus:border-orange-300 focus:bg-white focus:ring-1 focus:ring-orange-200"
-      />
+      <div className="flex items-start gap-0 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 transition-colors duration-200 focus-within:border-orange-300 focus-within:bg-white focus-within:ring-1 focus-within:ring-orange-200">
+        {targetUserName && (
+          <span className="text-sm text-gray-400 flex-shrink-0 mt-0.5">@{targetUserName} </span>
+        )}
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={handleInput}
+          onKeyDown={handleKeyDown}
+          placeholder="回复..."
+          rows={2}
+          className="w-full resize-none bg-transparent px-0 py-0 text-sm outline-none"
+        />
+      </div>
       <div className="flex justify-end gap-2">
         <button
           type="button"

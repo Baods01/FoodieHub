@@ -144,6 +144,20 @@ class CommentDAO:
             id=comment_id, is_active=True, reply_count__gt=0,
         ).update(reply_count=F("reply_count") - 1)
 
+    @staticmethod
+    async def increment_reply_like_count(reply_id: int) -> None:
+        from tortoise.expressions import F
+        await CommentReplies.filter(id=reply_id, is_active=True).update(
+            like_count=F("like_count") + 1,
+        )
+
+    @staticmethod
+    async def decrement_reply_like_count(reply_id: int) -> None:
+        from tortoise.expressions import F
+        await CommentReplies.filter(id=reply_id, is_active=True, like_count__gt=0).update(
+            like_count=F("like_count") - 1,
+        )
+
     # ==================== 级联清理 ====================
 
     @staticmethod

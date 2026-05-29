@@ -4,6 +4,7 @@ import { Edit3, Star, MessageSquare, Heart, MapPin, HelpCircle } from 'lucide-re
 import { useAuthStore } from '../store/authStore';
 import { fetchActivities } from '../api/activities';
 import type { Activity, ActivityType } from '../types/activity';
+import { getActivityText } from '../types/activity';
 import SectionCard from '../components/ui/SectionCard';
 
 /** 格式化相对时间 */
@@ -132,7 +133,7 @@ export default function ProfilePage() {
                 <button
                   key={activity.id}
                   type="button"
-                  onClick={() => navigate(`/shop/${activity.shopId}`)}
+                  onClick={() => navigate(`/shop/${activity.shop_id}`)}
                   className="w-full flex items-center gap-3 py-3.5 px-2 text-left hover:bg-orange-50/50 transition-colors rounded-lg"
                 >
                   {/* Icon */}
@@ -144,20 +145,13 @@ export default function ProfilePage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-700 truncate">
                       <span className="font-medium text-gray-900">{userName}</span>
-                      {' '}{activity.content}
+                      {' '}{getActivityText(activity.type)}
                     </p>
-                    {activity.type === 'rating' && activity.extra?.score && (
-                      <div className="flex items-center gap-0.5 mt-0.5">
-                        {Array.from({ length: activity.extra.score }).map((_, i) => (
-                          <Star key={i} size={12} className="fill-yellow-400 text-yellow-400" />
-                        ))}
-                      </div>
-                    )}
                   </div>
 
                   {/* Time */}
                   <span className="text-xs text-gray-400 flex-shrink-0">
-                    {relativeTime(activity.createdAt)}
+                    {relativeTime(activity.created_at)}
                   </span>
                 </button>
               );

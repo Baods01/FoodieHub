@@ -12,6 +12,7 @@ class ActivityResponse(BaseModel):
     target_type: str
     content: Optional[str] = Field(default=None, description="动态摘要")
     shop_id: Optional[int] = Field(default=None, description="关联店铺ID（前端跳转用）")
+    shop_name: Optional[str] = Field(default=None, description="关联店铺名称")
     created_at: datetime
 
     class Config:

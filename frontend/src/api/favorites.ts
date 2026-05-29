@@ -6,6 +6,7 @@ export interface FavoriteItem {
   user_id: number;
   shop_id: number;
   shop_name: string | null;
+  shop_cover: string | null;
   created_at: string;
 }
 
@@ -15,7 +16,7 @@ export interface ToggleResult {
 }
 
 export async function toggleFavorite(shopId: number): Promise<ToggleResult> {
-  const res = await apiClient.post<ApiResponse<ToggleResult>>('/favorites/toggle', { shop_id: shopId });
+  const res = await apiClient.post<ApiResponse<ToggleResult>>('/favorites/toggle', null, { params: { shop_id: shopId } });
   return res.data.data;
 }
 

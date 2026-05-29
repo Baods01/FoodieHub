@@ -82,7 +82,7 @@ class ShopService:
             cover = await ImageDAO.get_first_by_entity("shop", s.id)
             tags = await DictRelDAO.get_entity_dicts("shop", s.id)
             dict_data = [
-                {"id": t["dict_data_id"], "name": t["dict_data_name"]}
+                {"id": t["dict_data_id"], "name": t["dict_data_name"], "dict_type_name": t["dict_type_name"]}
                 for t in tags
             ]
             items.append(ShopListItem(
@@ -273,9 +273,9 @@ class ShopService:
         imgs = await ImageDAO.get_by_entity("shop", shop.id)
         dist = await ShopsDAO.get_rating_distribution(shop.id)
 
-        # DictRelDAO 返回 {dict_data_id, dict_data_name}，转成 DictDataSimpleResponse 格式
+        # DictRelDAO 返回 {dict_data_id, dict_data_name, dict_type_name}
         dict_data = [
-            {"id": t["dict_data_id"], "name": t["dict_data_name"]}
+            {"id": t["dict_data_id"], "name": t["dict_data_name"], "dict_type_name": t["dict_type_name"]}
             for t in tags
         ]
 

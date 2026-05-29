@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 
 from schemas.common import ResponseModel
 from schemas.users import UserResponse
-from dao.activity_dao import ActivityDAO
+from services.activity_service import ActivityService
 from utils.auth import get_current_user
 
 router = APIRouter(tags=["动态模块"])
@@ -15,7 +15,7 @@ async def get_my_activities(
     current_user: UserResponse = Depends(get_current_user),
 ):
     """当前用户的动态时间线（评论、评分、收藏等）。"""
-    data = await ActivityDAO.list_by_user(current_user.id, page=page, page_size=page_size)
+    data = await ActivityService.list_by_user(current_user.id, page=page, page_size=page_size)
     return ResponseModel.success(data=data)
 
 
@@ -27,5 +27,5 @@ async def get_user_activities(
     current_user: UserResponse = Depends(get_current_user),
 ):
     """指定用户的公开动态时间线（个人主页用）。"""
-    data = await ActivityDAO.list_by_user(user_id, page=page, page_size=page_size)
+    data = await ActivityService.list_by_user(user_id, page=page, page_size=page_size)
     return ResponseModel.success(data=data)
