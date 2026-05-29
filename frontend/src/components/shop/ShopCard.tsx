@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Star, Eye } from 'lucide-react';
+import { Star, Heart, Eye, MessageSquare } from 'lucide-react';
 import type { ShopCardData } from '../../types/shop';
 import { getCategoryName, getAreaName, getDiningMethods } from '../../types/shop';
 
@@ -48,7 +48,7 @@ export function ShopCard({ shop, onClick }: ShopCardProps) {
         {getDiningMethods(shop.dict_data).length > 0 && (
           <div className="flex gap-1.5 mt-1 flex-wrap">
             {getDiningMethods(shop.dict_data).map((m) => (
-              <span key={m} className="px-1.5 py-0.5 text-xs rounded bg-gray-50 text-gray-400">
+              <span key={m} className="px-2 py-0.5 text-xs rounded border border-blue-200 text-blue-500">
                 {m}
               </span>
             ))}
@@ -58,8 +58,16 @@ export function ShopCard({ shop, onClick }: ShopCardProps) {
         {/* Rating & views */}
         <div className="flex justify-between mt-2 text-sm text-gray-400">
           <span className="flex items-center gap-1">
-            <Star size={14} />
-            {shop.average_rating}
+            <Star size={14} className="text-yellow-400" />
+            {shop.average_rating.toFixed(1)}
+          </span>
+          <span className="flex items-center gap-1">
+            <Heart size={14} />
+            {shop.favorite_count}
+          </span>
+          <span className="flex items-center gap-1">
+            <MessageSquare size={14} />
+            {shop.comment_count}
           </span>
           <span className="flex items-center gap-1">
             <Eye size={14} />

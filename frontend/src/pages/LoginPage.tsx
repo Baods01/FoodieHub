@@ -62,7 +62,9 @@ export default function LoginPage() {
       login(result.access_token, result.user);
       navigate('/', { replace: true });
     } catch (err: any) {
-      setErrors([{ field: 'password', message: err?.message || '登录失败，请重试' }]);
+      const detail = err?.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : (detail?.[0]?.msg ?? err?.message ?? '登录失败，请重试');
+      setErrors([{ field: 'password', message: msg }]);
     } finally {
       setLoading(false);
     }

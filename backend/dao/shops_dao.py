@@ -143,6 +143,20 @@ class ShopsDAO:
         from tortoise.expressions import F
         await Shops.filter(id=shop_id, is_active=True).update(view_count=F("view_count") + 1)
 
+    @staticmethod
+    async def sync_favorite_count(shop_id: int) -> None:
+        """从 Favorites 表重新计算收藏数。"""
+        from models.users import Favorites
+        count = await Favorites.filter(shop_id=shop_id, is_active=True).count()
+        await Shops.filter(id=shop_id).update(favorite_count=count)
+
+    @staticmethod
+    async def sync_comment_count(shop_id: int) -> None:
+        """从 ShopComments 表重新计算评论数。"""
+        from models.interaction import ShopComments
+        count = await ShopComments.filter(shop_id=shop_id, is_active=True).count()
+        await Shops.filter(id=shop_id).update(comment_count=count)
+
     # ==================== Menu ====================
 
     @staticmethod

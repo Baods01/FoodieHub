@@ -1,17 +1,21 @@
-import { useState } from 'react';
-import { Image } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Image, Loader2 } from 'lucide-react';
 import { AlbumLightbox } from './AlbumLightbox';
+import { uploadImage } from '../../api/upload';
 
 interface AlbumSectionProps {
   images: string[];
+  shopId: number;
   isLoggedIn: boolean;
-  onUpload: () => void;
+  onUpload?: () => void;
   maxCount?: number;
   onViewAll?: () => void;
 }
 
-export function AlbumSection({ images, isLoggedIn, onUpload, maxCount = 6, onViewAll }: AlbumSectionProps) {
+export function AlbumSection({ images, shopId, isLoggedIn, onUpload, maxCount = 6, onViewAll }: AlbumSectionProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const previewImages = onViewAll ? images.slice(0, maxCount) : images;
 
@@ -21,14 +25,35 @@ export function AlbumSection({ images, isLoggedIn, onUpload, maxCount = 6, onVie
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold pl-3 border-l-[3px] border-orange-400">店铺相册</h2>
         {isLoggedIn && (
-          <button
-            type="button"
-            onClick={onUpload}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-orange-400 text-orange-500 text-sm hover:bg-orange-50 transition-colors"
-          >
-            <Image size={14} />
-            <span>上传图片</span>
-          </button>
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                  await uploadImage(file, 'shop', shopId);
+                  onUpload?.();
+                } finally {
+                  setUploading(false);
+                  if (fileRef.current) fileRef.current.value = '';
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-orange-400 text-orange-500 text-sm hover:bg-orange-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {uploading ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
+              <span>{uploading ? '上传中...' : '上传图片'}</span>
+            </button>
+          </>
         )}
       </div>
 

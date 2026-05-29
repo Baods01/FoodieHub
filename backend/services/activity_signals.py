@@ -9,7 +9,7 @@ from tortoise.signals import post_save
 from dao.activity_dao import ActivityDAO
 from models.shops import Ratings
 from models.users import Favorites
-from models.interaction import ShopComments, CommentReplies, ShopQuestions
+from models.interaction import ShopComments, CommentReplies, ShopQuestions, QuestionAnswers
 
 
 @post_save(ShopComments)
@@ -76,5 +76,20 @@ async def on_shop_question_created(sender, instance, created, using_db, update_f
         target_id=instance.id,
         target_type="shop_question",
         shop_id=instance.shop_id,
+    )
+
+
+@post_save(QuestionAnswers)
+async def on_question_answer_created(sender, instance, created, using_db, update_fields):
+    if not created:
+        return
+    # 通过父问题拿到 shop_id
+    parent = await instance.question
+    await ActivityDAO.create(
+        user_id=instance.user_id,
+        type="answer",
+        target_id=instance.id,
+        target_type="question_answer",
+        shop_id=parent.shop_id if parent else None,
     )
 

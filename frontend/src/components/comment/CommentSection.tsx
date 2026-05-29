@@ -72,7 +72,8 @@ export function CommentSection({
           }
           setHasMore((result.items?.length||0) < (result.total||0));
         })
-        .catch(() => {
+        .catch((err: any) => {
+          console.error('加载评论失败:', err?.response?.data || err);
           setIsError(true);
         })
         .finally(() => {
@@ -103,8 +104,8 @@ export function CommentSection({
       .then((newComment) => {
         setComments((prev) => [newComment, ...prev]);
       })
-      .catch(() => {
-        // Silently fail — could add a toast in the future
+      .catch((err: any) => {
+        console.error('发表评论失败:', err?.response?.data || err);
       })
       .finally(() => {
         setIsSubmitting(false);
@@ -124,7 +125,8 @@ export function CommentSection({
           : c,
       ),
     );
-    toggleLike("shop_comment", commentId).catch(() => {
+    toggleLike("shop_comment", commentId).catch((err: any) => {
+      console.error('点赞失败:', err?.response?.data || err);
       // Revert on failure
       setComments((prev) =>
         prev.map((c) =>
@@ -154,8 +156,8 @@ export function CommentSection({
             : c,
         ),
       );
-    }).catch(() => {
-        // Silently fail
+    }).catch((err: any) => {
+        console.error('回复失败:', err?.response?.data || err);
       });
   };
 

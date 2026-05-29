@@ -162,7 +162,7 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
           onClick={() => setShowReplies((v) => !v)}
           className="mt-2 text-sm text-orange-500 hover:text-orange-600 transition-colors"
         >
-          {showReplies ? '收起回复' : `查看全部 ${displayReplies.length} 条回复`}
+          {showReplies ? '收起回复' : `查看全部 ${displayReplies?.length ?? 0} 条回复`}
         </button>
       )}
 
@@ -173,9 +173,9 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
             <div key={reply.id} className="py-1">
               <div className="flex items-center gap-2">
                 <div className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full bg-gray-200">
-                  {(reply.user?.avatar ?? null) ? (
+                  {(reply.user?.avatar) ? (
                     <img
-                      src={(reply.user?.avatar ?? null)}
+                      src={reply.user.avatar}
                       alt={(reply.user?.username ?? '')}
                       className="h-full w-full object-cover"
                     />

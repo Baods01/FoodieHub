@@ -1,6 +1,7 @@
 from typing import Optional, List
 from dao.comment_dao import CommentDAO
 from dao.like_dao import LikeDAO
+from dao.shops_dao import ShopsDAO
 
 
 class CommentService:
@@ -9,6 +10,7 @@ class CommentService:
     @staticmethod
     async def create(shop_id: int, user_id: int, content: str) -> dict:
         c = await CommentDAO.create(shop_id, user_id, content)
+        await ShopsDAO.sync_comment_count(shop_id)
         await c.fetch_related("user")
         user = c.user
         return {
@@ -55,7 +57,11 @@ class CommentService:
 
     @staticmethod
     async def delete(comment_id: int) -> bool:
-        return await CommentDAO.delete(comment_id)
+        c = await CommentDAO.get_by_id(comment_id)
+        ok = await CommentDAO.delete(comment_id)
+        if ok and c:
+            await ShopsDAO.sync_comment_count(c.shop_id)
+        return ok
 
     @staticmethod
     async def create_reply(comment_id: int, user_id: int, content: str,
@@ -99,7 +105,14 @@ class CommentService:
 
     @staticmethod
     async def delete_reply(reply_id: int) -> bool:
-        return await CommentDAO.delete_reply(reply_id)
+        from models.interaction import CommentReplies
+        r = await CommentReplies.get_or_none(id=reply_id, is_active=True)
+        if not r:
+            return False
+        ok = await CommentDAO.delete_reply(reply_id)
+        if ok:
+            await CommentDAO.decrement_reply_count(r.comment_id)
+        return ok
 
     @staticmethod
     async def toggle_reply_like(user_id: int, reply_id: int) -> dict:

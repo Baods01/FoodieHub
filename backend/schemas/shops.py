@@ -66,6 +66,7 @@ class MenuItemResponse(BaseModel):
     name: str = Field(description="菜品名称")
     price: Optional[float] = Field(default=None, description="价格")
     description: Optional[str] = Field(default=None, description="菜品描述")
+    image: Optional[str] = Field(default=None, description="菜品图片URL")
     created_at: datetime = Field(description="创建时间")
 
     class Config:

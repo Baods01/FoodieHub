@@ -4,7 +4,7 @@ import { Bell, MessageSquare, ThumbsUp, Megaphone } from 'lucide-react';
 import { Dialog, Transition } from '@headlessui/react';
 import { fetchNotifications, markAsRead } from '../api/notifications';
 import type { NotificationItem, NotifType } from '../types/notification';
-import { getNotifTypeLabel, getNotifRoute } from '../types/notification';
+import { getNotifRoute } from '../types/notification';
 import { ErrorState } from '../components/ui/ErrorState';
 
 // ====== 类型配置 ======

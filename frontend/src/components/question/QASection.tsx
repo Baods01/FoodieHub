@@ -70,8 +70,8 @@ export function QASection({ shopId, isLoggedIn, onLoginPrompt, maxCount = 3, onV
             : q,
         ),
       );
-    } catch {
-      // silently fail
+    } catch (err: any) {
+      console.error('回答失败:', err?.response?.data || err);
     }
   };
 

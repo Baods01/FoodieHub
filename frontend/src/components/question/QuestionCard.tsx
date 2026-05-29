@@ -6,7 +6,7 @@ import { LikeButton } from '../comment/LikeButton';
 
 interface QuestionCardProps {
   question: Question;
-  onReply: (questionId: number, content: string, targetUserName?: string) => void;
+  onReply: (questionId: number, content: string, replyToUserId?: number) => void;
 }
 
 function timeAgo(dateStr: string): string {
@@ -93,7 +93,6 @@ export function QuestionCard({ question, onReply }: QuestionCardProps) {
               <span className="text-xs text-gray-400">{timeAgo(question.created_at)}</span>
               <span className="flex items-center gap-1 text-xs text-gray-400">
                 <MessageCircle size={12} />
-                {question.answerCount ?? 0}
               </span>
             </div>
           </div>
@@ -164,11 +163,11 @@ export function QuestionCard({ question, onReply }: QuestionCardProps) {
                         <span className="text-xs font-medium text-gray-700">
                           {(answer.user?.username ?? '')}
                         </span>
-                        {answer.targetUserName && (
+                        {answer.reply_to_user?.username && (
                           <>
                             <span className="text-xs text-gray-400">回复</span>
                             <span className="text-xs font-medium text-orange-600">
-                              @{answer.targetUserName}
+                              @{answer.reply_to_user.username}
                             </span>
                           </>
                         )}

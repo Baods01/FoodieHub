@@ -122,7 +122,9 @@ export async function fetchMenu(shopId: number): Promise<MenuItem[]> {
 }
 
 export async function addMenuItem(shopId: number, name: string, price?: number, description?: string): Promise<MenuItem> {
-  const res = await apiClient.post<ApiResponse<MenuItem>>(`/shops/${shopId}/menu`, { name, price, description });
+  const res = await apiClient.post<ApiResponse<MenuItem>>(`/shops/${shopId}/menu`, null, {
+    params: { name, price, description },
+  });
   return res.data.data;
 }
 

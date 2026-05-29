@@ -11,6 +11,7 @@ import { RatingSection } from '../components/shop/RatingSection';
 import { CommentSection } from '../components/comment/CommentSection';
 import { QASection } from '../components/question/QASection';
 import { MenuSection } from '../components/menu/MenuSection';
+import MenuUploadModal from '../components/menu/MenuUploadModal';
 import { AlbumSection } from '../components/album/AlbumSection';
 import { ShopDetailSkeleton } from '../components/shop/ShopDetailSkeleton';
 import { LoginPromptModal } from '../components/shop/LoginPromptModal';
@@ -33,6 +34,7 @@ export function ShopDetailPage() {
   const [qaModalOpen, setQaModalOpen] = useState(false);
   const [menuModalOpen, setMenuModalOpen] = useState(false);
   const [albumModalOpen, setAlbumModalOpen] = useState(false);
+  const [menuUploadOpen, setMenuUploadOpen] = useState(false);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const shopId = Number(id);
 
@@ -59,6 +61,12 @@ export function ShopDetailPage() {
     toggleFavorite(shopId).catch(() => {
       setShop(prev);
     });
+  };
+
+  const handleRefresh = () => {
+    fetchShopDetail(shopId)
+      .then((data: any) => { setShop(data); })
+      .catch(() => {});
   };
 
   const handleRetry = () => {
@@ -154,7 +162,7 @@ export function ShopDetailPage() {
         <MenuSection
           items={shop.menu_items}
           isLoggedIn={isLoggedIn}
-          onUpload={() => {}}
+          onUpload={() => setMenuUploadOpen(true)}
           maxCount={6}
           onViewAll={() => setMenuModalOpen(true)}
         />
@@ -163,8 +171,9 @@ export function ShopDetailPage() {
       <SectionCard>
         <AlbumSection
           images={shop.images.map(i => i.url)}
+          shopId={shop.id}
           isLoggedIn={isLoggedIn}
-          onUpload={() => {}}
+          onUpload={handleRefresh}
           maxCount={6}
           onViewAll={() => setAlbumModalOpen(true)}
         />
@@ -196,6 +205,13 @@ export function ShopDetailPage() {
         images={shop.images.map(i => i.url)}
         isOpen={albumModalOpen}
         onClose={() => setAlbumModalOpen(false)}
+      />
+
+      <MenuUploadModal
+        shopId={shop.id}
+        isOpen={menuUploadOpen}
+        onClose={() => setMenuUploadOpen(false)}
+        onSuccess={handleRefresh}
       />
 
       <LoginPromptModal

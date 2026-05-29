@@ -34,7 +34,7 @@ export interface RatingDistribution {
 export interface MenuItem {
   id: number;
   name: string;
-  price: number;
+  price: number | null;
   description?: string;
   image?: string | null;
 }

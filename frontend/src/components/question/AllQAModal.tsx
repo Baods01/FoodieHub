@@ -70,14 +70,13 @@ export default function AllQAModal({
     }
   };
 
-  const handleReply = async (questionId: number, content: string, targetUserName?: string) => {
+  const handleReply = async (questionId: number, content: string, replyToUserId?: number) => {
     if (!isLoggedIn) {
       onLoginPrompt();
       return;
     }
-    const fullContent = targetUserName ? `@${targetUserName} ${content}` : content;
     try {
-      const newAnswer = await postAnswer(questionId, fullContent);
+      const newAnswer = await postAnswer(questionId, content, replyToUserId);
       setQuestions((prev) =>
         prev.map((q) =>
           q.id === questionId

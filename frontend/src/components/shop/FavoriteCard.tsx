@@ -5,7 +5,7 @@ import type { FavoriteItem } from '../../types/favorite';
 
 interface FavoriteCardProps {
   item: FavoriteItem;
-  onRemove: (id: number) => void;
+  onRemove: (id: number, shopId: number) => void;
 }
 
 /** 相对时间 */
@@ -27,7 +27,7 @@ export default function FavoriteCard({ item, onRemove }: FavoriteCardProps) {
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onRemove(item.id);
+    onRemove(item.id, item.shop_id);
   };
 
   return (

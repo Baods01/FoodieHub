@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
 import { Heart } from 'lucide-react';
-import { fetchFavorites } from '../api/favorites';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
+import { fetchFavorites, toggleFavorite } from '../api/favorites';
 import type { FavoriteItem } from '../types/favorite';
 import FavoriteCard from '../components/shop/FavoriteCard';
 import SortDropdown from '../components/shop/SortDropdown';
@@ -14,30 +17,57 @@ const sortOptions = [
 ];
 
 export default function FavoritesPage() {
+  const navigate = useNavigate();
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const [items, setItems] = useState<FavoriteItem[]>([]);
   const [sort, setSort] = useState('time');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<{ id: number; shopId: number } | null>(null);
+
+  // 登录守卫
+  useEffect(() => {
+    if (!isLoggedIn) {
+      navigate('/login', { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
   const load = useCallback(() => {
     setLoading(true);
     setError(false);
     fetchFavorites()
       .then((result: any) => setItems(result.items ?? []))
-      .catch(() => setError(true))
+      .catch((err: any) => {
+        console.error('加载收藏失败:', err?.response?.data || err);
+        setError(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  // 移除收藏（乐观更新）
-  const handleRemove = (id: number) => {
-    // removed
-    setItems((cur) => cur.filter((i) => i.id !== id));
-    /* removed — removeFavorite API no longer exists */
+  // 点击取消收藏 → 弹确认框
+  const handleRemoveClick = (id: number, shopId: number) => {
+    setConfirmTarget({ id, shopId });
   };
 
-  const sorted = [...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  // 确认取消收藏
+  const handleConfirmRemove = () => {
+    if (!confirmTarget) return;
+    const { id, shopId } = confirmTarget;
+    setConfirmTarget(null);
+    setItems((cur) => cur.filter((i) => i.id !== id));
+    toggleFavorite(shopId).catch(() => load());
+  };
+
+  // 排序
+  const sorted = [...items].sort((a, b) => {
+    if (sort === 'name') {
+      return (a.shop_name ?? '').localeCompare(b.shop_name ?? '');
+    }
+    // 'time' 和 'rating' 都按时间倒序（rating 无数据字段）
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 
   return (
     <div className="max-w-4xl mx-auto py-8 space-y-5">
@@ -89,10 +119,43 @@ export default function FavoritesPage() {
       ) : (
         <div className="space-y-4">
           {sorted.map((item) => (
-            <FavoriteCard key={item.id} item={item} onRemove={handleRemove} />
+            <FavoriteCard key={item.id} item={item} onRemove={handleRemoveClick} />
           ))}
         </div>
       )}
+
+      {/* 取消收藏确认弹窗 */}
+      <Transition show={confirmTarget !== null} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setConfirmTarget(null)}>
+          <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
+            <div className="fixed inset-0 bg-black/30" />
+          </Transition.Child>
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+              <Dialog.Panel className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-xl">
+                <Dialog.Title className="text-base font-bold text-gray-800">取消收藏</Dialog.Title>
+                <p className="text-sm text-gray-500 mt-2">确定取消收藏该店铺？</p>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmTarget(null)}
+                    className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmRemove}
+                    className="px-4 py-2 rounded-xl bg-red-500 text-sm text-white hover:bg-red-600 transition-colors"
+                  >
+                    确定取消
+                  </button>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition>
     </div>
   );
 }

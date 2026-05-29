@@ -279,6 +279,14 @@ class ShopService:
             for t in tags
         ]
 
+        # 为每个菜单项查询关联图片
+        menu_items = []
+        for m in menus:
+            menu_img = await ImageDAO.get_first_by_entity("menu_item", m.id)
+            m_item = MenuItemResponse.model_validate(m)
+            m_item.image = menu_img.url if menu_img else None
+            menu_items.append(m_item)
+
         return ShopResponse(
             id=shop.id, name=shop.name,
             dict_data=dict_data,
@@ -290,7 +298,7 @@ class ShopService:
             aliases=shop.aliases,
             merged_into_id=shop.merged_into_id,
             is_banned=shop.is_banned,
-            menu_items=[MenuItemResponse.model_validate(m) for m in menus],
+            menu_items=menu_items,
             images=[ImageBriefResponse(id=i.id, url=i.url) for i in imgs],
             is_favorited=is_fav,
             user_rating=user_rating,

@@ -1,4 +1,4 @@
-export type ActivityType = 'rating' | 'comment' | 'favorite' | 'add_shop' | 'question';
+export type ActivityType = 'rating' | 'comment' | 'reply' | 'answer' | 'favorite' | 'add_shop' | 'question';
 
 export interface Activity {
   id: number;
@@ -17,6 +17,8 @@ export function getActivityText(type: ActivityType): string {
   const map: Record<ActivityType, string> = {
     rating: '进行了评分',
     comment: '发表了评论',
+    reply: '回复了评论',
+    answer: '回答了问题',
     favorite: '收藏了店铺',
     add_shop: '分享了新店铺',
     question: '提出了问题',

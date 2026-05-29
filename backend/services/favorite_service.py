@@ -1,4 +1,6 @@
 from dao.favorite_dao import FavoriteDAO
+from dao.shops_dao import ShopsDAO
+from dao.image_dao import ImageDAO
 from schemas.favorites import FavoriteResponse
 
 
@@ -13,6 +15,7 @@ class FavoriteService:
         else:
             await FavoriteDAO.create(user_id, shop_id)
         count = await FavoriteDAO.count_by_shop(shop_id)
+        await ShopsDAO.sync_favorite_count(shop_id)
         return {"is_favorited": not is_fav, "favorite_count": count}
 
     @staticmethod
@@ -22,12 +25,13 @@ class FavoriteService:
         for fav in result["items"]:
             # 手动提取 shop 关联字段（model_validate 无法自动从外键提取 shop_name）
             shop = getattr(fav, "shop", None)
+            cover = await ImageDAO.get_first_by_entity("shop", fav.shop_id) if shop else None
             items.append({
                 "id": fav.id,
                 "user_id": fav.user_id,
                 "shop_id": fav.shop_id,
                 "shop_name": shop.name if shop else None,
-                "shop_cover": shop.cover_image if shop else None,
+                "shop_cover": cover.url if cover else None,
                 "created_at": fav.created_at.isoformat(),
             })
         return {

@@ -45,9 +45,11 @@ export function MenuDetailModal({ item, onClose }: MenuDetailModalProps) {
           {/* Info */}
           <div className="p-4 space-y-3">
             <h3 className="text-xl font-bold text-gray-900">{item.name}</h3>
-            <p className="text-lg font-semibold text-orange-500">
-              ¥{item.price.toFixed(2)}
-            </p>
+            {item.price != null && (
+              <p className="text-lg font-semibold text-orange-500">
+                ¥{item.price.toFixed(2)}
+              </p>
+            )}
             {item.description && (
               <p className="text-sm text-gray-600 leading-relaxed">{item.description}</p>
             )}

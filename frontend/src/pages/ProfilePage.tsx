@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit3, Star, MessageSquare, Heart, MapPin, HelpCircle } from 'lucide-react';
+import { Edit3, Star, MessageSquare, Heart, MapPin, HelpCircle, Reply, MessageCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { fetchActivities } from '../api/activities';
 import type { Activity, ActivityType } from '../types/activity';
@@ -24,6 +24,8 @@ function relativeTime(iso: string): string {
 const activityIcon: Record<ActivityType, typeof Star> = {
   rating: Star,
   comment: MessageSquare,
+  answer: MessageCircle,
+  reply: Reply,
   favorite: Heart,
   add_shop: MapPin,
   question: HelpCircle,
@@ -32,6 +34,8 @@ const activityIcon: Record<ActivityType, typeof Star> = {
 const activityColors: Record<ActivityType, string> = {
   rating: 'text-yellow-500',
   comment: 'text-blue-500',
+  answer: 'text-indigo-500',
+  reply: 'text-green-500',
   favorite: 'text-red-500',
   add_shop: 'text-orange-500',
   question: 'text-purple-500',

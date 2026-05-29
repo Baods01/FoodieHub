@@ -64,7 +64,7 @@ export function ShopInfoSection({
         <button
           type="button"
           onClick={handleFavorite}
-          className={`flex items-center gap-1 text-sm transition-colors ${
+          className={`flex items-center gap-2 text-base transition-colors ${
             isFavorited
               ? 'text-red-500'
               : 'text-gray-400 hover:text-red-500'
@@ -72,17 +72,17 @@ export function ShopInfoSection({
           title={isFavorited ? '取消收藏' : '收藏'}
         >
           <Heart
-            size={18}
+            size={22}
             fill={isFavorited ? 'currentColor' : 'none'}
             strokeWidth={isFavorited ? 0 : 2}
           />
-          {favoriteCount > 0 && <span>{favoriteCount}</span>}
+          <span className="text-base">{favoriteCount}</span>
         </button>
 
         {/* Feedback button */}
         <button
           type="button"
-          className="text-sm text-gray-400 hover:text-orange-500 transition-colors"
+          className="text-base text-gray-400 hover:text-orange-500 transition-colors"
         >
           反馈
         </button>
