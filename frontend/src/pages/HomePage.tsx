@@ -4,7 +4,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { fetchShops } from '../api/shops';
 import { fetchDictData } from '../api/dictionary';
-import type { ShopCardData, ShopFilter, SortOption } from '../types/shop';
+import type { ShopCardData, SortOption } from '../types/shop';
 import { filterConfigs } from '../config/filters';
 import AnnouncementBanner from '../components/shop/AnnouncementBanner';
 import SearchBar from '../components/shop/SearchBar';
@@ -14,7 +14,14 @@ import { ShopCardGridSkeleton } from '../components/shop/ShopCardSkeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 
-interface FilterState extends ShopFilter {}
+interface FilterState {
+  keyword: string;
+  sort: string;
+  category: string;
+  area: string;
+  diningMethods: string[];
+  page: number;
+}
 
 type FilterAction =
   | { type: 'SET_KEYWORD'; payload: string }
@@ -27,7 +34,7 @@ type FilterAction =
   | { type: 'RESET_ALL' };
 
 const initialFilter: FilterState = {
-  keyword: '', sort: 'favorites', category: '', area: '', diningMethods: [], page: 1,
+  keyword: '', sort: 'favorite_count', category: '', area: '', diningMethods: [], page: 1,
 };
 
 function filterReducer(state: FilterState, action: FilterAction): FilterState {
@@ -56,8 +63,8 @@ export function HomePage() {
   useEffect(() => {
     // 从配置动态获取所有字典选项
     filterConfigs.forEach((cfg) => {
-      fetchDictData(cfg.dictType as any).then((items) => {
-        setFilterOptions((prev) => ({ ...prev, [cfg.dictType]: items.map((i) => i.name) }));
+      fetchDictData(cfg.dictType).then((items) => {
+        setFilterOptions((prev) => ({ ...prev, [cfg.dictType]: (items ?? []).map((i) => i.name) }));
       });
     });
   }, []);
@@ -73,16 +80,17 @@ export function HomePage() {
     }
     setIsError(false);
 
-    const currentFilter = { ...filter, keyword: debouncedKeyword };
+    const currentFilter = { ...filter, keyword: debouncedKeyword } as any;
 
     fetchShops(currentFilter)
-      .then((result) => {
+      .then((result: any) => {
+        const items: ShopCardData[] = result.items || [];
         if (isLoadMore) {
-          setShops((prev) => [...prev, ...result.data]);
+          setShops((prev) => [...prev, ...items]);
         } else {
-          setShops(result.data);
+          setShops(items);
         }
-        setHasMore(result.hasMore);
+        setHasMore(items.length < (result.total || 0));
       })
       .catch(() => {
         setIsError(true);
@@ -104,11 +112,12 @@ export function HomePage() {
   const handleRetry = useCallback(() => {
     setIsLoading(true);
     setIsError(false);
-    const currentFilter = { ...filter, keyword: debouncedKeyword };
+    const currentFilter = { ...filter, keyword: debouncedKeyword } as any;
     fetchShops(currentFilter)
-      .then((result) => {
-        setShops(result.data);
-        setHasMore(result.hasMore);
+      .then((result: any) => {
+        const items: ShopCardData[] = result.items || [];
+        setShops(items);
+        setHasMore(items.length < (result.total || 0));
       })
       .catch(() => {
         setIsError(true);
@@ -134,7 +143,7 @@ export function HomePage() {
         {/* Lower layer: white bg with top separator */}
         <div className="bg-white px-5 py-3 rounded-b-xl border-t border-gray-100">
           <SortFilterBar
-            sort={filter.sort}
+            sort={filter.sort as SortOption}
             filterConfigs={filterConfigs}
             filterOptions={filterOptions}
             filterValues={{
@@ -142,12 +151,12 @@ export function HomePage() {
               location_type: filter.area,
               dining_method: filter.diningMethods,
             }}
-            onSortChange={(s) => dispatch({ type: 'SET_SORT', payload: s })}
+            onSortChange={(s: any) => dispatch({ type: 'SET_SORT' as any, payload: s })}
             onFilterChange={(dictType, value) => {
               const map: Record<string, string> = {
-                category: 'SET_CATEGORY',
-                location_type: 'SET_AREA',
-                dining_method: 'SET_DINING',
+                '品类': 'SET_CATEGORY',
+                '区域': 'SET_AREA',
+                '就餐方式': 'SET_DINING',
               };
               const actionType = map[dictType];
               if (actionType === 'SET_DINING') {

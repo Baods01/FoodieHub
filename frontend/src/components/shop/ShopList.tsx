@@ -9,7 +9,7 @@ interface ShopListProps {
 export function ShopList({ shops, onShopClick }: ShopListProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {shops.map((shop) => (
+      {(shops || []).map((shop) => (
         <ShopCard key={shop.id} shop={shop} onClick={onShopClick} />
       ))}
     </div>

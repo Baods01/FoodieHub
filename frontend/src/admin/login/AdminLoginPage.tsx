@@ -42,7 +42,7 @@ export default function AdminLoginPage() {
       const result = await loginApi({
         account: username.trim(),
         password,
-        loginMode: 'username',
+        type: 'username',
       });
 
       const { access_token, user } = result;

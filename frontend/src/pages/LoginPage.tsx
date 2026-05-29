@@ -58,7 +58,7 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const result = await loginApi({ account: account.trim(), password, loginMode });
+      const result = await loginApi({ account: account.trim(), password, type: loginMode });
       login(result.access_token, result.user);
       navigate('/', { replace: true });
     } catch (err: any) {

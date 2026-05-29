@@ -68,7 +68,7 @@ export default function NotificationsPage() {
     setLoading(true);
     setError(false);
     fetchNotifications()
-      .then(setAll)
+      .then((result: any) => setAll(result.items ?? []))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
@@ -95,7 +95,7 @@ export default function NotificationsPage() {
   const handleClick = (item: NotificationItem) => {
     // 标记已读
     if (!item.isRead) {
-      markAsRead(item.id);
+      markAsRead([item.id]);
       setAll((prev) => prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n)));
     }
 

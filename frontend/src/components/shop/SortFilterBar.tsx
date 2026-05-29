@@ -19,10 +19,10 @@ interface SortFilterBarProps {
 }
 
 const sortOptions: { value: SortOption; label: string }[] = [
-  { value: 'favorites', label: '收藏最多' },
-  { value: 'views', label: '浏览量最高' },
-  { value: 'rating', label: '最高评分' },
-  { value: 'reviews', label: '最多评论' },
+  { value: 'favorite_count', label: '收藏最多' },
+  { value: 'view_count', label: '浏览量最高' },
+  { value: 'average_rating', label: '最高评分' },
+  { value: 'created_at', label: '最新发布' },
 ];
 
 export default function SortFilterBar({

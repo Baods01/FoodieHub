@@ -46,25 +46,25 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
       <div className="flex items-center gap-2">
         {/* Avatar */}
         <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gray-200">
-          {comment.userAvatar ? (
+          {(comment.user?.avatar ?? undefined) ? (
             <img
-              src={comment.userAvatar}
-              alt={comment.userName}
+              src={(comment.user?.avatar ?? undefined)}
+              alt={(comment.user?.username ?? '')}
               className="h-full w-full object-cover"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gray-300 text-sm font-medium text-gray-600">
-              {comment.userName.charAt(0)}
+              {(comment.user?.username ?? '').charAt(0)}
             </div>
           )}
         </div>
 
         <div className="flex items-baseline gap-2">
           <span className="text-sm font-medium text-gray-800">
-            {comment.userName}
+            {(comment.user?.username ?? '')}
           </span>
           <span className="text-xs text-gray-400">
-            {formatTime(comment.createdAt)}
+            {formatTime(comment.created_at)}
           </span>
         </div>
       </div>
@@ -75,9 +75,9 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
       </p>
 
       {/* Images grid: max 3, grid-cols-3 gap-1 */}
-      {comment.images.length > 0 && (
+      {(comment as any).images.length > 0 && (
         <div className="mt-2 grid max-w-xs grid-cols-3 gap-1">
-          {comment.images.slice(0, 3).map((img, idx) => (
+          {(comment as any).images.slice(0, 3).map((img: any, idx: any) => (
             <div key={idx} className="aspect-square overflow-hidden rounded-lg">
               <img
                 src={img}
@@ -92,8 +92,8 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
       {/* Actions: like + reply */}
       <div className="mt-2 flex items-center gap-4">
         <LikeButton
-          count={comment.likeCount}
-          isLiked={comment.isLiked}
+          count={comment.like_count}
+          isLiked={comment.has_liked}
           onClick={() => onLike(comment.id)}
         />
         <button
@@ -110,41 +110,41 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
       </div>
 
       {/* Replies */}
-      {comment.replies.length > 0 && (
+      {(comment as any).replies.length > 0 && (
         <div className="ml-8 mt-2 border-l-2 border-gray-100 pl-4 space-y-3">
-          {comment.replies.map((reply) => (
+          {(comment as any).replies.map((reply: any) => (
             <div key={reply.id} className="py-1">
               <div className="flex items-center gap-2">
                 <div className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full bg-gray-200">
-                  {reply.userAvatar ? (
+                  {(reply.user?.avatar ?? null) ? (
                     <img
-                      src={reply.userAvatar}
-                      alt={reply.userName}
+                      src={(reply.user?.avatar ?? null)}
+                      alt={(reply.user?.username ?? '')}
                       className="h-full w-full object-cover"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-gray-300 text-xs font-medium text-gray-600">
-                      {reply.userName.charAt(0)}
+                      {(reply.user?.username ?? '').charAt(0)}
                     </div>
                   )}
                 </div>
                 <span className="text-sm font-medium text-gray-800">
-                  {reply.userName}
+                  {(reply.user?.username ?? '')}
                 </span>
                 <span className="text-xs text-gray-400">
-                  {formatTime(reply.createdAt)}
+                  {formatTime(reply.created_at)}
                 </span>
               </div>
               <p className="mt-1 text-sm leading-relaxed text-gray-600">
-                {reply.targetUserName && (
-                  <span className="text-orange-500">@{reply.targetUserName} </span>
+                {(reply.reply_to_user?.username ?? '') && (
+                  <span className="text-orange-500">@{(reply.reply_to_user?.username ?? '')} </span>
                 )}
                 {reply.content}
               </p>
               <button
                 type="button"
                 onClick={() => {
-                  setReplyTarget(reply.userName);
+                  setReplyTarget((reply.user?.username ?? ''));
                   setReplyBoxVisible(true);
                 }}
                 className="mt-1 text-xs text-gray-400 hover:text-orange-400 transition-colors duration-200"

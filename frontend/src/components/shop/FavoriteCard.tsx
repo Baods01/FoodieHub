@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star, Eye, MessageSquare, Heart, X } from 'lucide-react';
 import type { FavoriteItem } from '../../types/favorite';
+import { getCategoryName, getAreaName } from '../../types/shop';
 
 interface FavoriteCardProps {
   item: FavoriteItem;
@@ -37,9 +38,9 @@ export default function FavoriteCard({ item, onRemove }: FavoriteCardProps) {
     >
       {/* Left: cover image */}
       <div className="w-40 h-28 flex-shrink-0 bg-gray-100 overflow-hidden">
-        {item.coverImage && !imgError ? (
+        {item.cover_image && !imgError ? (
           <img
-            src={item.coverImage}
+            src={item.cover_image}
             alt={item.name}
             className="w-full h-full object-cover"
             onError={() => setImgError(true)}
@@ -56,32 +57,32 @@ export default function FavoriteCard({ item, onRemove }: FavoriteCardProps) {
           <h3 className="text-base font-bold text-gray-800 truncate">{item.name}</h3>
           <span className="flex items-center gap-1 text-sm text-gray-400 flex-shrink-0 ml-2">
             <Star size={14} className="text-yellow-400 fill-yellow-400" />
-            {item.rating}
+            {item.average_rating}
           </span>
         </div>
 
         {/* Tags row */}
         <div className="flex items-center gap-2 mt-1">
           <span className="px-2 py-0.5 text-xs rounded border border-orange-300 text-orange-600">
-            {item.category}
+            {getCategoryName(item.dict_data)}
           </span>
           <span className="px-2 py-0.5 text-xs rounded border border-gray-300 text-gray-500">
-            {item.area}
+            {getAreaName(item.dict_data)}
           </span>
         </div>
 
         {/* Stats row */}
         <div className="flex items-center gap-3 text-xs text-gray-400 mt-1.5">
           <span className="flex items-center gap-1">
-            <MessageSquare size={12} /> {item.reviewCount}
+            <MessageSquare size={12} /> {item.comment_count}
           </span>
           <span>·</span>
           <span className="flex items-center gap-1">
-            <Heart size={12} /> {item.favoriteCount}
+            <Heart size={12} /> {item.favorite_count}
           </span>
           <span>·</span>
           <span className="flex items-center gap-1">
-            <Eye size={12} /> {item.viewCount}
+            <Eye size={12} /> {item.view_count}
           </span>
         </div>
 

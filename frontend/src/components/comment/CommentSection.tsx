@@ -3,8 +3,8 @@ import type { Comment } from '../../types/comment';
 import {
   fetchComments,
   postComment,
-  toggleCommentLike,
-  replyComment,
+  toggleLike,
+  postReply,
 } from '../../api/comments';
 import { CommentInput } from './CommentInput';
 import { CommentCard } from './CommentCard';
@@ -66,11 +66,11 @@ export function CommentSection({
       return fetchComments(shopId, pageNum)
         .then((result) => {
           if (append) {
-            setComments((prev) => [...prev, ...result.data]);
+            setComments((prev) => [...prev, ...result.items]);
           } else {
-            setComments(result.data);
+            setComments(result.items);
           }
-          setHasMore(result.hasMore);
+          setHasMore((result.items?.length||0) < (result.total||0));
         })
         .catch(() => {
           setIsError(true);
@@ -118,21 +118,21 @@ export function CommentSection({
         c.id === commentId
           ? {
               ...c,
-              isLiked: !c.isLiked,
-              likeCount: c.isLiked ? c.likeCount - 1 : c.likeCount + 1,
+              has_liked: !c.has_liked,
+              like_count: c.has_liked ? c.like_count - 1 : c.like_count + 1,
             }
           : c,
       ),
     );
-    toggleCommentLike(commentId).catch(() => {
+    toggleLike("shop_comment", commentId).catch(() => {
       // Revert on failure
       setComments((prev) =>
         prev.map((c) =>
           c.id === commentId
             ? {
                 ...c,
-                isLiked: !c.isLiked,
-                likeCount: c.isLiked ? c.likeCount - 1 : c.likeCount + 1,
+                has_liked: !c.has_liked,
+                like_count: c.has_liked ? c.like_count - 1 : c.like_count + 1,
               }
             : c,
         ),
@@ -144,22 +144,16 @@ export function CommentSection({
   const handleReply = (
     commentId: number,
     content: string,
-    targetUserName?: string,
   ) => {
-    replyComment(commentId, content, targetUserName)
-      .then((newReply) => {
-        setComments((prev) =>
-          prev.map((c) =>
-            c.id === commentId
-              ? {
-                  ...c,
-                  replies: [...c.replies, newReply],
-                }
-              : c,
-          ),
-        );
-      })
-      .catch(() => {
+    postReply(commentId, content).then((newReply: any) => {
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? { ...c, replies: [...((c as any).replies || []), newReply], reply_count: c.reply_count + 1 }
+            : c,
+        ),
+      );
+    }).catch(() => {
         // Silently fail
       });
   };
@@ -218,9 +212,9 @@ export function CommentSection({
       {/* Comment list */}
       {!isLoading && !isError && comments.length > 0 && (
         <div className="divide-y divide-gray-100">
-          {/* Sort by likeCount desc, slice for preview if onViewAll */}
+          {/* Sort by like_count desc, slice for preview if onViewAll */}
           {[...comments]
-            .sort((a, b) => b.likeCount - a.likeCount)
+            .sort((a, b) => b.like_count - a.like_count)
             .slice(0, onViewAll ? maxCount : undefined)
             .map((comment) => (
               <CommentCard

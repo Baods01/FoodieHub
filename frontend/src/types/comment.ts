@@ -1,27 +1,22 @@
-/** 评论 */
+/** 评论 — 对齐后端 CommentData */
 export interface Comment {
   id: number;
-  shopId: number;
-  userId: number;
-  userName: string;
-  userAvatar: string | null;
+  shop_id: number;
+  user: { id: number; username: string; avatar: string | null } | null;
   content: string;
-  images: string[];
-  likeCount: number;
-  isLiked: boolean;
-  createdAt: string;
-  replies: CommentReply[];
-  replyCount: number;
+  like_count: number;
+  reply_count: number;
+  has_liked: boolean;
+  created_at: string;
 }
 
-/** 评论回复 */
+/** 评论回复 — 对齐后端 ReplyData */
 export interface CommentReply {
   id: number;
-  commentId: number;
-  userId: number;
-  userName: string;
-  userAvatar: string | null;
+  comment_id: number;
+  user: { id: number; username: string; avatar: string | null } | null;
   content: string;
-  targetUserName?: string;
-  createdAt: string;
+  reply_to_user: { id: number; username: string } | null;
+  like_count: number;
+  created_at: string;
 }

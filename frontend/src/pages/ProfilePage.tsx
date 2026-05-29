@@ -51,7 +51,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!userId) return;
     fetchActivities(userId)
-      .then(setActivities)
+      .then((result: any) => setActivities(result.items ?? []))
       .finally(() => setLoading(false));
   }, [userId]);
 

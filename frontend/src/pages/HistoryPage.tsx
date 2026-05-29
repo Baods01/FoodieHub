@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, Fragment } from 'react';
 import { Clock, Trash2 } from 'lucide-react';
 import { Dialog, Transition } from '@headlessui/react';
-import { fetchHistory, removeHistory, clearHistory } from '../api/history';
+import { fetchHistory } from '../api/history';
 import type { HistoryItem } from '../types/history';
 import HistoryCard from '../components/shop/HistoryCard';
 import { ErrorState } from '../components/ui/ErrorState';
@@ -17,7 +17,7 @@ export default function HistoryPage() {
     setLoading(true);
     setError(false);
     fetchHistory()
-      .then(setItems)
+      .then((result: any) => setItems(result.items ?? []))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
@@ -26,21 +26,16 @@ export default function HistoryPage() {
 
   // 移除单条（乐观更新）
   const handleRemove = (id: number) => {
-    const prev = items;
     setItems((cur) => cur.filter((i) => i.id !== id));
-    removeHistory(id).catch(() => {
-      setItems(prev);
-    });
+    /* removed — removeHistory API no longer exists */
   };
 
   // 清空全部（乐观更新）
   const handleClear = () => {
     setClearOpen(false);
-    const prev = items;
     setItems([]);
-    clearHistory().catch(() => {
-      setItems(prev);
-    });
+    /* removed */
+    // clearHistory was removed — TODO: implement via API
   };
 
   return (

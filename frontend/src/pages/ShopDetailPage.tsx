@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { fetchShopDetail, submitRating, toggleFavorite } from '../api/shops';
 import type { ShopDetail } from '../types/shop';
+import { getCategoryName, getAreaName } from '../types/shop';
 import { ShopCarousel } from '../components/shop/ShopCarousel';
 import { ShopInfoSection } from '../components/shop/ShopInfoSection';
 import { RatingSection } from '../components/shop/RatingSection';
@@ -39,7 +40,7 @@ export function ShopDetailPage() {
     setLoading(true);
     setError(false);
     fetchShopDetail(shopId)
-      .then(setShop)
+      .then((data: any) => { setShop(data); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,11 +53,9 @@ export function ShopDetailPage() {
 
   const handleToggleFavorite = () => {
     const prev = shop!;
-    const nextFav = !prev.isFavorited;
-    // Optimistic
-    setShop({ ...prev, isFavorited: nextFav, favoriteCount: prev.favoriteCount + (nextFav ? 1 : -1) });
+    const nextFav = !prev.is_favorited;
+    setShop({ ...prev, is_favorited: nextFav, favorite_count: prev.favorite_count + (nextFav ? 1 : -1) });
     toggleFavorite(shopId).catch(() => {
-      // Rollback
       setShop(prev);
     });
   };
@@ -65,50 +64,43 @@ export function ShopDetailPage() {
     setError(false);
     setLoading(true);
     fetchShopDetail(shopId)
-      .then(setShop)
+      .then((data: any) => { setShop(data); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   };
 
-  // Loading state
   if (loading) {
     return <ShopDetailSkeleton />;
   }
 
-  // Error state
   if (error) {
     return <ErrorState onRetry={handleRetry} />;
   }
 
-  // Not found state
   if (!shop) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <p className="text-gray-500 text-base">店铺不存在或已被封禁</p>
-        <Link
-          to="/"
-          className="mt-4 rounded-lg bg-orange-500 px-6 py-2 text-sm text-white transition-colors hover:bg-orange-600"
-        >
+        <Link to="/" className="mt-4 rounded-lg bg-orange-500 px-6 py-2 text-sm text-white transition-colors hover:bg-orange-600">
           返回首页
         </Link>
       </div>
     );
   }
 
-  // Main render
   return (
     <div className="max-w-4xl mx-auto space-y-5 pb-12">
-      <ShopCarousel images={shop.albumImages} />
+      <ShopCarousel images={shop.images.map(i => i.url)} />
 
       <SectionCard>
         <ShopInfoSection
           name={shop.name}
-          category={shop.category}
-          area={shop.area}
+          category={getCategoryName(shop.dict_data)}
+          area={getAreaName(shop.dict_data)}
           description={shop.description}
-          diningMethods={shop.diningMethods}
-          isFavorited={shop.isFavorited}
-          favoriteCount={shop.favoriteCount}
+          diningMethods={[]}
+          isFavorited={shop.is_favorited}
+          favoriteCount={shop.favorite_count}
           isLoggedIn={isLoggedIn}
           onToggleFavorite={handleToggleFavorite}
           onLoginPrompt={() => promptLogin('登录后即可收藏')}
@@ -117,13 +109,19 @@ export function ShopDetailPage() {
 
       <SectionCard>
         <RatingSection
-          rating={shop.rating}
-          totalRatings={shop.totalRatings}
-          distribution={shop.ratingDistribution}
-          userRating={shop.userRating}
+          rating={shop.average_rating}
+          totalRatings={shop.rating_distribution.total}
+          distribution={{
+            1: shop.rating_distribution.star_1,
+            2: shop.rating_distribution.star_2,
+            3: shop.rating_distribution.star_3,
+            4: shop.rating_distribution.star_4,
+            5: shop.rating_distribution.star_5,
+          }}
+          userRating={shop.user_rating?.score ?? null}
           onRate={(r) =>
             submitRating(shop.id, r).then(() => {
-              setShop((prev) => (prev ? { ...prev, userRating: r } : prev));
+              setShop((prev) => (prev ? { ...prev, user_rating: { score: r } } : prev));
             })
           }
           isLoggedIn={isLoggedIn}
@@ -153,7 +151,7 @@ export function ShopDetailPage() {
 
       <SectionCard>
         <MenuSection
-          items={shop.menu}
+          items={shop.menu_items}
           isLoggedIn={isLoggedIn}
           onUpload={() => {}}
           maxCount={6}
@@ -163,7 +161,7 @@ export function ShopDetailPage() {
 
       <SectionCard>
         <AlbumSection
-          images={shop.albumImages}
+          images={shop.images.map(i => i.url)}
           isLoggedIn={isLoggedIn}
           onUpload={() => {}}
           maxCount={6}
@@ -188,13 +186,13 @@ export function ShopDetailPage() {
       />
 
       <AllMenuModal
-        items={shop.menu}
+        items={shop.menu_items}
         isOpen={menuModalOpen}
         onClose={() => setMenuModalOpen(false)}
       />
 
       <AllAlbumModal
-        images={shop.albumImages}
+        images={shop.images.map(i => i.url)}
         isOpen={albumModalOpen}
         onClose={() => setAlbumModalOpen(false)}
       />

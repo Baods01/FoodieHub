@@ -46,7 +46,7 @@ export function QuestionCard({ question, onReply }: QuestionCardProps) {
   const handleSendReply = (answer: Answer) => {
     const text = replyText[answer.id]?.trim();
     if (!text) return;
-    onReply(question.id, text, answer.userName);
+    onReply(question.id, text, (answer.user?.username ?? ''));
     setReplyText((prev) => ({ ...prev, [answer.id]: '' }));
     setReplyVisible((prev) => ({ ...prev, [answer.id]: false }));
   };
@@ -59,18 +59,18 @@ export function QuestionCard({ question, onReply }: QuestionCardProps) {
         onClick={() => setExpanded((v) => !v)}
       >
         <div className="flex items-start gap-3">
-          <UserAvatar avatar={question.userAvatar} name={question.userName} />
+          <UserAvatar avatar={(question.user?.avatar ?? null)} name={(question.user?.username ?? '')} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-orange-600 shrink-0">Q:</span>
               <span className="text-sm font-medium truncate">{question.title}</span>
             </div>
             <div className="flex items-center gap-3 mt-1">
-              <span className="text-xs text-gray-500">{question.userName}</span>
-              <span className="text-xs text-gray-400">{timeAgo(question.createdAt)}</span>
+              <span className="text-xs text-gray-500">{(question.user?.username ?? '')}</span>
+              <span className="text-xs text-gray-400">{timeAgo(question.created_at)}</span>
               <span className="flex items-center gap-1 text-xs text-gray-400">
                 <MessageCircle size={12} />
-                {question.answerCount}
+                {(question as any).answerCount}
               </span>
             </div>
           </div>
@@ -97,17 +97,17 @@ export function QuestionCard({ question, onReply }: QuestionCardProps) {
 
           {/* Answers */}
           <div className="divide-y divide-gray-100">
-            {question.answers.length === 0 ? (
+            {(question as any).answers.length === 0 ? (
               <p className="px-4 py-6 text-center text-sm text-gray-400">还没有回答</p>
             ) : (
-              question.answers.map((answer) => (
+              (question as any).answers.map((answer: any) => (
                 <div key={answer.id} className="px-4 py-3">
                   <div className="flex items-start gap-3">
-                    <UserAvatar avatar={answer.userAvatar} name={answer.userName} />
+                    <UserAvatar avatar={(answer.user?.avatar ?? null)} name={(answer.user?.username ?? '')} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-medium text-gray-700">
-                          {answer.userName}
+                          {(answer.user?.username ?? '')}
                         </span>
                         {answer.targetUserName && (
                           <>
@@ -117,7 +117,7 @@ export function QuestionCard({ question, onReply }: QuestionCardProps) {
                             </span>
                           </>
                         )}
-                        <span className="text-xs text-gray-400">{timeAgo(answer.createdAt)}</span>
+                        <span className="text-xs text-gray-400">{timeAgo(answer.created_at)}</span>
                       </div>
                       <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">
                         {answer.content}
@@ -139,7 +139,7 @@ export function QuestionCard({ question, onReply }: QuestionCardProps) {
                             onChange={(e) =>
                               setReplyText((prev) => ({ ...prev, [answer.id]: e.target.value }))
                             }
-                            placeholder={`回复 @${answer.userName}`}
+                            placeholder={`回复 @${(answer.user?.username ?? '')}`}
                             className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
                           />
                           <button

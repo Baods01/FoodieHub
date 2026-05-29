@@ -1,26 +1,21 @@
-/** 问答 - 问题 */
+/** 问答 - 问题 — 对齐后端 QuestionData */
 export interface Question {
   id: number;
-  shopId: number;
-  userId: number;
-  userName: string;
-  userAvatar: string | null;
+  shop_id: number;
+  user: { id: number; username: string; avatar: string | null } | null;
   title: string;
-  content: string;
-  answerCount: number;
-  latestAnswerAt: string;
-  createdAt: string;
-  answers: Answer[];
+  content: string | null;
+  like_count: number;
+  created_at: string;
 }
 
-/** 问答 - 回答 */
+/** 问答 - 回答 — 对齐后端 AnswerData */
 export interface Answer {
   id: number;
-  questionId: number;
-  userId: number;
-  userName: string;
-  userAvatar: string | null;
+  question_id: number;
+  user: { id: number; username: string; avatar: string | null } | null;
   content: string;
-  targetUserName?: string;
-  createdAt: string;
+  reply_to_user: { id: number; username: string } | null;
+  like_count: number;
+  created_at: string;
 }

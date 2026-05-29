@@ -12,16 +12,21 @@ export interface DictType {
   target_table: string;
 }
 
-/** 获取所有字典类型 */
+/**
+ * 获取所有字典类型
+ */
 export async function fetchDictTypes(): Promise<DictType[]> {
   const res = await apiClient.get<ApiResponse<DictType[]>>('/dict/types');
-  return res.data.data;
+  return res.data.data ?? [];
 }
 
-/** 按类型名称查字典数据（如 "品类"、"区域"） */
+/**
+ * 按类型名称查询字典数据
+ * @param typeName 类型名称，如 "品类"、"区域"、"就餐方式"
+ */
 export async function fetchDictData(typeName: string): Promise<DictItem[]> {
   const res = await apiClient.get<ApiResponse<DictItem[]>>('/dict/data', {
     params: { type_name: typeName },
   });
-  return res.data.data;
+  return res.data.data ?? [];
 }

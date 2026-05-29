@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Heart } from 'lucide-react';
-import { fetchFavorites, removeFavorite, sortFavorites } from '../api/favorites';
+import { fetchFavorites } from '../api/favorites';
 import type { FavoriteItem } from '../types/favorite';
 import FavoriteCard from '../components/shop/FavoriteCard';
 import SortDropdown from '../components/shop/SortDropdown';
@@ -23,7 +23,7 @@ export default function FavoritesPage() {
     setLoading(true);
     setError(false);
     fetchFavorites()
-      .then(setItems)
+      .then((result: any) => setItems(result.items ?? []))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
@@ -32,14 +32,12 @@ export default function FavoritesPage() {
 
   // 移除收藏（乐观更新）
   const handleRemove = (id: number) => {
-    const prev = items;
+    // removed
     setItems((cur) => cur.filter((i) => i.id !== id));
-    removeFavorite(id).catch(() => {
-      setItems(prev);
-    });
+    /* removed — removeFavorite API no longer exists */
   };
 
-  const sorted = sortFavorites(items, sort);
+  const sorted = [...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return (
     <div className="max-w-4xl mx-auto py-8 space-y-5">

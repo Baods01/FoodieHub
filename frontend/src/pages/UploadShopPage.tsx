@@ -8,8 +8,8 @@ import { Header } from '../components/layout/Header';
 import { useAuthStore } from '../store/authStore';
 
 // 将前端的显示名称映射回字典 code
-const nameToCode = (items: DictItem[], name: string): string =>
-  items.find((i) => i.name === name)?.code ?? '';
+const nameToId = (items: DictItem[], name: string): number =>
+  (items.find((i) => i.name === name)?.id ?? 0) as number
 
 export default function UploadShopPage() {
   const navigate = useNavigate();
@@ -35,9 +35,9 @@ export default function UploadShopPage() {
 
   useEffect(() => {
     Promise.all([
-      fetchDictData('category'),
-      fetchDictData('location_type'),
-      fetchDictData('dining_method'),
+      fetchDictData('品类'),
+      fetchDictData('区域'),
+      fetchDictData('就餐方式'),
     ]).then(([c, a, d]) => {
       setCategories(c);
       setAreas(a);
@@ -80,14 +80,13 @@ export default function UploadShopPage() {
     setSubmitting(true);
 
     try {
-      const catCode = nameToCode(categories, category);
-      const areaCode = nameToCode(areas, area);
-      const diningCodes = dining.map((d) => nameToCode(diningMethods, d));
+      const catCode = nameToId(categories, category);
+      const areaCode = nameToId(areas, area);
+      const diningCodes: number[] = dining.map((d) => nameToId(diningMethods, d)).filter(Boolean) as unknown as number[];
 
       const result = await createShop({
         name: name.trim(),
-        dict_data_codes: [catCode, areaCode].filter(Boolean),
-        dining_methods: diningCodes,
+        dict_data_ids: [...[catCode, areaCode].filter(Boolean), ...diningCodes] as number[],
       });
 
       navigate(`/shop/${result.id}`);
@@ -162,7 +161,7 @@ export default function UploadShopPage() {
                     >
                       <option value="">选择品类</option>
                       {categories.map((item) => (
-                        <option key={item.code} value={item.name}>{item.name}</option>
+                        <option key={item.id} value={item.name}>{item.name}</option>
                       ))}
                     </select>
                     {errors.category && <p className="text-red-500 text-xs mt-1 animate-fade-in">{errors.category}</p>}
@@ -182,7 +181,7 @@ export default function UploadShopPage() {
                     >
                       <option value="">选择区域</option>
                       {areas.map((item) => (
-                        <option key={item.code} value={item.name}>{item.name}</option>
+                        <option key={item.id} value={item.name}>{item.name}</option>
                       ))}
                     </select>
                     {errors.area && <p className="text-red-500 text-xs mt-1 animate-fade-in">{errors.area}</p>}
@@ -199,7 +198,7 @@ export default function UploadShopPage() {
                       const selected = dining.includes(item.name);
                       return (
                         <button
-                          key={item.code}
+                          key={item.id}
                           type="button"
                           onClick={() => toggleDining(item.name)}
                           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-sm transition-all duration-200 ${

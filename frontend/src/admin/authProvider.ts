@@ -14,7 +14,7 @@ export const authProvider: AuthProvider = {
       const result = await loginApi({
         account: username,
         password,
-        loginMode: 'username',
+        type: 'username',
       });
 
       const { access_token, user } = result;

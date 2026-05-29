@@ -150,7 +150,4 @@ export async function fetchDictTypes(): Promise<{ id: number; name: string }[]> 
   return (res.data as any).data;
 }
 
-export async function fetchDictData(typeName: string): Promise<{ id: number; name: string }[]> {
-  const res = await apiClient.get('/dict/data', { params: { type_name: typeName } });
-  return (res.data as any).data;
-}
+

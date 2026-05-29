@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Star, Eye } from 'lucide-react';
 import type { ShopCardData } from '../../types/shop';
+import { getCategoryName, getAreaName } from '../../types/shop';
 
 interface ShopCardProps {
   shop: ShopCardData;
@@ -17,9 +18,9 @@ export function ShopCard({ shop, onClick }: ShopCardProps) {
     >
       {/* Cover image */}
       <div className="aspect-[16/9] rounded-t-lg overflow-hidden">
-        {shop.coverImage && !imgError ? (
+        {shop.cover_image && !imgError ? (
           <img
-            src={shop.coverImage}
+            src={shop.cover_image}
             alt={shop.name}
             className="w-full h-full object-cover"
             onError={() => setImgError(true)}
@@ -37,10 +38,10 @@ export function ShopCard({ shop, onClick }: ShopCardProps) {
         {/* Tags */}
         <div className="flex gap-2 mt-1">
           <span className="px-2 py-0.5 text-xs rounded border border-orange-300 text-orange-600">
-            {shop.category}
+            {getCategoryName(shop.dict_data)}
           </span>
           <span className="px-2 py-0.5 text-xs rounded border border-gray-300 text-gray-500">
-            {shop.area}
+            {getAreaName(shop.dict_data)}
           </span>
         </div>
 
@@ -48,11 +49,11 @@ export function ShopCard({ shop, onClick }: ShopCardProps) {
         <div className="flex justify-between mt-2 text-sm text-gray-400">
           <span className="flex items-center gap-1">
             <Star size={14} />
-            {shop.rating}
+            {shop.average_rating}
           </span>
           <span className="flex items-center gap-1">
             <Eye size={14} />
-            {shop.viewCount}
+            {shop.view_count}
           </span>
         </div>
       </div>

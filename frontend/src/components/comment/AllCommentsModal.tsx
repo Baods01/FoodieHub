@@ -2,7 +2,7 @@ import { Fragment, useState, useEffect, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { X } from 'lucide-react';
 import type { Comment } from '../../types/comment';
-import { fetchComments, postComment, toggleCommentLike, replyComment } from '../../api/comments';
+import { fetchComments, postComment, toggleLike, postReply } from '../../api/comments';
 import { CommentInput } from './CommentInput';
 import { CommentCard } from './CommentCard';
 
@@ -36,11 +36,11 @@ export default function AllCommentsModal({
       return fetchComments(shopId, pageNum)
         .then((result) => {
           if (append) {
-            setComments((prev) => [...prev, ...result.data]);
+            setComments((prev) => [...prev, ...result.items]);
           } else {
-            setComments(result.data);
+            setComments(result.items);
           }
-          setHasMore(result.hasMore);
+          setHasMore((result.items?.length||0) < (result.total||0));
         })
         .finally(() => {
           setIsLoading(false);
@@ -80,18 +80,18 @@ export default function AllCommentsModal({
     setComments((prev) =>
       prev.map((c) =>
         c.id === commentId
-          ? { ...c, isLiked: !c.isLiked, likeCount: c.isLiked ? c.likeCount - 1 : c.likeCount + 1 }
+          ? { ...c, has_liked: !c.has_liked, like_count: c.has_liked ? c.like_count - 1 : c.like_count + 1 }
           : c,
       ),
     );
     try {
-      await toggleCommentLike(commentId);
+      await toggleLike("shop_comment", commentId);
     } catch {
       // Rollback
       setComments((prev) =>
         prev.map((c) =>
           c.id === commentId
-            ? { ...c, isLiked: !c.isLiked, likeCount: c.isLiked ? c.likeCount - 1 : c.likeCount + 1 }
+            ? { ...c, has_liked: !c.has_liked, like_count: c.has_liked ? c.like_count - 1 : c.like_count + 1 }
             : c,
         ),
       );
@@ -104,11 +104,11 @@ export default function AllCommentsModal({
       return;
     }
     try {
-      const newReply = await replyComment(parentId, content);
+      const newReply = await postReply(parentId, content);
       setComments((prev) =>
         prev.map((c) =>
           c.id === parentId
-            ? { ...c, replies: [...(c.replies || []), newReply], replyCount: c.replyCount + 1 }
+            ? { ...c, replies: [...((c as any).replies || []), newReply], replyCount: c.reply_count + 1 }
             : c,
         ),
       );
@@ -209,7 +209,7 @@ export default function AllCommentsModal({
                 {!isLoading && comments.length > 0 && (
                   <div className="divide-y divide-gray-100">
                     {[...comments]
-                      .sort((a, b) => b.likeCount - a.likeCount)
+                      .sort((a, b) => b.like_count - a.like_count)
                       .map((comment) => (
                         <div key={comment.id} className="px-4">
                           <CommentCard

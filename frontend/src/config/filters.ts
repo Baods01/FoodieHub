@@ -7,7 +7,7 @@ export interface FilterConfig {
 
 /** 首页筛选栏配置 — 新增字典类型只需在此加一行 */
 export const filterConfigs: FilterConfig[] = [
-  { dictType: 'category',      label: '品类',   component: 'single-select' },
-  { dictType: 'location_type', label: '区域',   component: 'single-select' },
-  { dictType: 'dining_method', label: '就餐方式', component: 'multi-select'  },
+  { dictType: '品类',   label: '品类',   component: 'single-select' },
+  { dictType: '区域',   label: '区域',   component: 'single-select' },
+  { dictType: '就餐方式', label: '就餐方式', component: 'multi-select'  },
 ];

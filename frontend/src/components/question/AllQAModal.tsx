@@ -35,11 +35,11 @@ export default function AllQAModal({
       try {
         const result = await fetchQuestions(shopId, pageNum);
         if (pageNum === 1) {
-          setQuestions(result.data);
+          setQuestions(result.items);
         } else {
-          setQuestions((prev) => [...prev, ...result.data]);
+          setQuestions((prev) => [...prev, ...result.items]);
         }
-        setHasMore(result.hasMore);
+        setHasMore((result.items?.length||0) < (result.total||0));
       } catch {
         setError('加载失败，请重试');
       } finally {
@@ -83,8 +83,8 @@ export default function AllQAModal({
           q.id === questionId
             ? {
                 ...q,
-                answers: [...q.answers, newAnswer],
-                answerCount: q.answerCount + 1,
+                answers: [...(q as any).answers, newAnswer],
+                answerCount: (q as any).answerCount + 1,
                 latestAnswerAt: newAnswer.createdAt,
               }
             : q,
