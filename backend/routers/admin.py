@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from schemas.common import ResponseModel
 from schemas.users import UserResponse
 from services import (
-    UserService, ShopService, ComplaintService,
-    GovernanceService, MessageService, AnalyticsService,
+    UserService, ShopService, FeedbackService,
+    MessageService, AnalyticsService,
     LogService,
 )
 from utils.auth import require_admin
@@ -108,42 +108,40 @@ async def unban_shop(
     return ResponseModel.success(data={"shop_id": shop_id, "status": "active"})
 
 
-# ==================== 举报管理 ====================
+# ==================== 反馈工单管理（合并举报+勘误） ====================
 
-@router.get("/complaints", response_model=ResponseModel, summary="举报列表")
-async def list_complaints(
+@router.get("/feedbacks", response_model=ResponseModel, summary="反馈列表")
+async def list_feedbacks(
+    type: Optional[str] = Query(None, pattern="^(complaint|edit_request)$"),
     status: Optional[str] = Query(None, pattern="^(pending|approved|rejected)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: UserResponse = Depends(require_admin),
 ):
-    data = await ComplaintService.list(status=status, page=page, page_size=page_size)
-    return ResponseModel.success(data=data.model_dump())
+    data = await FeedbackService.list(type=type, status=status, page=page, page_size=page_size)
+    return ResponseModel.success(data=data)
 
 
-@router.post("/complaints/{complaint_id}/approve", response_model=ResponseModel, summary="通过举报")
-async def approve_complaint(
-    complaint_id: int,
-    action: str = Query(..., pattern="^(delete_comment|ban_shop|remove_image|dismiss)$"),
-    result_description: Optional[str] = Query(None),
+@router.post("/feedbacks/{feedback_id}/approve", response_model=ResponseModel, summary="通过反馈")
+async def approve_feedback(
+    feedback_id: int,
     current_user: UserResponse = Depends(require_admin),
 ):
-    result = await ComplaintService.approve(complaint_id, current_user.id, action, result_description)
+    result = await FeedbackService.approve(feedback_id, current_user.id)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="举报不存在")
-    return ResponseModel.success(data=result.model_dump())
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="反馈不存在")
+    return ResponseModel.success(data=result, message="已通过")
 
 
-@router.post("/complaints/{complaint_id}/reject", response_model=ResponseModel, summary="驳回举报")
-async def reject_complaint(
-    complaint_id: int,
-    result_description: Optional[str] = Query(None),
+@router.post("/feedbacks/{feedback_id}/reject", response_model=ResponseModel, summary="驳回反馈")
+async def reject_feedback(
+    feedback_id: int,
     current_user: UserResponse = Depends(require_admin),
 ):
-    result = await ComplaintService.reject(complaint_id, current_user.id, result_description)
+    result = await FeedbackService.reject(feedback_id, current_user.id)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="举报不存在")
-    return ResponseModel.success(data=result.model_dump())
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="反馈不存在")
+    return ResponseModel.success(data=result, message="已驳回")
 
 
 # ==================== 店铺合并 ====================
@@ -163,42 +161,6 @@ async def merge_shops(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-# ==================== 勘误管理 ====================
-
-@router.get("/edit-requests", response_model=ResponseModel, summary="勘误列表")
-async def list_edit_requests(
-    status: Optional[str] = Query(None, pattern="^(pending|approved|rejected)$"),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    current_user: UserResponse = Depends(require_admin),
-):
-    data = await GovernanceService.list_edit_requests(status=status, page=page, page_size=page_size)
-    return ResponseModel.success(data=data.model_dump())
-
-
-@router.post("/edit-requests/{request_id}/approve", response_model=ResponseModel, summary="通过勘误/重复反馈")
-async def approve_edit_request(
-    request_id: int,
-    main_shop_id: Optional[int] = Query(None, description="重复反馈专用：指定主店铺ID"),
-    current_user: UserResponse = Depends(require_admin),
-):
-    result = await GovernanceService.approve_edit_request(
-        request_id, current_user.id, main_shop_id=main_shop_id,
-    )
-    if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="申请不存在")
-    return ResponseModel.success(data=result.model_dump())
-
-
-@router.post("/edit-requests/{request_id}/reject", response_model=ResponseModel, summary="驳回勘误")
-async def reject_edit_request(
-    request_id: int,
-    current_user: UserResponse = Depends(require_admin),
-):
-    result = await GovernanceService.reject_edit_request(request_id, current_user.id)
-    if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="申请不存在")
-    return ResponseModel.success(data=result.model_dump())
 
 
 # ==================== 日志 ====================

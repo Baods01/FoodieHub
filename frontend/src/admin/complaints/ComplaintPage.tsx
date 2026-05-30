@@ -7,12 +7,6 @@ import {
   CardContent,
   Button,
   Chip,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
-  FormControl,
-  FormLabel,
-  TextField as MuiTextField,
   Divider,
   Skeleton,
   Snackbar,
@@ -25,100 +19,104 @@ import {
 import {
   Flag as FlagIcon,
   WarningAmber as WarningIcon,
+  EditNote as EditIcon,
 } from '@mui/icons-material';
 import apiClient from '../../api/client';
 
-interface ComplaintItem {
+interface FeedbackItem {
   id: number;
-  complainant_type: string;
-  complainant_id: number;
-  reason_code: string;
-  description: string;
+  type: string;           // complaint / edit_request
+  target_type: string;    // shop / comment / image
+  target_id: number;
+  reason_id: number;
+  description: string | null;
   status: string;
   created_at: string;
-  reporter_name?: string;
-  target_summary?: string;
 }
 
-interface ComplaintStats {
-  pending: number;
-  approved: number;
-  rejected: number;
-  total: number;
-}
-
-const actionOptions = [
-  { value: 'delete_comment', label: '删除评论', description: '删除被举报的评论内容' },
-  { value: 'ban_shop', label: '封禁店铺', description: '封禁被举报的店铺' },
-  { value: 'remove_image', label: '移除图片', description: '移除被举报的图片' },
-  { value: 'dismiss', label: '驳回举报', description: '举报不成立，不做处理' },
-];
-
-const typeLabels: Record<string, string> = {
-  comment: '评论举报',
-  shop: '店铺举报',
-  image: '图片举报',
+const typeLabels: Record<string, Record<string, string>> = {
+  complaint: {
+    shop: '店铺举报',
+    comment: '评论举报',
+    image: '图片举报',
+  },
+  edit_request: {
+    shop: '店铺勘误',
+    comment: '评论勘误',
+    image: '图片勘误',
+  },
 };
 
 const typeColors: Record<string, string> = {
-  comment: '#FF9800',
-  shop: '#F44336',
-  image: '#2196F3',
+  complaint: '#F44336',
+  edit_request: '#FF9800',
+};
+
+const statusLabels: Record<string, string> = {
+  pending: '待处理',
+  approved: '已通过',
+  rejected: '已驳回',
+};
+
+const statusColors: Record<string, string> = {
+  pending: '#FF9800',
+  approved: '#4CAF50',
+  rejected: '#9E9E9E',
 };
 
 export default function ComplaintPage() {
-  const [complaints, setComplaints] = useState<ComplaintItem[]>([]);
-  const [selected, setSelected] = useState<ComplaintItem | null>(null);
-  const [stats, setStats] = useState<ComplaintStats | null>(null);
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
+  const [selected, setSelected] = useState<FeedbackItem | null>(null);
   const [loading, setLoading] = useState(true);
-  const [action, setAction] = useState('dismiss');
-  const [resultDesc, setResultDesc] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
-    open: false, message: '', severity: 'success',
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string }>({
+    open: false, message: '',
   });
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [tab, setTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
 
-  const loadComplaints = () => {
+  const loadFeedbacks = () => {
     setLoading(true);
-    const endpoint = tab === 'pending'
-      ? `/complaints/admin/pending`
-      : `/complaints?status=${tab}`;
-    Promise.all([
-      apiClient.get(endpoint, { params: { page, page_size: pageSize } }),
-      apiClient.get('/complaints/admin/stats'),
-    ]).then(([listRes, statsRes]) => {
-      const listData = (listRes.data as any)?.data ?? listRes.data;
-      const items = Array.isArray(listData) ? listData : listData?.items ?? listData?.data ?? [];
-      setComplaints(items);
-      setStats((statsRes.data as any)?.data ?? statsRes.data);
-      setSelected(null);
-      setAction('dismiss');
-      setResultDesc('');
-    }).catch(() => {
-      // Silent - backend not ready
-    }).finally(() => setLoading(false));
+    const params: Record<string, any> = { page, page_size: pageSize, status: tab };
+    if (typeFilter) params.type = typeFilter;
+    apiClient.get('/admin/feedbacks', { params })
+      .then((res) => {
+        const data = (res.data as any)?.data ?? res.data;
+        setFeedbacks(data?.items ?? []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadComplaints(); }, [tab, page]);
+  useEffect(() => { loadFeedbacks(); }, [tab, typeFilter, page]);
 
-  const handleSubmit = async () => {
+  const handleApprove = async () => {
     if (!selected) return;
     setSubmitting(true);
     try {
-      await apiClient.post(`/complaints/${selected.id}/handle`, {
-        action,
-        result_description: resultDesc.trim() || undefined,
-      });
-      setSnackbar({ open: true, message: '处理成功', severity: 'success' });
+      await apiClient.post(`/admin/feedbacks/${selected.id}/approve`);
+      setSnackbar({ open: true, message: '已通过' });
       setSelected(null);
-      setAction('dismiss');
-      setResultDesc('');
-      loadComplaints();
+      loadFeedbacks();
     } catch {
-      setSnackbar({ open: true, message: '处理失败，请重试', severity: 'error' });
+      setSnackbar({ open: true, message: '操作失败' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!selected) return;
+    setSubmitting(true);
+    try {
+      await apiClient.post(`/admin/feedbacks/${selected.id}/reject`);
+      setSnackbar({ open: true, message: '已驳回' });
+      setSelected(null);
+      loadFeedbacks();
+    } catch {
+      setSnackbar({ open: true, message: '操作失败' });
     } finally {
       setSubmitting(false);
     }
@@ -126,62 +124,74 @@ export default function ComplaintPage() {
 
   return (
     <Box sx={{ p: 2 }}>
-      {/* Title */}
-      <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>举报处理</Typography>
+      <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>反馈处理</Typography>
 
-      {/* Stats tabs */}
-      {stats && (
-        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-          {(['pending', 'approved', 'rejected'] as const).map((key) => (
-            <Chip
-              key={key}
-              label={`${key === 'pending' ? '待处理' : key === 'approved' ? '已处理' : '已驳回'} (${stats[key]})`}
-              color={tab === key ? 'primary' : 'default'}
-              onClick={() => { setTab(key); setPage(1); }}
-              clickable
-              variant={tab === key ? 'filled' : 'outlined'}
-              sx={{ fontWeight: 500 }}
-            />
-          ))}
-        </Box>
-      )}
+      {/* Filters */}
+      <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Status tabs */}
+        {(['pending', 'approved', 'rejected'] as const).map((key) => (
+          <Chip
+            key={key}
+            label={statusLabels[key]}
+            color={tab === key ? 'primary' : 'default'}
+            onClick={() => { setTab(key); setPage(1); }}
+            clickable
+            variant={tab === key ? 'filled' : 'outlined'}
+            sx={{ fontWeight: 500 }}
+          />
+        ))}
+        <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+        {/* Type filter */}
+        <Chip label="全部" onClick={() => setTypeFilter(null)} clickable variant={!typeFilter ? 'filled' : 'outlined'} sx={{ fontWeight: 500 }} />
+        <Chip label="举报" icon={<FlagIcon />} onClick={() => setTypeFilter('complaint')} clickable variant={typeFilter === 'complaint' ? 'filled' : 'outlined'} sx={{ fontWeight: 500 }} />
+        <Chip label="勘误" icon={<EditIcon />} onClick={() => setTypeFilter('edit_request')} clickable variant={typeFilter === 'edit_request' ? 'filled' : 'outlined'} sx={{ fontWeight: 500 }} />
+      </Box>
 
       <Grid container spacing={2}>
-        {/* Left: Complaint list */}
+        {/* Left: List */}
         <Grid size={{ xs: 12, md: 5 }}>
           <Card variant="outlined" sx={{ borderRadius: 2, maxHeight: '70vh', overflow: 'auto' }}>
             {loading ? (
               <Box sx={{ p: 2 }}>
                 {[1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={72} sx={{ mb: 1 }} />)}
               </Box>
-            ) : complaints.length === 0 ? (
-              <Box sx={{ p: 4, textAlign: 'center', color: '#888' }}>暂无{tab === 'pending' ? '待处理' : ''}举报</Box>
+            ) : feedbacks.length === 0 ? (
+              <Box sx={{ p: 4, textAlign: 'center', color: '#888' }}>暂无反馈</Box>
             ) : (
               <List disablePadding>
-                {complaints.map((c) => (
+                {feedbacks.map((fb) => (
                   <ListItemButton
-                    key={c.id}
-                    selected={selected?.id === c.id}
-                    onClick={() => { setSelected(c); setAction('dismiss'); setResultDesc(''); }}
+                    key={fb.id}
+                    selected={selected?.id === fb.id}
+                    onClick={() => setSelected(fb)}
                     sx={{ borderBottom: '1px solid #f0f0f0' }}
                   >
                     <ListItemIcon sx={{ minWidth: 36 }}>
-                      <WarningIcon sx={{ color: typeColors[c.complainant_type] || '#888', fontSize: 20 }} />
+                      {fb.type === 'complaint' ? (
+                        <WarningIcon sx={{ color: typeColors.complaint, fontSize: 20 }} />
+                      ) : (
+                        <EditIcon sx={{ color: typeColors.edit_request, fontSize: 20 }} />
+                      )}
                     </ListItemIcon>
                     <ListItemText
                       primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                           <Chip
-                            label={typeLabels[c.complainant_type] || c.complainant_type}
+                            label={typeLabels[fb.type]?.[fb.target_type] || fb.target_type}
                             size="small"
-                            sx={{ backgroundColor: `${typeColors[c.complainant_type] || '#888'}20`, color: typeColors[c.complainant_type] || '#888', fontWeight: 500, fontSize: 11 }}
+                            sx={{ backgroundColor: `${typeColors[fb.type]}20`, color: typeColors[fb.type], fontWeight: 500, fontSize: 11 }}
+                          />
+                          <Chip
+                            label={statusLabels[fb.status]}
+                            size="small"
+                            sx={{ backgroundColor: `${statusColors[fb.status]}20`, color: statusColors[fb.status], fontWeight: 500, fontSize: 11 }}
                           />
                           <Typography variant="caption" color="text.secondary">
-                            {new Date(c.created_at).toLocaleDateString()}
+                            {new Date(fb.created_at).toLocaleDateString()}
                           </Typography>
                         </Box>
                       }
-                      secondary={c.target_summary || `#${c.complainant_id}`}
+                      secondary={fb.description || `#${fb.target_id}`}
                       secondaryTypographyProps={{ noWrap: true }}
                     />
                   </ListItemButton>
@@ -189,100 +199,88 @@ export default function ComplaintPage() {
               </List>
             )}
           </Card>
-          {complaints.length > 0 && (
+          {feedbacks.length > 0 && (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-              <Pagination count={Math.ceil((stats?.pending ?? 10) / pageSize)} page={page} onChange={(_, p) => setPage(p)} size="small" />
+              <Pagination count={Math.ceil(feedbacks.length / pageSize)} page={page} onChange={(_, p) => setPage(p)} size="small" />
             </Box>
           )}
         </Grid>
 
-        {/* Right: Detail + Action */}
+        {/* Right: Detail + Actions */}
         <Grid size={{ xs: 12, md: 7 }}>
           {!selected ? (
             <Card variant="outlined" sx={{ borderRadius: 2, p: 4, textAlign: 'center', color: '#888' }}>
-              请在左侧选择一个举报进行处理
+              请在左侧选择一个反馈进行处理
             </Card>
           ) : (
             <Card variant="outlined" sx={{ borderRadius: 2 }}>
               <CardContent sx={{ p: 3 }}>
-                {/* Header */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                  <FlagIcon sx={{ color: typeColors[selected.complainant_type] || '#888' }} />
+                  {selected.type === 'complaint' ? (
+                    <FlagIcon sx={{ color: typeColors.complaint }} />
+                  ) : (
+                    <EditIcon sx={{ color: typeColors.edit_request }} />
+                  )}
                   <Typography variant="subtitle1" fontWeight={600}>
-                    {(typeLabels[selected.complainant_type] || selected.complainant_type)} #{selected.id}
+                    {typeLabels[selected.type]?.[selected.target_type] || selected.target_type} #{selected.id}
                   </Typography>
                 </Box>
 
-                {/* Detail fields */}
                 <Box sx={{ display: 'grid', gap: 2, mb: 2 }}>
                   <Box>
-                    <Typography variant="caption" color="text.secondary">被举报对象</Typography>
-                    <Typography variant="body2">{selected.target_summary || `ID: ${selected.complainant_id}`}</Typography>
+                    <Typography variant="caption" color="text.secondary">反馈类型</Typography>
+                    <Typography variant="body2">{selected.type === 'complaint' ? '举报' : '勘误'}</Typography>
                   </Box>
                   <Box>
-                    <Typography variant="caption" color="text.secondary">举报原因</Typography>
-                    <Typography variant="body2">{selected.reason_code}</Typography>
+                    <Typography variant="caption" color="text.secondary">反馈对象</Typography>
+                    <Typography variant="body2">{selected.target_type} #{selected.target_id}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">原因 ID</Typography>
+                    <Typography variant="body2">{selected.reason_id}</Typography>
                   </Box>
                   {selected.description && (
                     <Box>
-                      <Typography variant="caption" color="text.secondary">举报描述</Typography>
+                      <Typography variant="caption" color="text.secondary">补充说明</Typography>
                       <Box sx={{ p: 1.5, bgcolor: '#f9f9f9', borderRadius: 1, mt: 0.5 }}>
                         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{selected.description}</Typography>
                       </Box>
                     </Box>
                   )}
+
+                  {/* Status indicator */}
+                  <Chip
+                    label={statusLabels[selected.status]}
+                    size="small"
+                    sx={{ backgroundColor: `${statusColors[selected.status]}20`, color: statusColors[selected.status], fontWeight: 500, alignSelf: 'flex-start' }}
+                  />
                 </Box>
 
-                <Divider sx={{ my: 2 }} />
-
-                {/* Action form */}
-                <FormControl>
-                  <FormLabel sx={{ fontWeight: 600, fontSize: 14, mb: 1 }}>处理动作</FormLabel>
-                  <RadioGroup value={action} onChange={(e) => setAction(e.target.value)}>
-                    {actionOptions.map((opt) => (
-                      <FormControlLabel
-                        key={opt.value}
-                        value={opt.value}
-                        control={<Radio size="small" />}
-                        label={
-                          <Box>
-                            <Typography variant="body2" fontWeight={500}>{opt.label}</Typography>
-                            <Typography variant="caption" color="text.secondary">{opt.description}</Typography>
-                          </Box>
-                        }
-                        sx={{ mb: 0.5 }}
-                      />
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-
-                <MuiTextField
-                  label="处理说明（可选）"
-                  value={resultDesc}
-                  onChange={(e) => setResultDesc(e.target.value)}
-                  fullWidth
-                  multiline
-                  rows={2}
-                  size="small"
-                  sx={{ mt: 2, mb: 2 }}
-                />
-
-                <Button
-                  variant="contained"
-                  onClick={handleSubmit}
-                  disabled={submitting}
-                  fullWidth
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    backgroundColor: '#FF7E3A',
-                    '&:hover': { backgroundColor: '#e56e30' },
-                    '&.Mui-disabled': { backgroundColor: '#ccc' },
-                  }}
-                >
-                  {submitting ? '处理中...' : '确认处理'}
-                </Button>
+                {selected.status === 'pending' && (
+                  <>
+                    <Divider sx={{ my: 2 }} />
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <Button
+                        variant="contained"
+                        onClick={handleApprove}
+                        disabled={submitting}
+                        fullWidth
+                        sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, backgroundColor: '#4CAF50', '&:hover': { backgroundColor: '#388E3C' } }}
+                      >
+                        通过
+                      </Button>
+                      <Button
+                        variant="contained"
+                        onClick={handleReject}
+                        disabled={submitting}
+                        fullWidth
+                        sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, backgroundColor: '#F44336', '&:hover': { backgroundColor: '#D32F2F' } }}
+                      >
+                        驳回
+                      </Button>
+                    </Box>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}

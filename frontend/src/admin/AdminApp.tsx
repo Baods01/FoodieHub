@@ -19,7 +19,6 @@ import LogList from './logs/LogList';
 
 // 已实现组件（Phase 7-4）
 import ComplaintPage from './complaints/ComplaintPage';
-import EditRequestPage from './editRequests/EditRequestPage';
 
 /**
  * AdminGuard — 管理员路由守卫
@@ -58,12 +57,11 @@ export default function AdminApp() {
       <Resource name="users" list={UserList} show={UserShow} options={{ label: '用户管理' }} />
       <Resource name="logs" list={LogList} options={{ label: '操作日志' }} />
 
-      {/* Custom Routes for non-CRUD pages */}
+      {/* Custom Routes */}
       <CustomRoutes>
         <Route path="/shops" element={<ShopList />} />
         <Route path="/shops/:id" element={<ShopEdit />} />
-        <Route path="/complaints" element={<ComplaintPage />} />
-        <Route path="/edit-requests" element={<EditRequestPage />} />
+        <Route path="/feedbacks" element={<ComplaintPage />} />
       </CustomRoutes>
     </Admin>
   );

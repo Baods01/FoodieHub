@@ -19,7 +19,6 @@ from .messages import (
 )
 from .activities import ActivityResponse, ActivityListResponse
 from .images import ImageUploadRequest, ImageResponse
-from .governance import EditRequestCreate, EditRequestResponse, EditRequestListResponse
 from .logs import LogResponse, LogListResponse
 from .interaction import (
     CommentCreate, CommentResponse, CommentListResponse,
@@ -28,10 +27,7 @@ from .interaction import (
     AnswerCreate, AnswerResponse, AnswerListResponse,
     LikeToggleRequest, LikeToggleResponse, InteractionUserBrief,
 )
-from .complaints import (
-    ComplaintCreateRequest, ComplaintHandleRequest,
-    ComplaintResponse, ComplaintStatsResponse,
-)
+from .feedback import FeedbackCreateRequest, FeedbackResponse, FeedbackListResponse
 
 __all__ = [
     # Common
@@ -52,8 +48,6 @@ __all__ = [
     'MessageResponse', 'MessageUserResponse', 'UnreadCountResponse', 'MessageTypesResponse',
     # Activities
     'ActivityResponse', 'ActivityListResponse',
-    # Governance
-    'EditRequestCreate', 'EditRequestResponse', 'EditRequestListResponse',
     # Logs
     'LogResponse', 'LogListResponse',
     # Interaction
@@ -64,6 +58,4 @@ __all__ = [
     'LikeToggleRequest', 'LikeToggleResponse', 'InteractionUserBrief',
     # Images
     'ImageUploadRequest', 'ImageResponse',
-    # Complaints
-    'ComplaintCreateRequest', 'ComplaintHandleRequest', 'ComplaintResponse', 'ComplaintStatsResponse',
 ]

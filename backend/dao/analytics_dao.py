@@ -10,7 +10,7 @@ analytics_dao.py — 统计分析数据访问层
 
 from typing import Optional, List
 from models.shops import Shops
-from models.governance import Complaints, ShopEditRequests
+from models.governance import Feedback
 
 
 class AnalyticsDAO:
@@ -29,8 +29,8 @@ class AnalyticsDAO:
                 (SELECT COUNT(*) FROM users    WHERE is_active=1)                   AS total_users,
                 (SELECT COUNT(*) FROM shop_comments WHERE is_active=1)             AS total_comments,
                 (SELECT COUNT(*) FROM shop_questions WHERE is_active=1)            AS total_questions,
-                (SELECT COUNT(*) FROM complaints WHERE status='pending' AND is_active=1) AS pending_complaints,
-                (SELECT COUNT(*) FROM shop_edit_requests WHERE status='pending' AND is_active=1) AS pending_edits,
+                (SELECT COUNT(*) FROM feedbacks WHERE type = "complaint" AND status='pending' AND is_active=1) AS pending_complaints,
+                (SELECT COUNT(*) FROM feedbacks WHERE type = "edit_request" AND status='pending' AND is_active=1) AS pending_edits,
                 (SELECT ROUND(AVG(average_rating), 1) FROM shops WHERE is_active=1 AND is_banned=0 AND average_rating > 0) AS avg_rating
         """
         from tortoise import Tortoise
@@ -42,7 +42,7 @@ class AnalyticsDAO:
                 (SELECT COUNT(*) FROM shop_comments      WHERE is_active = 1)                    AS total_comments,
                 (SELECT COUNT(*) FROM shop_questions     WHERE is_active = 1)                    AS total_questions,
                 (SELECT COUNT(*) FROM complaints         WHERE status = 'pending' AND is_active = 1) AS pending_complaints,
-                (SELECT COUNT(*) FROM shop_edit_requests WHERE status = 'pending' AND is_active = 1) AS pending_edits,
+                (SELECT COUNT(*) FROM feedbacks WHERE type = "edit_request" AND status = 'pending' AND is_active = 1) AS pending_edits,
                 (SELECT ROUND(AVG(average_rating), 1)
                  FROM shops
                  WHERE is_active = 1 AND is_banned = 0 AND average_rating > 0)                  AS avg_rating

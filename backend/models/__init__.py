@@ -27,8 +27,8 @@ from .interaction import ShopComments, CommentReplies, ShopQuestions, QuestionAn
 # 7. 浏览历史
 from .history import ViewHistory
 
-# 8. 治理模块（举报 + 勘误）
-from .governance import Complaints, ShopEditRequests
+# 8. 治理模块
+from .governance import Feedback
 
 # 8. 日志模块
 from .logs import OperationLog
@@ -48,7 +48,7 @@ __all__ = [
     # 浏览历史
     'ViewHistory',
     # 治理
-    'Complaints', 'ShopEditRequests',
+    'Feedback',
     # 日志
     'OperationLog',
 ]

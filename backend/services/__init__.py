@@ -4,8 +4,7 @@ from .dict_service import DictService
 from .log_service import LogService
 from .favorite_service import FavoriteService
 from .message_service import MessageService
-from .complaint_service import ComplaintService
-from .governance_service import GovernanceService
+from .feedback_service import FeedbackService
 from .user_service import UserService
 from .comment_service import CommentService
 from .question_service import QuestionService
@@ -19,8 +18,7 @@ __all__ = [
     "LogService",
     "FavoriteService",
     "MessageService",
-    "ComplaintService",
-    "GovernanceService",
+    "FeedbackService",
     "UserService",
     "CommentService",
     "QuestionService",

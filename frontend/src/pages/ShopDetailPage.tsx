@@ -12,6 +12,7 @@ import { CommentSection } from '../components/comment/CommentSection';
 import { QASection } from '../components/question/QASection';
 import { MenuSection } from '../components/menu/MenuSection';
 import MenuUploadModal from '../components/menu/MenuUploadModal';
+import FeedbackModal from '../components/shop/FeedbackModal';
 import { AlbumSection } from '../components/album/AlbumSection';
 import { ShopDetailSkeleton } from '../components/shop/ShopDetailSkeleton';
 import { LoginPromptModal } from '../components/shop/LoginPromptModal';
@@ -35,6 +36,7 @@ export function ShopDetailPage() {
   const [menuModalOpen, setMenuModalOpen] = useState(false);
   const [albumModalOpen, setAlbumModalOpen] = useState(false);
   const [menuUploadOpen, setMenuUploadOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const shopId = Number(id);
 
@@ -113,6 +115,7 @@ export function ShopDetailPage() {
           isLoggedIn={isLoggedIn}
           onToggleFavorite={handleToggleFavorite}
           onLoginPrompt={() => promptLogin('登录后即可收藏')}
+          onFeedback={() => setFeedbackOpen(true)}
         />
       </SectionCard>
 
@@ -212,6 +215,12 @@ export function ShopDetailPage() {
         isOpen={menuUploadOpen}
         onClose={() => setMenuUploadOpen(false)}
         onSuccess={handleRefresh}
+      />
+
+      <FeedbackModal
+        shopId={shop.id}
+        isOpen={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
       />
 
       <LoginPromptModal

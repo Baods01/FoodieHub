@@ -13,7 +13,6 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import StoreIcon from '@mui/icons-material/Storefront';
 import FlagIcon from '@mui/icons-material/Flag';
-import EditNoteIcon from '@mui/icons-material/EditNote';
 import HistoryIcon from '@mui/icons-material/History';
 
 interface MenuItemConfig {
@@ -26,8 +25,7 @@ const menuItems: MenuItemConfig[] = [
   { to: '/admin', primaryText: '仪表盘', icon: <DashboardIcon /> },
   { to: '/admin/users', primaryText: '用户管理', icon: <PeopleIcon /> },
   { to: '/admin/shops', primaryText: '店铺管理', icon: <StoreIcon /> },
-  { to: '/admin/complaints', primaryText: '举报处理', icon: <FlagIcon /> },
-  { to: '/admin/edit-requests', primaryText: '店铺勘误审核', icon: <EditNoteIcon /> },
+  { to: '/admin/feedbacks', primaryText: '反馈管理', icon: <FlagIcon /> },
   { to: '/admin/logs', primaryText: '操作日志', icon: <HistoryIcon /> },
 ];
 

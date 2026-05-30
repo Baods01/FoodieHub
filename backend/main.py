@@ -19,13 +19,14 @@ from routers.dict import router as dict_router
 from routers.activities import router as activities_router
 from routers.history import router as history_router
 from routers.images import router as images_router
+from routers.complaints import router as complaints_router
 from models import (
     Users, Activities, Favorites, Messages,
     Shops, Menu, Ratings,
     DictTypes, DictData, DictRel,
     Images,
     ShopComments, CommentReplies, ShopQuestions, QuestionAnswers, ContentLikes,
-    Complaints, ShopEditRequests,
+    Feedback,
     OperationLog,
 )
 
@@ -77,6 +78,7 @@ app.include_router(dict_router)
 app.include_router(activities_router)
 app.include_router(history_router)
 app.include_router(images_router)
+app.include_router(complaints_router)
 
 # 配置静态文件服务
 from pathlib import Path

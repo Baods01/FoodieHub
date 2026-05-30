@@ -11,6 +11,7 @@ interface ShopInfoSectionProps {
   isLoggedIn: boolean;
   onToggleFavorite: () => void;
   onLoginPrompt: () => void;
+  onFeedback?: () => void;
 }
 
 export function ShopInfoSection({
@@ -24,6 +25,7 @@ export function ShopInfoSection({
   isLoggedIn,
   onToggleFavorite,
   onLoginPrompt,
+  onFeedback,
 }: ShopInfoSectionProps) {
   const handleFavorite = () => {
     if (!isLoggedIn) {
@@ -82,6 +84,10 @@ export function ShopInfoSection({
         {/* Feedback button */}
         <button
           type="button"
+          onClick={() => {
+            if (!isLoggedIn) { onLoginPrompt(); return; }
+            onFeedback?.();
+          }}
           className="text-base text-gray-400 hover:text-orange-500 transition-colors"
         >
           反馈

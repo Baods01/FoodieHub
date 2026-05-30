@@ -1,80 +1,66 @@
 """
-governance.py — 平台治理相关模型
+governance.py — 平台治理模型
 
-包含举报、举报处理、勘误/重复反馈等"用户提交 → 管理员审核"流程的数据模型。
-Bans 表已移除（封禁状态通过 Users.is_banned / Shops.is_banned 表达，
-封禁/解封历史通过 OperationLog 记录）。
+统一 Feedback 表，合并举报与勘误。
 """
 
 from tortoise import fields
 from .base import BaseModel
 
 
-class Complaints(BaseModel):
+class Feedback(BaseModel):
     """
-    Complaints 表 — 举报投诉表
+    Feedback 表 — 统一反馈工单
 
-    与 ShopEditRequests 保持一致的治理工单设计：
-    - 用户提交 → admin 审核 → 结果写入本表
-    - 处理人（admin）、处理动作（action）、处理备注（result_description）直接内联在举报记录上
-    - 不再使用独立的 ComplaintHandlers 表（课程设计场景无需多步骤处理记录）
+    合并旧 Complaints 与 ShopEditRequests 两张表。
+    type 字段区分举报 (complaint) 与勘误 (edit_request)，
+    审核流程统一：提交 → 管理员处理 → 通过/驳回。
     """
-    id = fields.IntField(pk=True, description="举报唯一标识")
-    user = fields.ForeignKeyField("models.Users", related_name="complaints", on_delete=fields.CASCADE, description="举报发起用户")
-    complainant_type = fields.CharField(max_length=32, null=False, description="被举报内容类型：comment、shop、image")
-    complainant_id = fields.IntField(null=False, description="被举报内容ID")
-    reason_code = fields.CharField(max_length=50, null=False, description="举报原因编码，来自字典数据")
-    description = fields.TextField(null=True, description="补充说明")
+    id = fields.IntField(pk=True, description="反馈唯一标识")
+
+    # 提交人
+    user = fields.ForeignKeyField(
+        "models.Users", related_name="feedbacks",
+        on_delete=fields.CASCADE, description="提交用户",
+    )
+
+    # 反馈类型
+    type = fields.CharField(
+        max_length=20, null=False,
+        description="complaint=举报 | edit_request=勘误",
+    )
+
+    # 反馈对象（多态）
+    target_type = fields.CharField(
+        max_length=20, null=False,
+        description="反馈对象类型：shop / comment / image",
+    )
+    target_id = fields.IntField(null=False, description="被反馈对象ID")
+
+    # 原因（FK → DictData，前端可选值由 /dict/data?type_name=反馈原因 提供）
+    reason = fields.ForeignKeyField(
+        "models.DictData", null=False, description="反馈原因",
+    )
+
+    # 用户补充说明
+    description = fields.TextField(null=True, description="用户填写的补充描述")
+
+    # 审核
     status = fields.CharField(
         max_length=20, default="pending", null=False,
-        description="处理状态：pending=待处理、approved=已通过、rejected=已驳回"
+        description="pending=待处理 | approved=已采纳 | rejected=已驳回",
     )
     admin = fields.ForeignKeyField(
-        "models.Users", related_name="handled_complaints", null=True,
-        on_delete=fields.SET_NULL, description="处理管理员"
-    )
-    action = fields.CharField(max_length=50, null=True, description="处理动作：delete_comment、ban_shop、remove_image、dismiss 等")
-    result_description = fields.TextField(null=True, description="处理结果描述")
-
-    class Meta:
-        table = "complaints"
-        indexes = [
-            ("complainant_type", "complainant_id"),
-            ("status", "created_at"),
-        ]
-
-    def __str__(self):
-        return f"Complaint {self.id}: {self.complainant_type} {self.complainant_id}"
-
-
-class ShopEditRequests(BaseModel):
-    """
-    ShopEditRequests 表 — 店铺编辑（勘误/重复）反馈表
-
-    proposed_data 结构：
-    - 勘误类型 (type=correction):
-        {"type": "correction", "changes": {"name": "...", "area": {"dict_data_id": 9}, "category": {"dict_data_id": 1}}, "reason": "..."}
-    - 重复类型 (type=merge):
-        {"type": "merge", "candidate_shop_ids": [1, 2, 3], "reason": "..."}
-    """
-    id = fields.IntField(pk=True, description="申请唯一标识")
-    shop = fields.ForeignKeyField("models.Shops", related_name="edit_requests", on_delete=fields.CASCADE, description="待修改的店铺")
-    user = fields.ForeignKeyField("models.Users", related_name="shop_edit_requests", on_delete=fields.CASCADE, description="申请用户")
-    proposed_data = fields.JSONField(null=False, description="提议修改的字段及新值，JSON格式")
-    status = fields.CharField(
-        max_length=20, default="pending", null=False,
-        description="状态：pending=待处理、approved=已通过、rejected=已驳回"
-    )
-    admin = fields.ForeignKeyField(
-        "models.Users", related_name="handled_edit_requests", null=True,
-        on_delete=fields.SET_NULL, description="审核管理员"
+        "models.Users", null=True, related_name="handled_feedbacks",
+        on_delete=fields.SET_NULL, description="处理管理员",
     )
 
     class Meta:
-        table = "shop_edit_requests"
+        table = "feedbacks"
         indexes = [
             ("status", "created_at"),
+            ("target_type", "target_id"),
         ]
 
     def __str__(self):
-        return f"ShopEditRequest {self.id}: Shop {self.shop_id}, Status {self.status}"
+        return f"Feedback {self.id}: {self.type} on {self.target_type} {self.target_id} by User {self.user_id}"

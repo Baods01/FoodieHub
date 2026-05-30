@@ -13,8 +13,7 @@ from .message_dao import MessageDAO
 from .comment_dao import CommentDAO
 from .question_dao import QuestionDAO
 from .activity_dao import ActivityDAO
-from .complaint_dao import ComplaintDAO
-from .edit_request_dao import EditRequestDAO
+from .feedback_dao import FeedbackDAO
 from .analytics_dao import AnalyticsDAO
 
 __all__ = [
