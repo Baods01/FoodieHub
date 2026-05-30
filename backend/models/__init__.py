@@ -24,7 +24,10 @@ from .images import Images
 # 6. 互动模块（评论 + 问答）
 from .interaction import ShopComments, CommentReplies, ShopQuestions, QuestionAnswers, ContentLikes
 
-# 7. 治理模块（举报 + 勘误）
+# 7. 浏览历史
+from .history import ViewHistory
+
+# 8. 治理模块（举报 + 勘误）
 from .governance import Complaints, ShopEditRequests
 
 # 8. 日志模块
@@ -42,6 +45,8 @@ __all__ = [
     'Images',
     # 互动
     'ShopComments', 'CommentReplies', 'ShopQuestions', 'QuestionAnswers', 'ContentLikes',
+    # 浏览历史
+    'ViewHistory',
     # 治理
     'Complaints', 'ShopEditRequests',
     # 日志

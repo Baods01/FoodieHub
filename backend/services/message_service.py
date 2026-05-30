@@ -18,9 +18,27 @@ class MessageService:
             user_id, unread_only=unread_only, type=type,
             page=page, page_size=page_size,
         )
+        items = []
+        for msg in result["items"]:
+            sender = msg.sender
+            items.append({
+                "id": msg.id,
+                "type": msg.type,
+                "title": msg.title,
+                "content": msg.content,
+                "is_read": msg.is_read,
+                "created_at": msg.created_at.isoformat(),
+                "related_entity_type": msg.related_entity_type,
+                "related_entity_id": msg.related_entity_id,
+                "sender": {
+                    "id": sender.id,
+                    "username": sender.username,
+                    "avatar": sender.avatar,
+                } if sender else None,
+            })
         return {
             "unread_count": result["unread_count"],
-            "items": result["items"],
+            "items": items,
             "total": result["total"],
             "page": result["page"],
             "page_size": result["page_size"],

@@ -38,6 +38,10 @@ class ShopService:
         if not shop:
             return None
         await ShopsDAO.increment_view_count(shop_id)
+        # 记录浏览历史
+        if user_id:
+            from dao.view_history_dao import ViewHistoryDAO
+            await ViewHistoryDAO.upsert(user_id, shop_id)
         if user_id:
             from dao.favorite_dao import FavoriteDAO
             is_fav = await FavoriteDAO.is_favorited(user_id, shop_id)

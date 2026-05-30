@@ -17,3 +17,14 @@ export async function fetchHistory(page = 1, pageSize = 20): Promise<{ items: Hi
   });
   return res.data.data;
 }
+
+/** 删除单条浏览历史 */
+export async function deleteHistory(historyId: number): Promise<void> {
+  await apiClient.delete(`/users/me/history/${historyId}`);
+}
+
+/** 清空所有浏览历史 */
+export async function clearHistory(): Promise<number> {
+  const res = await apiClient.delete<ApiResponse<{ deleted_count: number }>>('/users/me/history/clear');
+  return res.data.data.deleted_count;
+}

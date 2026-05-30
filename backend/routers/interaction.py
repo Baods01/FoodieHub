@@ -70,6 +70,20 @@ async def create_reply(
         comment_id, current_user.id, content,
         reply_to_user_id=reply_to_user_id,
     )
+    # 通知评论作者
+    from dao.comment_dao import CommentDAO
+    from services.message_service import MessageService
+    comment = await CommentDAO.get_by_id(comment_id)
+    if comment and comment.user_id != current_user.id:
+        await MessageService.create_notification(
+            recipient_id=comment.user_id,
+            sender_id=current_user.id,
+            type="reply_comment",
+            title="新回复",
+            content=f"{current_user.username} 回复了你的评论",
+            related_entity_type="comment",
+            related_entity_id=comment_id,
+        )
     return ResponseModel.success(data=result, message="回复成功")
 
 
@@ -146,6 +160,20 @@ async def create_answer(
         question_id, current_user.id, content,
         reply_to_user_id=reply_to_user_id,
     )
+    # 通知提问作者
+    from dao.question_dao import QuestionDAO
+    from services.message_service import MessageService
+    question = await QuestionDAO.get_by_id(question_id)
+    if question and question.user_id != current_user.id:
+        await MessageService.create_notification(
+            recipient_id=question.user_id,
+            sender_id=current_user.id,
+            type="reply_answer",
+            title="新回答",
+            content=f"{current_user.username} 回答了你的问题",
+            related_entity_type="question",
+            related_entity_id=question_id,
+        )
     return ResponseModel.success(data=result, message="回答成功")
 
 
@@ -173,6 +201,28 @@ async def toggle_like(
 ):
     try:
         result = await LikeService.toggle(current_user.id, data.entity_type, data.entity_id)
+        # 点赞时通知内容作者
+        if result.get("is_liked") and data.entity_type in ("shop_comment", "question_answer"):
+            from services.message_service import MessageService
+            recipient_id = None
+            if data.entity_type == "shop_comment":
+                from dao.comment_dao import CommentDAO
+                entity = await CommentDAO.get_by_id(data.entity_id)
+                recipient_id = entity.user_id if entity else None
+            elif data.entity_type == "question_answer":
+                from dao.question_dao import QuestionDAO
+                entity = await QuestionDAO.get_answer_by_id(data.entity_id)
+                recipient_id = entity.user_id if entity else None
+            if recipient_id and recipient_id != current_user.id:
+                await MessageService.create_notification(
+                    recipient_id=recipient_id,
+                    sender_id=current_user.id,
+                    type="like_comment" if data.entity_type == "shop_comment" else "like_answer",
+                    title="新的赞",
+                    content=f"{current_user.username} 赞了你的内容",
+                    related_entity_type=data.entity_type,
+                    related_entity_id=data.entity_id,
+                )
         return ResponseModel.success(data=result, message="操作成功")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

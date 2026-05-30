@@ -1,41 +1,54 @@
 import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
 import { Clock, Trash2 } from 'lucide-react';
 import { Dialog, Transition } from '@headlessui/react';
-import { fetchHistory } from '../api/history';
+import { fetchHistory, deleteHistory, clearHistory } from '../api/history';
 import type { HistoryItem } from '../types/history';
 import HistoryCard from '../components/shop/HistoryCard';
 import { ErrorState } from '../components/ui/ErrorState';
 import SectionCard from '../components/ui/SectionCard';
 
 export default function HistoryPage() {
+  const navigate = useNavigate();
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
+
+  // 登录守卫
+  useEffect(() => {
+    if (!isLoggedIn) {
+      navigate('/login', { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
   const load = useCallback(() => {
     setLoading(true);
     setError(false);
     fetchHistory()
       .then((result: any) => setItems(result.items ?? []))
-      .catch(() => setError(true))
+      .catch((err: any) => {
+        console.error('加载浏览历史失败:', err?.response?.data || err);
+        setError(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  // 移除单条（乐观更新）
+  // 移除单条
   const handleRemove = (id: number) => {
     setItems((cur) => cur.filter((i) => i.id !== id));
-    /* removed — removeHistory API no longer exists */
+    deleteHistory(id).catch(() => load());
   };
 
-  // 清空全部（乐观更新）
+  // 清空全部
   const handleClear = () => {
     setClearOpen(false);
     setItems([]);
-    /* removed */
-    // clearHistory was removed — TODO: implement via API
+    clearHistory().catch(() => load());
   };
 
   return (
