@@ -137,11 +137,13 @@ CREATE DATABASE foodiehub CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 ```bash
 # 首次：初始化 Aerich
-PYTHONPATH=. python -m aerich init -t config.settings.TORTOISE_ORM
-
+python -m aerich init -t config.settings.TORTOISE_ORM
+# 初始化数据库
+python -m aerich init-db
 # 应用迁移
-PYTHONPATH=. python -m aerich upgrade
+python -m aerich upgrade
 ```
+并且需要再对应数据库运行种子SQL文件：```backend\sql\seed.sql```与```backend\sql\seed.sql```
 
 > **注意**：如果已有迁移文件（`backend/migrations/`），直接执行 `aerich upgrade` 即可。
 > 如果遇到 "Table 'aerich' already exists" 错误，说明已初始化过，可忽略。
@@ -179,10 +181,9 @@ npm run dev
 # 修改 models/ 下的文件后，生成迁移
 cd backend
 .\env\Scripts\activate
-PYTHONPATH=. python -m aerich migrate
-
+python -m aerich migrate
 # 应用迁移
-PYTHONPATH=. python -m aerich upgrade
+python -m aerich upgrade
 ```
 
 ---
