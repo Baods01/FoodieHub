@@ -36,7 +36,7 @@ async def get_current_user(
         return None
 
     user = await Users.get_or_none(id=int(user_id), is_active=True)
-    if user:
+    if user and not user.is_banned:
         return UserResponse.model_validate(user)
     return None
 

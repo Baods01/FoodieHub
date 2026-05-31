@@ -29,19 +29,39 @@ class LogDAO:
     ) -> OperationLog:
         """
         记录一条操作日志。
-        operator 接收 Users 模型实例、Pydantic UserResponse、int（用户ID）或 None。
-        内部转为 operator_name 记录（避免 Tortoise FK 字段接收非模型对象报错）。
+
+        operator 接收以下类型：
+        - Users 模型实例              → 完整 FK 关联
+        - Pydantic UserResponse      → operator_id + operator_name
+        - int（用户 ID）              → operator_id + 需调用方传入 operator_name
+        - None                       → 系统自动操作
         """
+        op_id = None
         op_name = operator_name
         if operator is not None:
-            if not isinstance(operator, int):
+            if isinstance(operator, int):
+                op_id = operator
+            elif hasattr(operator, "_saved_in_db"):
+                # Tortoise ORM 模型实例 → 直接传 FK，Tortoise 自动处理
                 op_name = op_name or getattr(operator, "username", None)
+                return await OperationLog.create(
+                    operator=operator,
+                    operator_name=op_name,
+                    action=action,
+                    target_type=target_type,
+                    target_id=target_id,
+                    detail=detail,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    session_id=session_id,
+                )
             else:
-                # int 时无法提取 username，保持 None
-                pass
+                # Pydantic 模型等 → 取 id 和 username
+                op_id = getattr(operator, "id", None)
+                op_name = op_name or getattr(operator, "username", None)
 
         return await OperationLog.create(
-            operator=None,
+            operator_id=op_id,
             operator_name=op_name,
             action=action,
             target_type=target_type,
@@ -94,6 +114,7 @@ class LogDAO:
         items = await qs.order_by("-created_at") \
             .offset((page - 1) * page_size) \
             .limit(page_size) \
+            .prefetch_related("operator") \
             .all()
 
         return {

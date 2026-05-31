@@ -130,11 +130,36 @@ export default function ShopEdit() {
   if (!shop) return <Box sx={{ p: 4, textAlign: 'center', color: '#888' }}>店铺不存在或加载失败</Box>;
 
   const isBanned = shop.is_banned === true;
+  const isInactive = shop.is_active === false;
+
+  /** 找出指定 dict_id 所属的标签类型名称 */
+  const findTypeName = (dictId: number): string | undefined => {
+    for (const [typeName, items] of Object.entries(dictDataOptions)) {
+      if (items.some(item => item.id === dictId)) return typeName;
+    }
+    return undefined;
+  };
 
   const handleTagToggle = (dictId: number) => {
-    setSelectedDictIds(prev =>
-      prev.includes(dictId) ? prev.filter(id => id !== dictId) : [...prev, dictId]
-    );
+    const typeName = findTypeName(dictId);
+    const isSingleSelect = typeName === '品类' || typeName === '区域';
+
+    setSelectedDictIds(prev => {
+      if (isSingleSelect) {
+        // 单选：移除该类型下所有已选项，再添加当前项（若未选中）或取消（若已选中）
+        const sameTypeIds = Object.entries(dictDataOptions)
+          .filter(([name]) => name === typeName)
+          .flatMap(([, items]) => items.map(item => item.id));
+        const others = prev.filter(id => !sameTypeIds.includes(id));
+        const alreadySelected = prev.includes(dictId);
+        return alreadySelected ? others : [...others, dictId];
+      } else {
+        // 多选（就餐方式）：切换当前项
+        return prev.includes(dictId)
+          ? prev.filter(id => id !== dictId)
+          : [...prev, dictId];
+      }
+    });
   };
 
   const handleSaveTags = async () => {
@@ -172,7 +197,13 @@ export default function ShopEdit() {
               ID: {shop.id} · {categories[0] || '-'} · {areas[0] || '-'} · {diningMethods.join('、') || '-'}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-              {isBanned ? <Chip label="已封禁" size="small" color="error" /> : <Chip label="正常" size="small" color="success" />}
+              {isInactive ? (
+                <Chip label="已关闭" size="small" color="default" variant="outlined" />
+              ) : isBanned ? (
+                <Chip label="已封禁" size="small" color="error" />
+              ) : (
+                <Chip label="正常" size="small" color="success" />
+              )}
               <Chip label={`评分 ${shop.average_rating?.toFixed(1) || '-'}`} size="small" variant="outlined" />
             </Box>
           </Box>
@@ -199,7 +230,12 @@ export default function ShopEdit() {
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>标签修改</Typography>
         {Object.entries(dictDataOptions).map(([typeName, items]) => (
           <Box key={typeName} sx={{ mb: 1.5 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>{typeName}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              {typeName}
+              {typeName === '品类' || typeName === '区域' ? (
+                <span style={{ color: '#999', marginLeft: 4 }}>（单选）</span>
+              ) : null}
+            </Typography>
             <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
               {items.map((item) => {
                 const selected = selectedDictIds.includes(item.id);
@@ -224,11 +260,17 @@ export default function ShopEdit() {
         <Divider sx={{ my: 2 }} />
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>操作</Typography>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Button variant="contained" startIcon={isBanned ? <UnblockIcon /> : <BlockIcon />}
-            onClick={() => setBanOpen(true)}
-            sx={{ borderRadius: 2, textTransform: 'none', backgroundColor: isBanned ? '#4caf50' : '#f44336' }}>
-            {isBanned ? '解封店铺' : '封禁店铺'}
-          </Button>
+          {isInactive ? (
+            <Button variant="contained" disabled sx={{ borderRadius: 2, textTransform: 'none' }}>
+              店铺已关闭
+            </Button>
+          ) : (
+            <Button variant="contained" startIcon={isBanned ? <UnblockIcon /> : <BlockIcon />}
+              onClick={() => setBanOpen(true)}
+              sx={{ borderRadius: 2, textTransform: 'none', backgroundColor: isBanned ? '#4caf50' : '#f44336' }}>
+              {isBanned ? '解封店铺' : '封禁店铺'}
+            </Button>
+          )}
           <Button variant="outlined" startIcon={<MergeIcon />} onClick={() => setMergeOpen(true)}
             sx={{ borderRadius: 2, textTransform: 'none' }}>
             合并店铺

@@ -6,7 +6,10 @@ from schemas.users import (
     UserCreate, UserResponse, UserUpdate, UserLogin,
 )
 from schemas.common import ResponseModel
-from services import UserService
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+from services import UserService, LogService
 from utils.auth import create_access_token, get_current_user, require_login
 
 router = APIRouter(prefix="/users", tags=["用户模块"])
@@ -47,6 +50,33 @@ async def login(data: UserLogin):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+class UserPublicProfile(BaseModel):
+    """用户公开信息（他人可见）"""
+    id: int
+    username: str
+    avatar: Optional[str] = None
+    bio: Optional[str] = None
+    gender: Optional[str] = None
+    created_at: datetime
+
+
+@router.get("/{user_id}/profile", response_model=ResponseModel, summary="用户公开信息")
+async def get_user_profile(user_id: int):
+    from dao.user_dao import UserDAO
+    user = await UserDAO.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+    profile = UserPublicProfile(
+        id=user.id,
+        username=user.username,
+        avatar=user.avatar,
+        bio=user.bio,
+        gender=user.gender,
+        created_at=user.created_at,
+    )
+    return ResponseModel.success(data=profile, message="获取成功")
+
+
 @router.get("/me", response_model=ResponseModel)
 async def get_me(current_user: UserResponse = Depends(get_current_user)):
     return ResponseModel.success(data=current_user, message="获取成功")
@@ -56,6 +86,7 @@ async def get_me(current_user: UserResponse = Depends(get_current_user)):
 async def update_me(data: UserUpdate, current_user: UserResponse = Depends(require_login)):
     try:
         user = await UserService.update_profile(current_user.id, data)
+        await LogService.log(action="update_profile", operator=current_user, target_type="user", target_id=current_user.id)
         return ResponseModel.success(data=user, message="更新成功")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

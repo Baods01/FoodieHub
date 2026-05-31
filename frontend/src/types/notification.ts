@@ -1,5 +1,5 @@
 /** 通知类型标签（前端展示用） */
-export type NotifType = 'reply_comment' | 'like_comment' | 'announcement';
+export type NotifType = 'reply_comment' | 'like_comment' | 'announcement' | 'feedback_result';
 
 /** 消息通知 — 对齐后端 MessageResponse */
 export interface NotificationItem {
@@ -11,6 +11,7 @@ export interface NotificationItem {
   created_at: string;
   related_entity_type: string | null;
   related_entity_id: number | null;
+  shop_id: number | null;
   sender: { id: number; username: string; avatar: string | null } | null;
 }
 

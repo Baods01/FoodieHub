@@ -3,6 +3,7 @@ import { RootLayout } from '../components/layout/RootLayout';
 import { HomePage } from '../pages/HomePage';
 import { ShopDetailPage } from '../pages/ShopDetailPage';
 import ProfilePage from '../pages/ProfilePage';
+import UserProfilePage from '../pages/UserProfilePage';
 import FavoritesPage from '../pages/FavoritesPage';
 import HistoryPage from '../pages/HistoryPage';
 import NotificationsPage from '../pages/NotificationsPage';
@@ -20,6 +21,7 @@ export const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: 'shop/:id', element: <ShopDetailPage /> },
       { path: 'profile', element: <ProfilePage /> },
+      { path: 'user/:id', element: <UserProfilePage /> },
       { path: 'favorites', element: <FavoritesPage /> },
       { path: 'history', element: <HistoryPage /> },
       { path: 'notifications', element: <NotificationsPage /> },

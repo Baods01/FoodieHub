@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from schemas.shops import ShopCreate, ShopUpdate, ShopResponse, MenuItemResponse, RatingCreate, RatingResponse
 from schemas.common import ResponseModel
 from schemas.users import UserResponse
-from services import ShopService, FavoriteService
+from services import ShopService, FavoriteService, LogService
 from utils.auth import get_current_user, require_login, require_admin
 
 router = APIRouter(tags=["店铺模块"])
@@ -23,6 +23,7 @@ async def create_shop(
             dict_data_ids=data.dict_data_ids,
             menu_items=[m.model_dump() for m in data.menu_items] if data.menu_items else None,
         )
+        await LogService.log(action="create_shop", operator=current_user, target_type="shop", target_id=shop.id)
         return ResponseModel.success(data=shop, message="店铺创建成功")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -63,6 +64,8 @@ async def get_shop_detail(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="该店铺已被封禁",
         )
+    if user_id:
+        await LogService.log(action="view_shop", operator=None, operator_name=current_user.username if current_user else None, target_type="shop", target_id=shop_id)
     return ResponseModel.success(data=shop, message="获取成功")
 
 
@@ -80,6 +83,7 @@ async def update_shop(
         )
         if not shop:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="店铺不存在")
+        await LogService.log(action="update_shop", operator=current_user, target_type="shop", target_id=shop_id)
         return ResponseModel.success(data=shop, message="更新成功")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -90,6 +94,7 @@ async def delete_shop(shop_id: int, current_user: UserResponse = Depends(require
     ok = await ShopService.delete(shop_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="店铺不存在")
+    await LogService.log(action="delete_shop", operator=current_user, target_type="shop", target_id=shop_id)
     return ResponseModel.success(data={}, message="删除成功")
 
 
@@ -102,6 +107,7 @@ async def rate_shop(
     current_user: UserResponse = Depends(require_login),
 ):
     result = await ShopService.rate(shop_id, current_user.id, data.score)
+    await LogService.log(action="rate_shop", operator=current_user, target_type="shop", target_id=shop_id, detail={"score": data.score})
     return ResponseModel.success(data=result, message="评分成功")
 
 
@@ -133,6 +139,7 @@ async def toggle_favorite(
     current_user: UserResponse = Depends(require_login),
 ):
     result = await FavoriteService.toggle(current_user.id, shop_id)
+    await LogService.log(action="toggle_favorite", operator=current_user, target_type="shop", target_id=shop_id)
     return ResponseModel.success(data=result, message="操作成功")
 
 

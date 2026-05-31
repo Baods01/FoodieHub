@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Star, MessageSquare, Heart, MapPin, HelpCircle, Reply, MessageCircle } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Star, MessageSquare, Heart, MapPin, HelpCircle, Reply, MessageCircle, ArrowLeft } from 'lucide-react';
 import { fetchActivities } from '../api/activities';
-import EditProfileModal from '../components/profile/EditProfileModal';
 import ProfileCard from '../components/profile/ProfileCard';
+import SectionCard from '../components/ui/SectionCard';
 import type { Activity, ActivityType } from '../types/activity';
 import { getActivityText } from '../types/activity';
-import SectionCard from '../components/ui/SectionCard';
+import apiClient from '../api/client';
 
 /** 格式化相对时间 */
 function relativeTime(iso: string): string {
@@ -22,7 +21,6 @@ function relativeTime(iso: string): string {
   return `${Math.floor(day / 30)}个月前`;
 }
 
-/** 活动图标映射 */
 const activityIcon: Record<ActivityType, typeof Star> = {
   rating: Star,
   comment: MessageSquare,
@@ -43,55 +41,91 @@ const activityColors: Record<ActivityType, string> = {
   question: 'text-purple-500',
 };
 
-export default function ProfilePage() {
+interface UserProfile {
+  id: number;
+  username: string;
+  avatar: string | null;
+  bio: string | null;
+  gender: string | null;
+  created_at: string;
+}
+
+export default function UserProfilePage() {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { userName, userAvatar, userEmail, userPhone, userBio, userGender, userCreatedAt, userId } = useAuthStore();
-  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    if (!userId) return;
-    fetchActivities(userId)
-      .then((result: any) => setActivities(result.items ?? []))
+    if (!id) return;
+    setLoading(true);
+    Promise.all([
+      apiClient.get(`/users/${id}/profile`).then(r => (r.data as any)?.data ?? null),
+      fetchActivities(Number(id)).then((result: any) => result.items ?? []),
+    ])
+      .then(([profileData, activityItems]) => {
+        if (!profileData) { setNotFound(true); return; }
+        setProfile(profileData);
+        setActivities(activityItems);
+      })
+      .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
-  }, [userId]);
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto py-8 space-y-5 animate-pulse">
+        <div className="bg-white rounded-2xl h-64" />
+        <div className="bg-white rounded-2xl h-48" />
+      </div>
+    );
+  }
+
+  if (notFound || !profile) {
+    return (
+      <div className="max-w-2xl mx-auto py-20 text-center">
+        <p className="text-gray-500 text-base">用户不存在</p>
+        <button
+          onClick={() => navigate('/')}
+          className="mt-4 rounded-lg bg-orange-500 px-6 py-2 text-sm text-white hover:bg-orange-600 transition-colors"
+        >
+          返回首页
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto py-8 space-y-5">
-      {/* Card 1: 个人信息 */}
+      {/* 返回按钮 */}
+      <button
+        onClick={() => navigate(-1)}
+        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+      >
+        <ArrowLeft size={16} />
+        返回
+      </button>
+
+      {/* 用户资料卡片 */}
       <ProfileCard
-        username={userName}
-        avatar={userAvatar}
-        email={userEmail}
-        phone={userPhone}
-        bio={userBio}
-        gender={userGender}
-        createdAt={userCreatedAt}
-        onEdit={() => setEditModalOpen(true)}
+        username={profile.username}
+        avatar={profile.avatar}
+        bio={profile.bio}
+        gender={profile.gender}
+        createdAt={profile.created_at}
       />
 
-      {/* Card 2: 个人动态 */}
+      {/* 用户动态 */}
       <SectionCard>
         <h2 className="text-base font-bold text-gray-800 mb-4 pl-3 border-l-[3px] border-orange-400">
-          个人动态
+          动态
         </h2>
 
-        {loading ? (
-          <div className="space-y-4 animate-pulse">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gray-200" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3 w-3/4 bg-gray-200 rounded" />
-                  <div className="h-2.5 w-1/4 bg-gray-100 rounded" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : activities.length === 0 ? (
+        {activities.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-400">
-            还没有动态，开始探索校园美食吧
+            还没有动态
           </div>
         ) : (
           <div className="space-y-0 divide-y divide-gray-100">
@@ -106,20 +140,15 @@ export default function ProfilePage() {
                   onClick={() => navigate(`/shop/${activity.shop_id}`)}
                   className="w-full flex items-center gap-3 py-3.5 px-2 text-left hover:bg-orange-50/50 transition-colors rounded-lg"
                 >
-                  {/* Icon */}
                   <div className={`w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 ${color}`}>
                     <Icon size={16} />
                   </div>
-
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-700 truncate">
-                      <span className="font-medium text-gray-900">{userName}</span>
+                      <span className="font-medium text-gray-900">{profile.username}</span>
                       {' '}{getActivityText(activity.type)}
                     </p>
                   </div>
-
-                  {/* Time */}
                   <span className="text-xs text-gray-400 flex-shrink-0">
                     {relativeTime(activity.created_at)}
                   </span>
@@ -129,19 +158,6 @@ export default function ProfilePage() {
           </div>
         )}
       </SectionCard>
-
-      {/* 编辑资料弹窗 */}
-      <EditProfileModal
-        open={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        onSaved={() => window.location.reload()}
-        initial={{
-          username: userName,
-          avatar: userAvatar,
-          bio: userBio,
-          gender: userGender,
-        }}
-      />
     </div>
   );
 }

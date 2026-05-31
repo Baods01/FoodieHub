@@ -54,6 +54,18 @@ async def list_users(
     return ResponseModel.success(data=data)
 
 
+@router.get("/users/{user_id}", response_model=ResponseModel, summary="用户详情（管理员）")
+async def admin_get_user(
+    user_id: int,
+    current_user: UserResponse = Depends(require_admin),
+):
+    from models.users import Users
+    user = await Users.get_or_none(id=user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
+    return ResponseModel.success(data=UserResponse.model_validate(user), message="获取成功")
+
+
 @router.post("/users/{user_id}/ban", response_model=ResponseModel, summary="封禁用户")
 async def ban_user(
     user_id: int,
@@ -130,6 +142,7 @@ async def approve_feedback(
     result = await FeedbackService.approve(feedback_id, current_user.id)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="反馈不存在")
+    await LogService.log(action="approve_feedback", operator=current_user.id, target_type="feedback", target_id=feedback_id, detail={"type": result.type})
     return ResponseModel.success(data=result, message="已通过")
 
 
@@ -141,6 +154,7 @@ async def reject_feedback(
     result = await FeedbackService.reject(feedback_id, current_user.id)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="反馈不存在")
+    await LogService.log(action="reject_feedback", operator=current_user.id, target_type="feedback", target_id=feedback_id, detail={"type": result.type})
     return ResponseModel.success(data=result, message="已驳回")
 
 

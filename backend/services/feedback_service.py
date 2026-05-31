@@ -5,6 +5,7 @@ feedback_service.py — 统一反馈工单业务逻辑
 from typing import Optional
 from dao.feedback_dao import FeedbackDAO
 from schemas.feedback import FeedbackCreateRequest, FeedbackResponse
+from services.message_service import MessageService
 
 
 class FeedbackService:
@@ -70,6 +71,18 @@ class FeedbackService:
         obj = await FeedbackDAO.approve(feedback_id, admin_id)
         if not obj:
             return None
+        # 通知发起者
+        type_label = "举报" if obj.type == "complaint" else "勘误"
+        desc = obj.description or "(无描述)"
+        await MessageService.create_notification(
+            recipient_id=obj.user_id,
+            sender_id=admin_id,
+            type="feedback_result",
+            title="反馈处理结果",
+            content=f"您提交的「{type_label}」已被管理员通过。\n\n反馈内容：{desc}",
+            related_entity_type="feedback",
+            related_entity_id=obj.id,
+        )
         return FeedbackResponse(
             id=obj.id, user_id=obj.user_id,
             type=obj.type, target_type=obj.target_type,
@@ -84,6 +97,18 @@ class FeedbackService:
         obj = await FeedbackDAO.reject(feedback_id, admin_id)
         if not obj:
             return None
+        # 通知发起者
+        type_label = "举报" if obj.type == "complaint" else "勘误"
+        desc = obj.description or "(无描述)"
+        await MessageService.create_notification(
+            recipient_id=obj.user_id,
+            sender_id=admin_id,
+            type="feedback_result",
+            title="反馈处理结果",
+            content=f"您提交的「{type_label}」已被管理员驳回。\n\n反馈内容：{desc}",
+            related_entity_type="feedback",
+            related_entity_id=obj.id,
+        )
         return FeedbackResponse(
             id=obj.id, user_id=obj.user_id,
             type=obj.type, target_type=obj.target_type,

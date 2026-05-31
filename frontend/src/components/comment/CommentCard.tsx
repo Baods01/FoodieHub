@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import type { Comment, CommentReply } from '../../types/comment';
 import { fetchReplies, toggleLike } from '../../api/comments';
 import { LikeButton } from './LikeButton';
@@ -90,24 +91,26 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
       {/* Header: avatar + name + time */}
       <div className="flex items-center gap-2">
         {/* Avatar */}
-        <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-gray-200">
-          {(comment.user?.avatar ?? undefined) ? (
-            <img
-              src={(comment.user?.avatar ?? undefined)}
-              alt={(comment.user?.username ?? '')}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gray-300 text-sm font-medium text-gray-600">
-              {(comment.user?.username ?? '').charAt(0)}
-            </div>
-          )}
-        </div>
+        <Link to={`/user/${comment.user?.id}`} className="flex-shrink-0">
+          <div className="h-8 w-8 overflow-hidden rounded-full bg-gray-200">
+            {(comment.user?.avatar ?? undefined) ? (
+              <img
+                src={(comment.user?.avatar ?? undefined)}
+                alt={(comment.user?.username ?? '')}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gray-300 text-sm font-medium text-gray-600">
+                {(comment.user?.username ?? '').charAt(0)}
+              </div>
+            )}
+          </div>
+        </Link>
 
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-medium text-gray-800">
+          <Link to={`/user/${comment.user?.id}`} className="text-sm font-medium text-gray-800 hover:text-orange-500 transition-colors">
             {(comment.user?.username ?? '')}
-          </span>
+          </Link>
           <span className="text-xs text-gray-400">
             {formatTime(comment.created_at)}
           </span>
@@ -172,22 +175,24 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
           {(displayReplies ?? []).map((reply) => (
             <div key={reply.id} className="py-1">
               <div className="flex items-center gap-2">
-                <div className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full bg-gray-200">
-                  {(reply.user?.avatar) ? (
-                    <img
-                      src={reply.user.avatar}
-                      alt={(reply.user?.username ?? '')}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-gray-300 text-xs font-medium text-gray-600">
-                      {(reply.user?.username ?? '').charAt(0)}
-                    </div>
-                  )}
-                </div>
-                <span className="text-sm font-medium text-gray-800">
+                <Link to={`/user/${reply.user?.id}`} className="flex-shrink-0">
+                  <div className="h-6 w-6 overflow-hidden rounded-full bg-gray-200">
+                    {(reply.user?.avatar) ? (
+                      <img
+                        src={reply.user.avatar}
+                        alt={(reply.user?.username ?? '')}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gray-300 text-xs font-medium text-gray-600">
+                        {(reply.user?.username ?? '').charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                </Link>
+                <Link to={`/user/${reply.user?.id}`} className="text-sm font-medium text-gray-800 hover:text-orange-500 transition-colors">
                   {(reply.user?.username ?? '')}
-                </span>
+                </Link>
                 <span className="text-xs text-gray-400">
                   {formatTime(reply.created_at)}
                 </span>

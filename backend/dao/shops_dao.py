@@ -152,10 +152,31 @@ class ShopsDAO:
 
     @staticmethod
     async def sync_comment_count(shop_id: int) -> None:
-        """从 ShopComments 表重新计算评论数。"""
-        from models.interaction import ShopComments
-        count = await ShopComments.filter(shop_id=shop_id, is_active=True).count()
-        await Shops.filter(id=shop_id).update(comment_count=count)
+        """
+        重新计算店铺的讨论数（comment_count 冗余字段）。
+        统计范围与 analytics 总互动数一致：
+        shop_comments + comment_replies + shop_questions + question_answers
+        """
+        from tortoise import Tortoise
+        conn = Tortoise.get_connection("default")
+        sql = """
+            SELECT
+                (SELECT COUNT(*) FROM shop_comments   sc WHERE sc.shop_id = %s AND sc.is_active = 1)
+                +
+                (SELECT COUNT(*) FROM comment_replies cr
+                 JOIN shop_comments sc ON cr.comment_id = sc.id
+                 WHERE sc.shop_id = %s AND cr.is_active = 1 AND sc.is_active = 1)
+                +
+                (SELECT COUNT(*) FROM shop_questions  sq WHERE sq.shop_id = %s AND sq.is_active = 1)
+                +
+                (SELECT COUNT(*) FROM question_answers qa
+                 JOIN shop_questions sq ON qa.question_id = sq.id
+                 WHERE sq.shop_id = %s AND qa.is_active = 1 AND sq.is_active = 1)
+            AS total
+        """
+        result = await conn.execute_query(sql, [shop_id, shop_id, shop_id, shop_id])
+        total = result[1][0].get("total", 0) if result[1] else 0
+        await Shops.filter(id=shop_id).update(comment_count=total)
 
     # ==================== Menu ====================
 

@@ -77,19 +77,25 @@ export default function NotificationsPage() {
   useEffect(() => { load(); }, [load]);
 
   // 各分类计数
+  const typeMatch = (item: NotificationItem, tab: NotifType): boolean => {
+    if (tab === 'announcement') return item.type === 'announcement' || item.type === 'feedback_result';
+    return item.type === tab;
+  };
   const counts: Record<NotifType, number> = {
     reply_comment: all.filter((n) => n.type === 'reply_comment').length,
     like_comment: all.filter((n) => n.type === 'like_comment').length,
-    announcement: all.filter((n) => n.type === 'announcement').length,
+    announcement: all.filter((n) => n.type === 'announcement' || n.type === 'feedback_result').length,
+    feedback_result: 0,
   };
   const unreadCounts: Record<NotifType, number> = {
     reply_comment: all.filter((n) => n.type === 'reply_comment' && !n.is_read).length,
     like_comment: all.filter((n) => n.type === 'like_comment' && !n.is_read).length,
-    announcement: all.filter((n) => n.type === 'announcement' && !n.is_read).length,
+    announcement: all.filter((n) => (n.type === 'announcement' || n.type === 'feedback_result') && !n.is_read).length,
+    feedback_result: 0,
   };
 
   const currentList = all
-    .filter((n) => n.type === activeTab)
+    .filter((n) => typeMatch(n, activeTab))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   // 点击消息
@@ -100,8 +106,10 @@ export default function NotificationsPage() {
       setAll((prev) => prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n)));
     }
 
-    if (item.type === 'announcement') {
+    if (item.type === 'announcement' || item.type === 'feedback_result') {
       setAnnouncement(item);
+    } else if (item.shop_id) {
+      navigate(`/shop/${item.shop_id}`);
     } else {
       const route = getNotifRoute(item.related_entity_type, item.related_entity_id);
       if (route) navigate(route);
@@ -182,12 +190,12 @@ export default function NotificationsPage() {
             ) : currentList.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-sm text-gray-400">
                 <activeDef.icon size={36} className="text-gray-200" />
-                <p className="mt-3">暂无{activeDef.label}消息</p>
+                <p className="mt-3">暂无消息</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
                 {currentList.map((item) => {
-                  const tabCfg = tabs.find((t) => t.key === item.type)!;
+                  const tabCfg = tabs.find((t) => t.key === item.type) ?? tabs.find((t) => t.key === 'announcement')!;
                   const Icon = tabCfg.icon;
                   return (
                     <button
@@ -230,7 +238,7 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      {/* ===== Announcement dialog ===== */}
+      {/* ===== Announcement / Feedback result dialog ===== */}
       <Transition show={announcement !== null} as={Fragment}>
         <Dialog as="div" className="relative z-50" onClose={() => setAnnouncement(null)}>
           <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
@@ -242,7 +250,11 @@ export default function NotificationsPage() {
                 {announcement && (
                   <>
                     <div className="flex items-center gap-2 mb-4">
-                      <Megaphone size={18} className="text-orange-500" />
+                      {announcement.type === 'feedback_result' ? (
+                        <Bell size={18} className="text-orange-500" />
+                      ) : (
+                        <Megaphone size={18} className="text-orange-500" />
+                      )}
                       <Dialog.Title className="text-base font-bold">{announcement.title}</Dialog.Title>
                     </div>
                     <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">

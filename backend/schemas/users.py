@@ -91,6 +91,7 @@ class UserResponse(BaseModel):
     bio: Optional[str] = Field(default=None, description="个人简介")
     gender: Optional[str] = Field(default=None, description="性别：male/female/other")
     role: int = Field(description="角色：0=普通用户，1=管理员")
+    is_banned: bool = Field(default=False, description="是否被封禁")
     created_at: datetime = Field(description="注册时间")
 
     class Config:

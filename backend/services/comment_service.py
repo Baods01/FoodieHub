@@ -66,8 +66,15 @@ class CommentService:
     @staticmethod
     async def create_reply(comment_id: int, user_id: int, content: str,
                            reply_to_user_id: Optional[int] = None) -> dict:
+        # 获取所属店铺 ID（用于同步 comment_count）
+        from models.interaction import ShopComments
+        comment = await ShopComments.get_or_none(id=comment_id, is_active=True)
+        shop_id = comment.shop_id if comment else None
+
         await CommentDAO.increment_reply_count(comment_id)
         r = await CommentDAO.create_reply(comment_id, user_id, content, reply_to_user_id)
+        if shop_id:
+            await ShopsDAO.sync_comment_count(shop_id)
         await r.fetch_related("user", "reply_to_user")
         user = r.user
         reply_to = r.reply_to_user
@@ -105,13 +112,18 @@ class CommentService:
 
     @staticmethod
     async def delete_reply(reply_id: int) -> bool:
-        from models.interaction import CommentReplies
+        from models.interaction import CommentReplies, ShopComments
         r = await CommentReplies.get_or_none(id=reply_id, is_active=True)
         if not r:
             return False
+        # 获取所属店铺 ID（用于同步 comment_count）
+        comment = await ShopComments.get_or_none(id=r.comment_id, is_active=True)
+        shop_id = comment.shop_id if comment else None
         ok = await CommentDAO.delete_reply(reply_id)
         if ok:
             await CommentDAO.decrement_reply_count(r.comment_id)
+            if shop_id:
+                await ShopsDAO.sync_comment_count(shop_id)
         return ok
 
     @staticmethod

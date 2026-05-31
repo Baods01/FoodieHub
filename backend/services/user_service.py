@@ -48,6 +48,8 @@ class UserService:
 
         if not user.is_active:
             raise ValueError("您的账户已被封禁")
+        if user.is_banned:
+            raise ValueError("您的账户已被封禁")
 
         token = create_access_token(user.id)
         return LoginResponse(
@@ -62,6 +64,8 @@ class UserService:
         """OAuth2 表单登录专用。"""
         user = await UserDAO.get_by_account_include_banned(account)
         if not user or not verify_password(password, user.password):
+            return None
+        if not user.is_active or user.is_banned:
             return None
         return UserResponse.model_validate(user)
 

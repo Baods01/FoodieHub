@@ -21,6 +21,26 @@ class MessageService:
         items = []
         for msg in result["items"]:
             sender = msg.sender
+
+            # 解析 shop_id（兼容新旧数据格式）
+            shop_id = None
+            entity_type = msg.related_entity_type
+            entity_id = msg.related_entity_id
+            if entity_type == "shop":
+                shop_id = entity_id
+            elif entity_type in ("comment", "shop_comment"):
+                from dao.comment_dao import CommentDAO
+                comment = await CommentDAO.get_by_id(entity_id) if entity_id else None
+                shop_id = comment.shop_id if comment else None
+            elif entity_type in ("question", "question_answer"):
+                from dao.question_dao import QuestionDAO
+                if entity_type == "question":
+                    question = await QuestionDAO.get_by_id(entity_id) if entity_id else None
+                else:
+                    answer = await QuestionDAO.get_answer_by_id(entity_id) if entity_id else None
+                    question = await QuestionDAO.get_by_id(answer.question_id) if answer else None
+                shop_id = question.shop_id if question else None
+
             items.append({
                 "id": msg.id,
                 "type": msg.type,
@@ -30,6 +50,7 @@ class MessageService:
                 "created_at": msg.created_at.isoformat(),
                 "related_entity_type": msg.related_entity_type,
                 "related_entity_id": msg.related_entity_id,
+                "shop_id": shop_id,
                 "sender": {
                     "id": sender.id,
                     "username": sender.username,

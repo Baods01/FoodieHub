@@ -6,7 +6,7 @@ from schemas.users import UserResponse
 from schemas.interaction import (
     CommentCreate, QuestionCreate, LikeToggleRequest,
 )
-from services import CommentService, QuestionService
+from services import CommentService, QuestionService, LogService
 from services.like_service import LikeService
 from utils.auth import get_current_user, require_login
 
@@ -22,6 +22,7 @@ async def create_comment(
     current_user: UserResponse = Depends(require_login),
 ):
     result = await CommentService.create(shop_id, current_user.id, data.content)
+    await LogService.log(action="create_comment", operator=current_user, target_type="shop", target_id=shop_id)
     return ResponseModel.success(data=result, message="评论成功")
 
 
@@ -46,6 +47,7 @@ async def update_comment(
     result = await CommentService.update(comment_id, data.content)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="评论不存在")
+    await LogService.log(action="update_comment", operator=current_user, target_type="comment", target_id=comment_id)
     return ResponseModel.success(data=result, message="更新成功")
 
 
@@ -54,6 +56,7 @@ async def delete_comment(comment_id: int, current_user: UserResponse = Depends(r
     ok = await CommentService.delete(comment_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="评论不存在")
+    await LogService.log(action="delete_comment", operator=current_user, target_type="comment", target_id=comment_id)
     return ResponseModel.success(data={}, message="删除成功")
 
 
@@ -81,9 +84,10 @@ async def create_reply(
             type="reply_comment",
             title="新回复",
             content=f"{current_user.username} 回复了你的评论",
-            related_entity_type="comment",
-            related_entity_id=comment_id,
+            related_entity_type="shop",
+            related_entity_id=comment.shop_id,
         )
+    await LogService.log(action="create_reply", operator=current_user, target_type="comment", target_id=comment_id)
     return ResponseModel.success(data=result, message="回复成功")
 
 
@@ -99,6 +103,7 @@ async def delete_reply(reply_id: int, current_user: UserResponse = Depends(requi
     ok = await CommentService.delete_reply(reply_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="回复不存在")
+    await LogService.log(action="delete_reply", operator=current_user, target_type="reply", target_id=reply_id)
     return ResponseModel.success(data={}, message="删除成功")
 
 
@@ -112,6 +117,7 @@ async def create_question(
     current_user: UserResponse = Depends(require_login),
 ):
     result = await QuestionService.create(shop_id, current_user.id, title, content=content)
+    await LogService.log(action="create_question", operator=current_user, target_type="shop", target_id=shop_id)
     return ResponseModel.success(data=result, message="提问成功")
 
 
@@ -144,6 +150,7 @@ async def delete_question(question_id: int, current_user: UserResponse = Depends
     ok = await QuestionService.delete(question_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="问题不存在")
+    await LogService.log(action="delete_question", operator=current_user, target_type="question", target_id=question_id)
     return ResponseModel.success(data={}, message="删除成功")
 
 
@@ -171,9 +178,10 @@ async def create_answer(
             type="reply_answer",
             title="新回答",
             content=f"{current_user.username} 回答了你的问题",
-            related_entity_type="question",
-            related_entity_id=question_id,
+            related_entity_type="shop",
+            related_entity_id=question.shop_id,
         )
+    await LogService.log(action="create_answer", operator=current_user, target_type="question", target_id=question_id)
     return ResponseModel.success(data=result, message="回答成功")
 
 
@@ -189,6 +197,7 @@ async def delete_answer(answer_id: int, current_user: UserResponse = Depends(req
     ok = await QuestionService.delete_answer(answer_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="回答不存在")
+    await LogService.log(action="delete_answer", operator=current_user, target_type="answer", target_id=answer_id)
     return ResponseModel.success(data={}, message="删除成功")
 
 
@@ -205,24 +214,30 @@ async def toggle_like(
         if result.get("is_liked") and data.entity_type in ("shop_comment", "question_answer"):
             from services.message_service import MessageService
             recipient_id = None
+            shop_id = None
             if data.entity_type == "shop_comment":
                 from dao.comment_dao import CommentDAO
                 entity = await CommentDAO.get_by_id(data.entity_id)
                 recipient_id = entity.user_id if entity else None
+                shop_id = entity.shop_id if entity else None
             elif data.entity_type == "question_answer":
                 from dao.question_dao import QuestionDAO
                 entity = await QuestionDAO.get_answer_by_id(data.entity_id)
                 recipient_id = entity.user_id if entity else None
-            if recipient_id and recipient_id != current_user.id:
+                if entity:
+                    question = await QuestionDAO.get_by_id(entity.question_id)
+                    shop_id = question.shop_id if question else None
+            if recipient_id and recipient_id != current_user.id and shop_id:
                 await MessageService.create_notification(
                     recipient_id=recipient_id,
                     sender_id=current_user.id,
                     type="like_comment" if data.entity_type == "shop_comment" else "like_answer",
                     title="新的赞",
                     content=f"{current_user.username} 赞了你的内容",
-                    related_entity_type=data.entity_type,
-                    related_entity_id=data.entity_id,
+                    related_entity_type="shop",
+                    related_entity_id=shop_id,
                 )
+        await LogService.log(action="toggle_like", operator=current_user, target_type=data.entity_type, target_id=data.entity_id)
         return ResponseModel.success(data=result, message="操作成功")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

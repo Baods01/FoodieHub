@@ -29,6 +29,7 @@ export interface UserInfo {
   email: string;
   avatar: string | null;
   bio: string | null;
+  gender: string | null;
   role: number;
   created_at: string;
 }

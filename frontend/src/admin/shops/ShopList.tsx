@@ -148,7 +148,37 @@ export default function ShopList() {
                 const categories = getDictNames(shop.dict_data || [], '品类');
                 const areas = getDictNames(shop.dict_data || [], '区域');
                 const dining = getDictNames(shop.dict_data || [], '就餐方式');
-                const isBanned = shop.is_banned === true || shop.is_active === false;
+                const isBanned = shop.is_banned === true;
+                const isInactive = shop.is_active === false;
+                let statusChip: React.ReactNode;
+                let actionBtn: React.ReactNode;
+                if (isInactive) {
+                  statusChip = <Chip label="已关闭" size="small" color="default" variant="outlined" />;
+                  actionBtn = (
+                    <Button size="small" variant="outlined" disabled
+                      sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}>
+                      不可操作
+                    </Button>
+                  );
+                } else if (isBanned) {
+                  statusChip = <Chip label="已封禁" size="small" color="error" />;
+                  actionBtn = (
+                    <Button size="small" variant="outlined"
+                      onClick={(e) => { e.stopPropagation(); setBanTarget({ id: shop.id, name: shop.name, banned: true }); setBanReason(''); }}
+                      sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, borderColor: '#4caf50', color: '#4caf50' }}>
+                      解封
+                    </Button>
+                  );
+                } else {
+                  statusChip = <Chip label="正常" size="small" color="success" />;
+                  actionBtn = (
+                    <Button size="small" variant="outlined"
+                      onClick={(e) => { e.stopPropagation(); setBanTarget({ id: shop.id, name: shop.name, banned: false }); setBanReason(''); }}
+                      sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, borderColor: '#f44336', color: '#f44336' }}>
+                      封禁
+                    </Button>
+                  );
+                }
                 return (
                   <TableRow key={shop.id} hover sx={{ cursor: 'pointer', '&:hover': { backgroundColor: '#f5f5f5' } }}
                     onClick={() => navigate(`/admin/shops/${shop.id}`)}>
@@ -158,17 +188,9 @@ export default function ShopList() {
                     <TableCell>{areas[0] || '-'}</TableCell>
                     <TableCell>{dining.join('、') || '-'}</TableCell>
                     <TableCell>{shop.average_rating ? shop.average_rating.toFixed(1) : '-'}</TableCell>
-                    <TableCell>
-                      {isBanned ? <Chip label="已封禁" size="small" color="error" /> : <Chip label="正常" size="small" color="success" />}
-                    </TableCell>
+                    <TableCell>{statusChip}</TableCell>
                     <TableCell>{shop.favorite_count ?? 0}</TableCell>
-                    <TableCell>
-                      <Button size="small" variant="outlined"
-                        onClick={(e) => { e.stopPropagation(); setBanTarget({ id: shop.id, name: shop.name, banned: isBanned }); setBanReason(''); }}
-                        sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12, borderColor: isBanned ? '#4caf50' : '#f44336', color: isBanned ? '#4caf50' : '#f44336' }}>
-                        {isBanned ? '解封' : '封禁'}
-                      </Button>
-                    </TableCell>
+                    <TableCell>{actionBtn}</TableCell>
                   </TableRow>
                 );
               })}

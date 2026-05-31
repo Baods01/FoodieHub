@@ -10,6 +10,9 @@ interface AuthState {
   userAvatar: string | null;
   userEmail: string;
   userPhone: string;
+  userBio: string | null;
+  userGender: string | null;
+  userCreatedAt: string;
   initialized: boolean;
 
   /** 登录成功：存 token + 设用户信息 */
@@ -23,6 +26,9 @@ interface AuthState {
 
   /** 当前是否为管理员（role === 1） */
   isAdmin: () => boolean;
+
+  /** 编辑资料后更新本地用户信息 */
+  updateProfile: (data: { avatar?: string | null; bio?: string | null; gender?: string | null }) => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -33,6 +39,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   userAvatar: null,
   userEmail: '',
   userPhone: '',
+  userBio: null,
+  userGender: null,
+  userCreatedAt: '',
   initialized: false,
 
   login: (token, user) => {
@@ -45,6 +54,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       userAvatar: user.avatar,
       userEmail: user.email,
       userPhone: user.phone,
+      userBio: user.bio,
+      userGender: user.gender,
+      userCreatedAt: user.created_at,
     });
   },
 
@@ -58,11 +70,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       userAvatar: null,
       userEmail: '',
       userPhone: '',
+      userBio: null,
+      userGender: null,
+      userCreatedAt: '',
     });
   },
 
   isAdmin: () => {
     return get().userRole === 1;
+  },
+
+  updateProfile: (data) => {
+    const updates: Partial<AuthState> = {};
+    if (data.avatar !== undefined) updates.userAvatar = data.avatar;
+    if (data.bio !== undefined) updates.userBio = data.bio;
+    if (data.gender !== undefined) updates.userGender = data.gender;
+    set(updates);
   },
 
   init: async () => {
@@ -82,6 +105,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           userAvatar: user.avatar,
           userEmail: user.email,
           userPhone: user.phone,
+          userBio: user.bio,
+          userGender: user.gender,
+          userCreatedAt: user.created_at,
         });
       } else {
         localStorage.removeItem('foodiehub_token');

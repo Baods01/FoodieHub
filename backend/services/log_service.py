@@ -55,9 +55,14 @@ class LogService:
         )
         items = []
         for log in result["items"]:
+            # operator_name 优先用冗余字段，否则从 FK 关联取
+            op_name = log.operator_name
+            if not op_name and log.operator_id:
+                op_user = await log.operator
+                op_name = op_user.username if op_user else None
             items.append({
                 "id": log.id,
-                "operator_name": log.operator_name,
+                "operator_name": op_name,
                 "action": log.action,
                 "target_type": log.target_type,
                 "target_id": log.target_id,
