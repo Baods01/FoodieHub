@@ -20,6 +20,10 @@ import LogList from './logs/LogList';
 // 已实现组件（Phase 7-4）
 import ComplaintPage from './complaints/ComplaintPage';
 
+// 公告管理
+import AnnouncementList from './announcements/AnnouncementList';
+import AnnouncementCreate from './announcements/AnnouncementCreate';
+
 /**
  * AdminGuard — 管理员路由守卫
  */
@@ -62,6 +66,8 @@ export default function AdminApp() {
         <Route path="/shops" element={<ShopList />} />
         <Route path="/shops/:id" element={<ShopEdit />} />
         <Route path="/feedbacks" element={<ComplaintPage />} />
+        <Route path="/announcements" element={<AnnouncementList />} />
+        <Route path="/announcements/create" element={<AnnouncementCreate />} />
       </CustomRoutes>
     </Admin>
   );

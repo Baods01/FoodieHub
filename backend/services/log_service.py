@@ -48,11 +48,23 @@ class LogService:
         page_size: int = 20,
     ) -> dict:
         """管理员后台查看日志列表。"""
-        return await LogDAO.list(
+        result = await LogDAO.list(
             action=action, target_type=target_type, target_id=target_id,
             operator_id=operator_id, start_time=start_time, end_time=end_time,
             page=page, page_size=page_size,
         )
+        items = []
+        for log in result["items"]:
+            items.append({
+                "id": log.id,
+                "operator_name": log.operator_name,
+                "action": log.action,
+                "target_type": log.target_type,
+                "target_id": log.target_id,
+                "detail": log.detail,
+                "created_at": log.created_at.isoformat(),
+            })
+        return {"items": items, "total": result["total"], "page": result["page"], "page_size": result["page_size"]}
 
     @staticmethod
     async def get_daily_trends(days: int = 7) -> list:

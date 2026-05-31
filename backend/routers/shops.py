@@ -58,6 +58,11 @@ async def get_shop_detail(
     shop = await ShopService.get_by_id(shop_id, user_id=user_id)
     if not shop:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="店铺不存在")
+    if shop.is_banned:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="该店铺已被封禁",
+        )
     return ResponseModel.success(data=shop, message="获取成功")
 
 

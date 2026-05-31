@@ -176,90 +176,103 @@ class ShopService:
     @staticmethod
     async def merge_shops(main_shop_id: int, duplicate_shop_ids: List[int]) -> ShopResponse:
         """将多个从属店铺的数据合并到主店铺，从属店铺标记为已合并并软删除。"""
+        from tortoise.transactions import in_transaction
+
         main_shop = await ShopsDAO.get_by_id(main_shop_id, include_inactive=True)
         if not main_shop:
             raise ValueError("主店铺不存在")
+        if not main_shop.is_active:
+            raise ValueError("主店铺已被关闭，不能作为合并目标")
+
+        # 过滤掉主店自身（防止误操作导致主店被软删除）
+        duplicate_shop_ids = [did for did in duplicate_shop_ids if did != main_shop_id]
+        if not duplicate_shop_ids:
+            raise ValueError("没有可合并的从属店铺")
 
         # 收集所有别名和浏览数
         new_aliases = main_shop.aliases or []
         total_view_add = 0
 
-        for dup_id in duplicate_shop_ids:
-            dup = await ShopsDAO.get_by_id(dup_id, include_inactive=True)
-            if not dup or not dup.is_active:
-                continue
+        async with in_transaction():
+            for dup_id in duplicate_shop_ids:
+                dup = await ShopsDAO.get_by_id(dup_id, include_inactive=True)
+                if not dup or not dup.is_active:
+                    continue
 
-            new_aliases.append(dup.name)
-            total_view_add += dup.view_count
+                new_aliases.append(dup.name)
+                total_view_add += dup.view_count
 
-            # 迁移评分（同用户取高分）
-            from models.shops import Ratings
-            ratings = await Ratings.filter(shop_id=dup_id, is_active=True).all()
-            for r in ratings:
-                existing = await Ratings.get_or_none(shop_id=main_shop_id, user_id=r.user_id, is_active=True)
-                if existing:
-                    if r.score > existing.score:
-                        existing.score = r.score
-                        await existing.save()
-                    r.is_active = False
-                    await r.save()
-                else:
-                    r.shop_id = main_shop_id
-                    await r.save()
+                # 迁移评分（同用户取高分）
+                from models.shops import Ratings
+                ratings = await Ratings.filter(shop_id=dup_id, is_active=True).all()
+                for r in ratings:
+                    existing = await Ratings.get_or_none(shop_id=main_shop_id, user_id=r.user_id, is_active=True)
+                    if existing:
+                        if r.score > existing.score:
+                            existing.score = r.score
+                            await existing.save()
+                        r.is_active = False
+                        await r.save()
+                    else:
+                        r.shop_id = main_shop_id
+                        await r.save()
 
-            # 迁移一级评论
-            from models.interaction import ShopComments
-            await ShopComments.filter(shop_id=dup_id, is_active=True).update(shop_id=main_shop_id)
+                # 迁移一级评论
+                from models.interaction import ShopComments
+                await ShopComments.filter(shop_id=dup_id, is_active=True).update(shop_id=main_shop_id)
 
-            # 迁移一级问题
-            from models.interaction import ShopQuestions
-            await ShopQuestions.filter(shop_id=dup_id, is_active=True).update(shop_id=main_shop_id)
+                # 迁移一级问题
+                from models.interaction import ShopQuestions
+                await ShopQuestions.filter(shop_id=dup_id, is_active=True).update(shop_id=main_shop_id)
 
-            # 迁移收藏（去重）
-            from models.users import Favorites
-            dup_favs = await Favorites.filter(shop_id=dup_id, is_active=True).all()
-            for f in dup_favs:
-                existed = await Favorites.get_or_none(shop_id=main_shop_id, user_id=f.user_id, is_active=True)
-                if existed:
-                    f.is_active = False
-                    await f.save()
-                else:
-                    f.shop_id = main_shop_id
-                    await f.save()
+                # 迁移收藏（去重）
+                from models.users import Favorites
+                dup_favs = await Favorites.filter(shop_id=dup_id, is_active=True).all()
+                for f in dup_favs:
+                    existed = await Favorites.get_or_none(shop_id=main_shop_id, user_id=f.user_id, is_active=True)
+                    if existed:
+                        f.is_active = False
+                        await f.save()
+                    else:
+                        f.shop_id = main_shop_id
+                        await f.save()
 
-            # 迁移图片
-            from models.images import Images
-            await Images.filter(entity_type="shop", entity_id=dup_id, is_active=True).update(entity_id=main_shop_id)
+                # 迁移图片
+                from models.images import Images
+                await Images.filter(entity_type="shop", entity_id=dup_id, is_active=True).update(entity_id=main_shop_id)
 
-            # 迁移菜单
-            from models.shops import Menu
-            await Menu.filter(shop_id=dup_id, is_active=True).update(shop_id=main_shop_id)
+                # 迁移菜单
+                from models.shops import Menu
+                await Menu.filter(shop_id=dup_id, is_active=True).update(shop_id=main_shop_id)
 
-            # 迁移字典标签（去重）
-            dup_dicts = await DictRelDAO.get_entity_dicts("shop", dup_id)
-            main_dict_ids = {d["dict_data_id"] for d in (await DictRelDAO.get_entity_dicts("shop", main_shop_id))}
-            for dd in dup_dicts:
-                if dd["dict_data_id"] not in main_dict_ids:
-                    await DictRelDAO.add_dict_to_entity("shop", main_shop_id, dd["dict_data_id"])
+                # 迁移字典标签（去重）
+                dup_dicts = await DictRelDAO.get_entity_dicts("shop", dup_id)
+                main_dict_ids = {d["dict_data_id"] for d in (await DictRelDAO.get_entity_dicts("shop", main_shop_id))}
+                for dd in dup_dicts:
+                    if dd["dict_data_id"] not in main_dict_ids:
+                        await DictRelDAO.add_dict_to_entity("shop", main_shop_id, dd["dict_data_id"])
 
-            # 迁移活动记录
-            from models.users import Activities
-            await Activities.filter(target_type="shop", target_id=dup_id, is_active=True).update(target_id=main_shop_id)
-            await Activities.filter(shop_id=dup_id, is_active=True).update(shop_id=main_shop_id)
+                # 迁移活动记录
+                from models.users import Activities
+                await Activities.filter(target_type="shop", target_id=dup_id, is_active=True).update(target_id=main_shop_id)
+                await Activities.filter(shop_id=dup_id, is_active=True).update(shop_id=main_shop_id)
 
-            # 更新别名
-            main_shop.aliases = list(set(new_aliases))
+                # 更新别名
+                main_shop.aliases = list(set(new_aliases))
 
-            # 软删除从属店铺，标记合并关系
-            dup.merged_into_id = main_shop_id
-            dup.is_active = False
-            await dup.save()
+                # 软删除从属店铺，标记合并关系
+                dup.merged_into_id = main_shop_id
+                dup.is_active = False
+                await dup.save()
 
-        # 累加浏览量
-        main_shop.view_count += total_view_add
-        # 重算平均分
-        await ShopsDAO._recalc_average_rating(main_shop_id)
-        await main_shop.save()
+            # 累加浏览量
+            main_shop.view_count += total_view_add
+            # 重算评论数和收藏数
+            await ShopsDAO.sync_comment_count(main_shop_id)
+            await ShopsDAO.sync_favorite_count(main_shop_id)
+            # 重算平均分
+            await ShopsDAO._recalc_average_rating(main_shop_id)
+            await main_shop.save()
 
         return await ShopService._build_response(main_shop_id)
 

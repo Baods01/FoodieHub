@@ -16,9 +16,9 @@ import {
 
 const userFilters = [
   <TextInput source="keyword" label="搜索" alwaysOn sx={{ '& .MuiInputBase-root': { backgroundColor: '#fff' } }} />,
-  <SelectInput source="is_active" label="状态" choices={[
-    { id: 'true', name: '正常' },
-    { id: 'false', name: '已封禁' },
+  <SelectInput source="is_banned" label="状态" choices={[
+    { id: 'false', name: '正常' },
+    { id: 'true', name: '已封禁' },
   ]} />,
 ];
 
@@ -30,7 +30,7 @@ function RoleChip({ record }: { record: any }) {
 }
 
 function StatusChip({ record }: { record: any }) {
-  if (record?.is_active === false) {
+  if (record?.is_banned) {
     return <Chip label="已封禁" size="small" color="error" />;
   }
   return <Chip label="正常" size="small" color="success" />;

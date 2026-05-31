@@ -63,7 +63,7 @@ async def ban_user(
     ok = await UserService.ban_user(user_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
-    await LogService.log(action="ban_user", operator=current_user, target_type="user", target_id=user_id, detail={"reason": reason})
+    await LogService.log(action="ban_user", operator=current_user.id, target_type="user", target_id=user_id, detail={"reason": reason})
     return ResponseModel.success(data={"user_id": user_id, "status": "banned"})
 
 
@@ -76,7 +76,7 @@ async def unban_user(
     ok = await UserService.unban_user(user_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
-    await LogService.log(action="unban_user", operator=current_user, target_type="user", target_id=user_id, detail={"reason": reason})
+    await LogService.log(action="unban_user", operator=current_user.id, target_type="user", target_id=user_id, detail={"reason": reason})
     return ResponseModel.success(data={"user_id": user_id, "status": "active"})
 
 
@@ -91,7 +91,7 @@ async def ban_shop(
     ok = await ShopService.ban_shop(shop_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="店铺不存在")
-    await LogService.log(action="ban_shop", operator=current_user, target_type="shop", target_id=shop_id, detail={"reason": reason})
+    await LogService.log(action="ban_shop", operator=current_user.id, target_type="shop", target_id=shop_id, detail={"reason": reason})
     return ResponseModel.success(data={"shop_id": shop_id, "status": "banned"})
 
 
@@ -104,7 +104,7 @@ async def unban_shop(
     ok = await ShopService.unban_shop(shop_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="店铺不存在")
-    await LogService.log(action="unban_shop", operator=current_user, target_type="shop", target_id=shop_id, detail={"reason": reason})
+    await LogService.log(action="unban_shop", operator=current_user.id, target_type="shop", target_id=shop_id, detail={"reason": reason})
     return ResponseModel.success(data={"shop_id": shop_id, "status": "active"})
 
 
@@ -155,7 +155,7 @@ async def merge_shops(
     try:
         ids = [int(x.strip()) for x in duplicate_shop_ids.split(",") if x.strip()]
         result = await ShopService.merge_shops(main_shop_id, ids)
-        await LogService.log(action="merge_shops", operator=current_user, target_type="shop", target_id=main_shop_id, detail={"duplicate_ids": ids})
+        await LogService.log(action="merge_shops", operator=current_user.id, target_type="shop", target_id=main_shop_id, detail={"duplicate_ids": ids})
         return ResponseModel.success(data=result, message="合并成功")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -181,7 +181,95 @@ async def list_logs(
     return ResponseModel.success(data=data)
 
 
+# ==================== 店铺管理（管理员专用） ====================
+
+@router.get("/shops", response_model=ResponseModel, summary="店铺列表（含被封禁）")
+async def admin_list_shops(
+    keyword: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: UserResponse = Depends(require_admin),
+):
+    from models.shops import Shops
+    from dao.image_dao import ImageDAO
+    from dao.dict_dao import DictRelDAO
+    from schemas.shops import ShopListItem
+
+    qs = Shops.all()
+    if keyword:
+        qs = qs.filter(name__icontains=keyword)
+    total = await qs.count()
+    shops = await qs.order_by("-created_at").offset((page-1)*page_size).limit(page_size).all()
+
+    items = []
+    for s in shops:
+        cover = await ImageDAO.get_first_by_entity("shop", s.id)
+        tags = await DictRelDAO.get_entity_dicts("shop", s.id)
+        dict_data = [{"id": t["dict_data_id"], "name": t["dict_data_name"], "dict_type_name": t["dict_type_name"]} for t in tags]
+        items.append(ShopListItem(
+            id=s.id, name=s.name, dict_data=dict_data,
+            average_rating=s.average_rating, view_count=s.view_count,
+            favorite_count=s.favorite_count, comment_count=s.comment_count,
+            cover_image=cover.url if cover else None,
+            is_favorited=False, is_banned=s.is_banned, is_active=s.is_active,
+            created_at=s.created_at,
+        ))
+    return ResponseModel.success(data={"items": items, "total": total, "page": page, "page_size": page_size})
+
+
+@router.get("/shops/{shop_id}", response_model=ResponseModel, summary="店铺详情（管理员）")
+async def admin_get_shop(
+    shop_id: int,
+    current_user: UserResponse = Depends(require_admin),
+):
+    from dao.shops_dao import ShopsDAO
+    from dao.dict_dao import DictRelDAO
+    from dao.image_dao import ImageDAO
+    from services.shop_service import ShopService
+    shop = await ShopsDAO.get_by_id(shop_id, include_inactive=True)
+    if not shop:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="店铺不存在")
+    result = await ShopService._build_detail(shop, is_fav=False, user_rating=None)
+    return ResponseModel.success(data=result)
+
+
 # ==================== 公告 ====================
+
+@router.get("/announcements", response_model=ResponseModel, summary="公告列表")
+async def list_announcements(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: UserResponse = Depends(require_admin),
+):
+    from tortoise.functions import Count, Max
+    from models.users import Messages
+
+    qs = Messages.filter(type="announcement", is_active=True)
+    # 统计去重后的公告总数
+    all_titles = await qs.values_list("title", "content")
+    total = len(set((t, c) for t, c in all_titles))
+
+    # 按 title+content 去重，取最新时间，统计推送人数
+    results = await qs.annotate(
+        sent_count=Count("id"),
+        latest_time=Max("created_at"),
+    ).group_by("title", "content") \
+     .order_by("-latest_time") \
+     .offset((page - 1) * page_size) \
+     .limit(page_size) \
+     .values("title", "content", "sent_count", "latest_time")
+
+    items = []
+    for r in results:
+        items.append({
+            "title": r["title"],
+            "content": r["content"],
+            "sent_count": r["sent_count"],
+            "created_at": r["latest_time"].isoformat(),
+        })
+
+    return ResponseModel.success(data={"items": items, "total": total, "page": page, "page_size": page_size})
+
 
 @router.post("/announcements", response_model=ResponseModel, summary="发布公告")
 async def create_announcement(
@@ -190,5 +278,5 @@ async def create_announcement(
     current_user: UserResponse = Depends(require_admin),
 ):
     sent = await MessageService.send_announcement(title, content, sender_id=current_user.id)
-    await LogService.log(action="publish_announcement", operator=current_user, target_type="announcement", target_id=0)
+    await LogService.log(action="publish_announcement", operator=current_user.id, target_type="announcement", target_id=0)
     return ResponseModel.success(data={"sent_count": sent}, message="公告发布成功")

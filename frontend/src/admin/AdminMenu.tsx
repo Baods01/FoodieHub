@@ -14,6 +14,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import StoreIcon from '@mui/icons-material/Storefront';
 import FlagIcon from '@mui/icons-material/Flag';
 import HistoryIcon from '@mui/icons-material/History';
+import AnnouncementIcon from '@mui/icons-material/Campaign';
 
 interface MenuItemConfig {
   to: string;
@@ -27,6 +28,7 @@ const menuItems: MenuItemConfig[] = [
   { to: '/admin/shops', primaryText: '店铺管理', icon: <StoreIcon /> },
   { to: '/admin/feedbacks', primaryText: '反馈管理', icon: <FlagIcon /> },
   { to: '/admin/logs', primaryText: '操作日志', icon: <HistoryIcon /> },
+  { to: '/admin/announcements', primaryText: '公告管理', icon: <AnnouncementIcon /> },
 ];
 
 function CustomMenuItem({ to, primaryText, icon }: MenuItemConfig) {

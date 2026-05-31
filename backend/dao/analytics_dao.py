@@ -39,7 +39,10 @@ class AnalyticsDAO:
             SELECT
                 (SELECT COUNT(*) FROM shops              WHERE is_active = 1 AND is_banned = 0) AS total_shops,
                 (SELECT COUNT(*) FROM users              WHERE is_active = 1)                    AS total_users,
-                (SELECT COUNT(*) FROM shop_comments      WHERE is_active = 1)                    AS total_comments,
+                (SELECT COUNT(*) FROM shop_comments      WHERE is_active = 1) +
+                    (SELECT COUNT(*) FROM comment_replies   WHERE is_active = 1) +
+                    (SELECT COUNT(*) FROM shop_questions    WHERE is_active = 1) +
+                    (SELECT COUNT(*) FROM question_answers  WHERE is_active = 1)            AS total_comments,
                 (SELECT COUNT(*) FROM shop_questions     WHERE is_active = 1)                    AS total_questions,
                 (SELECT COUNT(*) FROM complaints         WHERE status = 'pending' AND is_active = 1) AS pending_complaints,
                 (SELECT COUNT(*) FROM feedbacks WHERE type = "edit_request" AND status = 'pending' AND is_active = 1) AS pending_edits,
@@ -76,7 +79,10 @@ class AnalyticsDAO:
                 dates.dt AS `date`,
                 COALESCE(COUNT(DISTINCT s.id),  0) AS new_shops,
                 COALESCE(COUNT(DISTINCT u.id),  0) AS new_users,
-                COALESCE(COUNT(DISTINCT sc.id), 0) AS new_comments,
+                COALESCE(COUNT(DISTINCT sc.id),  0) +
+                    COALESCE(COUNT(DISTINCT cr.id),  0) +
+                    COALESCE(COUNT(DISTINCT sq.id),  0) +
+                    COALESCE(COUNT(DISTINCT qa.id),  0)                                   AS new_interactions,
                 COALESCE(COUNT(DISTINCT sq.id), 0) AS new_questions
             FROM dates
             LEFT JOIN shops          s  ON s.is_active = 1         AND DATE(s.created_at)  = dates.dt
@@ -98,13 +104,18 @@ class AnalyticsDAO:
                 dates.dt             AS `date`,
                 COALESCE(COUNT(DISTINCT s.id),  0)  AS new_shops,
                 COALESCE(COUNT(DISTINCT u.id),  0)  AS new_users,
-                COALESCE(COUNT(DISTINCT sc.id), 0)  AS new_comments,
+                COALESCE(COUNT(DISTINCT sc.id), 0) +
+                    COALESCE(COUNT(DISTINCT cr.id),  0) +
+                    COALESCE(COUNT(DISTINCT sq.id),  0) +
+                    COALESCE(COUNT(DISTINCT qa.id),  0)                                   AS new_interactions,
                 COALESCE(COUNT(DISTINCT sq.id), 0)  AS new_questions
             FROM dates
             LEFT JOIN shops          s  ON s.is_active = 1    AND DATE(s.created_at)  = dates.dt
             LEFT JOIN users          u  ON u.is_active = 1    AND DATE(u.created_at)  = dates.dt
             LEFT JOIN shop_comments  sc ON sc.is_active = 1   AND DATE(sc.created_at) = dates.dt
+            LEFT JOIN comment_replies cr ON cr.is_active = 1  AND DATE(cr.created_at) = dates.dt
             LEFT JOIN shop_questions sq ON sq.is_active = 1   AND DATE(sq.created_at) = dates.dt
+            LEFT JOIN question_answers qa ON qa.is_active = 1 AND DATE(qa.created_at) = dates.dt
             GROUP BY dates.dt
             ORDER BY dates.dt
         """
@@ -115,7 +126,7 @@ class AnalyticsDAO:
                 "date": r.get("date").strftime("%Y-%m-%d") if r.get("date") else "",
                 "new_shops": r.get("new_shops", 0),
                 "new_users": r.get("new_users", 0),
-                "new_comments": r.get("new_comments", 0),
+                "new_interactions": r.get("new_interactions", 0),
                 "new_questions": r.get("new_questions", 0),
             }
             for r in rows

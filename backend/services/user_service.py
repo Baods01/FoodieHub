@@ -100,7 +100,22 @@ class UserService:
         page: int = 1,
         page_size: int = 20,
     ) -> dict:
-        return await UserDAO.list(
+        result = await UserDAO.list(
             is_active=is_active, is_banned=is_banned,
             keyword=keyword, page=page, page_size=page_size,
         )
+        items = []
+        for u in result["items"]:
+            items.append({
+                "id": u.id,
+                "username": u.username,
+                "phone": u.phone,
+                "email": u.email,
+                "avatar": u.avatar,
+                "bio": u.bio,
+                "role": u.role,
+                "is_banned": u.is_banned,
+                "is_active": u.is_active,
+                "created_at": u.created_at.isoformat(),
+            })
+        return {"items": items, "total": result["total"], "page": result["page"], "page_size": result["page_size"]}

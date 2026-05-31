@@ -14,9 +14,9 @@ import { MenuSection } from '../components/menu/MenuSection';
 import MenuUploadModal from '../components/menu/MenuUploadModal';
 import FeedbackModal from '../components/shop/FeedbackModal';
 import { AlbumSection } from '../components/album/AlbumSection';
+import { AlertCircle } from 'lucide-react';
 import { ShopDetailSkeleton } from '../components/shop/ShopDetailSkeleton';
 import { LoginPromptModal } from '../components/shop/LoginPromptModal';
-import { ErrorState } from '../components/ui/ErrorState';
 import AllCommentsModal from '../components/comment/AllCommentsModal';
 import AllQAModal from '../components/question/AllQAModal';
 import AllMenuModal from '../components/menu/AllMenuModal';
@@ -28,7 +28,7 @@ export function ShopDetailPage() {
   const navigate = useNavigate();
   const [shop, setShop] = useState<ShopDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | false>(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loginModalMsg, setLoginModalMsg] = useState('');
   const [commentsModalOpen, setCommentsModalOpen] = useState(false);
@@ -46,7 +46,7 @@ export function ShopDetailPage() {
     setError(false);
     fetchShopDetail(shopId)
       .then((data: any) => { setShop(data); })
-      .catch(() => setError(true))
+      .catch((e: any) => setError(e?.response?.data?.detail || true))
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -76,7 +76,7 @@ export function ShopDetailPage() {
     setLoading(true);
     fetchShopDetail(shopId)
       .then((data: any) => { setShop(data); })
-      .catch(() => setError(true))
+      .catch((e: any) => setError(e?.response?.data?.detail || true))
       .finally(() => setLoading(false));
   };
 
@@ -85,7 +85,29 @@ export function ShopDetailPage() {
   }
 
   if (error) {
-    return <ErrorState onRetry={handleRetry} />;
+    const errMsg = typeof error === 'string' ? error : undefined;
+    const isBanned = errMsg === '该店铺已被封禁';
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <AlertCircle size={48} className="text-red-400" />
+        <p className="text-gray-500 text-base mt-4">{errMsg || '加载失败'}</p>
+        {!isBanned && (
+          <button
+            type="button"
+            onClick={handleRetry}
+            className="px-6 py-2 mt-4 rounded-lg border border-orange-400 text-orange-500 hover:bg-orange-50 transition-colors duration-200"
+          >
+            点击重试
+          </button>
+        )}
+        <Link
+          to="/"
+          className="mt-4 rounded-lg bg-orange-500 px-6 py-2 text-sm text-white transition-colors hover:bg-orange-600"
+        >
+          返回首页
+        </Link>
+      </div>
+    );
   }
 
   if (!shop) {

@@ -20,6 +20,8 @@ import {
   People as PeopleIcon,
   Comment as CommentIcon,
   TrendingUp as TrendingUpIcon,
+  Flag as FlagIcon,
+  EditNote as EditIcon,
 } from '@mui/icons-material';
 import apiClient from '../../api/client';
 
@@ -29,52 +31,23 @@ interface DailyStatsItem {
   date: string;
   new_shops: number;
   new_users: number;
-  new_comments: number;
+  new_interactions: number;
 }
 
-interface OverviewStats {
+interface OverviewData {
   total_shops: number;
   total_users: number;
   total_comments: number;
-  active_shops_7d: number;
-  active_users_7d: number;
-  active_comments_7d: number;
-  daily_stats: DailyStatsItem[];
+  total_questions: number;
+  pending_complaints: number;
+  pending_edits: number;
+  avg_rating: number | null;
 }
 
-interface ComplaintStats {
-  pending: number;
-  approved: number;
-  rejected: number;
-  total: number;
+interface PendingCounts {
+  pending_complaints: number;
+  pending_edit_requests: number;
 }
-
-// ============ Mock 数据 ============
-
-const mockOverview: OverviewStats = {
-  total_shops: 236,
-  total_users: 892,
-  total_comments: 1230,
-  active_shops_7d: 12,
-  active_users_7d: 45,
-  active_comments_7d: 128,
-  daily_stats: [
-    { date: '2026-05-20', new_shops: 2, new_users: 8, new_comments: 20 },
-    { date: '2026-05-21', new_shops: 1, new_users: 6, new_comments: 15 },
-    { date: '2026-05-22', new_shops: 3, new_users: 7, new_comments: 22 },
-    { date: '2026-05-23', new_shops: 2, new_users: 5, new_comments: 18 },
-    { date: '2026-05-24', new_shops: 1, new_users: 9, new_comments: 25 },
-    { date: '2026-05-25', new_shops: 2, new_users: 6, new_comments: 16 },
-    { date: '2026-05-26', new_shops: 1, new_users: 4, new_comments: 12 },
-  ],
-};
-
-const mockComplaintStats: ComplaintStats = {
-  pending: 5,
-  approved: 42,
-  rejected: 8,
-  total: 55,
-};
 
 // ============ 组件 ============
 
@@ -130,8 +103,9 @@ function StatCard({
 }
 
 export default function Dashboard() {
-  const [overview, setOverview] = useState<OverviewStats | null>(null);
-  const [complaintStats, setComplaintStats] = useState<ComplaintStats | null>(null);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [dailyTrends, setDailyTrends] = useState<DailyStatsItem[]>([]);
+  const [pendingCounts, setPendingCounts] = useState<PendingCounts | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -139,20 +113,19 @@ export default function Dashboard() {
     setLoading(true);
     setError(false);
     Promise.all([
-      apiClient.get('/admin/stats/overview', { params: { days: 7 } }).catch(() => null),
-      apiClient.get('/complaints/admin/stats').catch(() => null),
+      apiClient.get('/admin/overview').catch(() => null),
+      apiClient.get('/admin/daily-trends', { params: { days: 7 } }).catch(() => null),
+      apiClient.get('/admin/pending-counts').catch(() => null),
     ])
-      .then(([overviewRes, compRes]) => {
-        const ovData = overviewRes ? ((overviewRes.data as any)?.data ?? overviewRes.data) : null;
-        const csData = compRes ? ((compRes.data as any)?.data ?? compRes.data) : null;
-        setOverview(ovData || mockOverview);
-        setComplaintStats(csData || mockComplaintStats);
+      .then(([overviewRes, trendsRes, pendingRes]) => {
+        const ov: any = overviewRes ? ((overviewRes.data as any)?.data ?? overviewRes.data) : null;
+        const tr: any = trendsRes ? ((trendsRes.data as any)?.data ?? trendsRes.data) : null;
+        const pc: any = pendingRes ? ((pendingRes.data as any)?.data ?? pendingRes.data) : null;
+        setOverview(ov);
+        setDailyTrends(Array.isArray(tr) ? tr : []);
+        setPendingCounts(pc);
       })
-      .catch(() => {
-        setOverview(mockOverview);
-        setComplaintStats(mockComplaintStats);
-        setError(true);
-      })
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -171,12 +144,8 @@ export default function Dashboard() {
     );
   }
 
-  const ov = overview!;
-  const cs = complaintStats!;
-
   return (
     <Box sx={{ p: 3 }}>
-      {/* 页面标题 */}
       <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>仪表盘</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         平台数据概览
@@ -188,124 +157,63 @@ export default function Dashboard() {
         </Alert>
       )}
 
-      {/* ===== 第一行：总数统计 ===== */}
-      <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
-        累计数据
-      </Typography>
+      {/* ===== 累计数据 ===== */}
+      <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>累计数据</Typography>
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-          <StatCard
-            title="总店铺数"
-            value={ov.total_shops}
-            subtitle="全平台累计"
-            icon={<StoreIcon />}
-            color="#FF7E3A"
-          />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <StatCard title="总店铺数" value={overview?.total_shops ?? '-'} icon={<StoreIcon />} color="#FF7E3A" />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-          <StatCard
-            title="总用户数"
-            value={ov.total_users}
-            subtitle="全平台累计"
-            icon={<PeopleIcon />}
-            color="#3B82F6"
-          />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <StatCard title="总用户数" value={overview?.total_users ?? '-'} icon={<PeopleIcon />} color="#3B82F6" />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-          <StatCard
-            title="总评论数"
-            value={ov.total_comments}
-            subtitle="全平台累计"
-            icon={<CommentIcon />}
-            color="#10B981"
-          />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <StatCard title="总互动数" value={overview?.total_comments ?? '-'} icon={<CommentIcon />} color="#10B981" />
         </Grid>
-      </Grid>
-
-      {/* ===== 第二行：近7日活跃 ===== */}
-      <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
-        近 7 日新增
-      </Typography>
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-          <StatCard
-            title="新增店铺"
-            value={ov.active_shops_7d}
-            subtitle={`较上周期`}
-            icon={<TrendingUpIcon />}
-            color="#FF7E3A"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-          <StatCard
-            title="新增用户"
-            value={ov.active_users_7d}
-            subtitle={`较上周期`}
-            icon={<TrendingUpIcon />}
-            color="#3B82F6"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-          <StatCard
-            title="新增评论"
-            value={ov.active_comments_7d}
-            subtitle={`较上周期`}
-            icon={<TrendingUpIcon />}
-            color="#10B981"
-          />
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <StatCard title="平均评分" value={overview?.avg_rating ?? '-'} subtitle="有评分的店铺" icon={<TrendingUpIcon />} color="#F59E0B" />
         </Grid>
       </Grid>
 
       <Divider sx={{ my: 2 }} />
 
-      {/* ===== 第三行：举报统计 + 每日趋势表 ===== */}
+      {/* ===== 待处理工单 + 每日趋势 ===== */}
       <Grid container spacing={3}>
-        {/* 举报统计 */}
+        {/* 待处理工单 */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
-            举报统计
-          </Typography>
-          <Grid container spacing={1.5}>
-            <Grid size={6}>
-              <Card variant="outlined" sx={{ borderRadius: 2, borderColor: '#ff9800', borderLeft: '4px solid #ff9800' }}>
-                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                  <Typography variant="caption" color="text.secondary">待处理</Typography>
-                  <Typography variant="h5" fontWeight={700} color="#ff9800">{cs.pending}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid size={6}>
-              <Card variant="outlined" sx={{ borderRadius: 2, borderColor: '#4caf50', borderLeft: '4px solid #4caf50' }}>
-                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                  <Typography variant="caption" color="text.secondary">已处理</Typography>
-                  <Typography variant="h5" fontWeight={700} color="#4caf50">{cs.approved}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid size={6}>
-              <Card variant="outlined" sx={{ borderRadius: 2, borderColor: '#f44336', borderLeft: '4px solid #f44336' }}>
-                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                  <Typography variant="caption" color="text.secondary">已驳回</Typography>
-                  <Typography variant="h5" fontWeight={700} color="#f44336">{cs.rejected}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid size={6}>
-              <Card variant="outlined" sx={{ borderRadius: 2, borderColor: '#9e9e9e', borderLeft: '4px solid #9e9e9e' }}>
-                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                  <Typography variant="caption" color="text.secondary">总计</Typography>
-                  <Typography variant="h5" fontWeight={700} color="text.primary">{cs.total}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>待处理工单</Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Card variant="outlined" sx={{ borderRadius: 2, borderLeft: '4px solid #ff9800' }}>
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <FlagIcon sx={{ color: '#ff9800' }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">待处理举报</Typography>
+                    <Typography variant="h5" fontWeight={700} color="#ff9800">
+                      {overview?.pending_complaints ?? pendingCounts?.pending_complaints ?? '-'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+            <Card variant="outlined" sx={{ borderRadius: 2, borderLeft: '4px solid #3B82F6' }}>
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <EditIcon sx={{ color: '#3B82F6' }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">待处理勘误</Typography>
+                    <Typography variant="h5" fontWeight={700} color="#3B82F6">
+                      {overview?.pending_edits ?? pendingCounts?.pending_edit_requests ?? '-'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
         </Grid>
 
         {/* 每日趋势表 */}
         <Grid size={{ xs: 12, md: 8 }}>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
-            近 7 日每日新增趋势
-          </Typography>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>近 7 日每日新增趋势</Typography>
           <Card variant="outlined" sx={{ borderRadius: 2 }}>
             <TableContainer>
               <Table size="small">
@@ -314,17 +222,17 @@ export default function Dashboard() {
                     <TableCell sx={{ fontWeight: 600 }}>日期</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 600 }}>新增店铺</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 600 }}>新增用户</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600 }}>新增评论</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>新增互动</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {ov.daily_stats?.length > 0 ? (
-                    [...ov.daily_stats].reverse().map((row) => (
+                  {dailyTrends.length > 0 ? (
+                    [...dailyTrends].reverse().map((row) => (
                       <TableRow key={row.date} hover>
                         <TableCell sx={{ color: 'text.secondary' }}>{row.date}</TableCell>
                         <TableCell align="right">{row.new_shops}</TableCell>
                         <TableCell align="right">{row.new_users}</TableCell>
-                        <TableCell align="right">{row.new_comments}</TableCell>
+                        <TableCell align="right">{row.new_interactions}</TableCell>
                       </TableRow>
                     ))
                   ) : (

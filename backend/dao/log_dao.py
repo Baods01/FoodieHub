@@ -29,13 +29,20 @@ class LogDAO:
     ) -> OperationLog:
         """
         记录一条操作日志。
-        operator 接收 Users 模型实例或 None（系统/未登录）。
+        operator 接收 Users 模型实例、Pydantic UserResponse、int（用户ID）或 None。
+        内部转为 operator_name 记录（避免 Tortoise FK 字段接收非模型对象报错）。
         """
-        if operator:
-            operator_name = operator_name or getattr(operator, "username", None)
+        op_name = operator_name
+        if operator is not None:
+            if not isinstance(operator, int):
+                op_name = op_name or getattr(operator, "username", None)
+            else:
+                # int 时无法提取 username，保持 None
+                pass
+
         return await OperationLog.create(
-            operator=operator,
-            operator_name=operator_name,
+            operator=None,
+            operator_name=op_name,
             action=action,
             target_type=target_type,
             target_id=target_id,

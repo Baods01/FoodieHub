@@ -141,6 +141,8 @@ class ShopListItem(BaseModel):
     cover_image: Optional[str] = Field(default=None, description="封面图片URL")
     dict_data: Optional[List[DictDataSimpleResponse]] = Field(default=None, description="字典标签")
     is_favorited: bool = Field(default=False, description="当前用户是否已收藏")
+    is_banned: bool = Field(default=False, description="是否被封禁")
+    is_active: bool = Field(default=True, description="是否启用")
     created_at: datetime = Field(description="创建时间")
 
     class Config:

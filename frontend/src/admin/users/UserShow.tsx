@@ -35,7 +35,7 @@ function UserShowContent() {
 
   if (isLoading || !record) return null;
 
-  const isBanned = record.is_active === false;
+  const isBanned = record.is_banned === true;
 
   const handleBan = async () => {
     if (!banReason.trim() && !isBanned) return;
