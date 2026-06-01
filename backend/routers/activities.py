@@ -14,7 +14,17 @@ async def get_my_activities(
     page_size: int = Query(20, ge=1, le=100),
     current_user: UserResponse = Depends(get_current_user),
 ):
-    """当前用户的动态时间线（评论、评分、收藏等）。"""
+    """
+    我的动态接口
+    
+    查询参数:
+    - page (integer, 可选): 页码，默认值为 1
+    - page_size (integer, 可选): 每页大小，默认值为 20，最大值为 100
+    
+    响应:
+    - 成功返回动态列表
+    - 失败返回错误信息
+    """
     data = await ActivityService.list_by_user(current_user.id, page=page, page_size=page_size)
     return ResponseModel.success(data=data)
 
@@ -26,6 +36,16 @@ async def get_user_activities(
     page_size: int = Query(20, ge=1, le=100),
     current_user: UserResponse = Depends(get_current_user),
 ):
-    """指定用户的公开动态时间线（个人主页用）。"""
+    """
+    用户动态接口
+    
+    查询参数:
+    - page (integer, 可选): 页码，默认值为 1
+    - page_size (integer, 可选): 每页大小，默认值为 20，最大值为 100
+    
+    响应:
+    - 成功返回动态列表
+    - 失败返回错误信息
+    """
     data = await ActivityService.list_by_user(user_id, page=page, page_size=page_size)
     return ResponseModel.success(data=data)

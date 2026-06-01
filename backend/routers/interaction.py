@@ -21,6 +21,16 @@ async def create_comment(
     data: CommentCreate,
     current_user: UserResponse = Depends(require_login),
 ):
+    """
+    发表评论接口
+    
+    请求参数 (CommentCreate):
+    - content (string, 必填): 评论内容，长度1-2000字符
+    
+    响应:
+    - 成功返回评论信息
+    - 失败返回错误信息
+    """
     result = await CommentService.create(shop_id, current_user.id, data.content)
     await LogService.log(action="create_comment", operator=current_user, target_type="shop", target_id=shop_id)
     return ResponseModel.success(data=result, message="评论成功")
@@ -69,6 +79,17 @@ async def create_reply(
     reply_to_user_id: Optional[int] = Query(None),
     current_user: UserResponse = Depends(require_login),
 ):
+    """
+    回复评论接口
+    
+    查询参数:
+    - content (string, 必填): 回复内容，长度1-2000字符
+    - reply_to_user_id (integer, 可选): 被回复用户ID
+    
+    响应:
+    - 成功返回回复信息
+    - 失败返回错误信息
+    """
     result = await CommentService.create_reply(
         comment_id, current_user.id, content,
         reply_to_user_id=reply_to_user_id,
@@ -116,6 +137,17 @@ async def create_question(
     content: Optional[str] = Query(None),
     current_user: UserResponse = Depends(require_login),
 ):
+    """
+    提问接口
+    
+    查询参数:
+    - title (string, 必填): 问题概括，长度1-100字符
+    - content (string, 可选): 问题描述
+    
+    响应:
+    - 成功返回问题信息
+    - 失败返回错误信息
+    """
     result = await QuestionService.create(shop_id, current_user.id, title, content=content)
     await LogService.log(action="create_question", operator=current_user, target_type="shop", target_id=shop_id)
     return ResponseModel.success(data=result, message="提问成功")
@@ -163,6 +195,17 @@ async def create_answer(
     reply_to_user_id: Optional[int] = Query(None),
     current_user: UserResponse = Depends(require_login),
 ):
+    """
+    回答接口
+    
+    查询参数:
+    - content (string, 必填): 回答内容，长度1-2000字符
+    - reply_to_user_id (integer, 可选): 被回复用户ID
+    
+    响应:
+    - 成功返回回答信息
+    - 失败返回错误信息
+    """
     result = await QuestionService.create_answer(
         question_id, current_user.id, content,
         reply_to_user_id=reply_to_user_id,
@@ -208,6 +251,17 @@ async def toggle_like(
     data: LikeToggleRequest,
     current_user: UserResponse = Depends(require_login),
 ):
+    """
+    切换点赞接口
+    
+    请求参数 (LikeToggleRequest):
+    - entity_type (string, 必填): 内容类型，可选值为 "shop_comment"、"comment_reply"、"shop_question"、"question_answer"
+    - entity_id (integer, 必填): 内容ID
+    
+    响应:
+    - 成功返回点赞状态
+    - 失败返回错误信息
+    """
     try:
         result = await LikeService.toggle(current_user.id, data.entity_type, data.entity_id)
         # 点赞时通知内容作者

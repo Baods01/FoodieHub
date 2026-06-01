@@ -17,6 +17,19 @@ async def list_messages(
     type: str = Query(None),
     current_user: UserResponse = Depends(require_login),
 ):
+    """
+    消息列表接口
+    
+    查询参数:
+    - page (integer, 可选): 页码，默认值为 1
+    - page_size (integer, 可选): 每页大小，默认值为 20，最大值为 100
+    - unread_only (boolean, 可选): 是否只显示未读消息，默认值为 false
+    - type (string, 可选): 消息类型
+    
+    响应:
+    - 成功返回消息列表
+    - 失败返回错误信息
+    """
     result = await MessageService.list(
         current_user.id, unread_only=unread_only,
         type=type, page=page, page_size=page_size,
@@ -35,6 +48,16 @@ async def mark_read(
     data: MessageMarkReadRequest,
     current_user: UserResponse = Depends(require_login),
 ):
+    """
+    标记消息已读接口
+    
+    请求参数 (MessageMarkReadRequest):
+    - message_ids (array[int], 必填): 消息ID列表
+    
+    响应:
+    - 成功返回标记数量
+    - 失败返回错误信息
+    """
     marked = await MessageService.mark_read(current_user.id, data.message_ids)
     return ResponseModel.success(data={"marked_count": marked}, message="操作成功")
 
@@ -50,6 +73,16 @@ async def delete_messages(
     data: MessageDeleteRequest,
     current_user: UserResponse = Depends(require_login),
 ):
+    """
+    删除消息接口
+    
+    请求参数 (MessageDeleteRequest):
+    - message_ids (array[int], 必填): 消息ID列表
+    
+    响应:
+    - 成功返回删除数量
+    - 失败返回错误信息
+    """
     deleted = await MessageService.delete_messages(current_user.id, data.message_ids)
     return ResponseModel.success(data={"deleted_count": deleted}, message="删除成功")
 

@@ -15,8 +15,21 @@ from utils.auth import create_access_token, get_current_user, require_login
 router = APIRouter(prefix="/users", tags=["用户模块"])
 
 
-@router.post("/register", response_model=ResponseModel[UserResponse])
+@router.post("/register", response_model=ResponseModel[UserResponse], summary="用户注册")
 async def register(data: UserCreate):
+    """
+    用户注册接口
+    
+    请求参数:
+    - username (string, 必填): 登录用户名，长度2-50字符
+    - password (string, 必填): 密码，长度6-128字符
+    - phone (string, 必填): 手机号，最大20字符
+    - email (string, 必填): 电子邮箱
+    
+    响应:
+    - 成功返回用户信息
+    - 失败返回错误信息
+    """
     try:
         user = await UserService.register(data)
         return ResponseModel.success(data=user, message="注册成功")

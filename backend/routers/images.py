@@ -30,6 +30,18 @@ async def upload_image(
     entity_id: int = Form(...),
     current_user: UserResponse = Depends(require_login),
 ):
+    """
+    上传图片接口
+    
+    表单参数:
+    - file (file, 必填): 要上传的文件
+    - entity_type (string, 必填): 关联实体类型
+    - entity_id (integer, 必填): 关联实体ID
+    
+    响应:
+    - 成功返回图片信息
+    - 失败返回错误信息
+    """
     # 校验文件类型
     ext = Path(file.filename).suffix.lower() if file.filename else ""
     if ext not in ALLOWED_EXTENSIONS:

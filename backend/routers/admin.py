@@ -47,6 +47,20 @@ async def list_users(
     page_size: int = Query(20, ge=1, le=100),
     current_user: UserResponse = Depends(require_admin),
 ):
+    """
+    用户列表接口
+    
+    查询参数:
+    - is_active (boolean, 可选): 是否启用
+    - is_banned (boolean, 可选): 是否被封禁
+    - keyword (string, 可选): 搜索关键词
+    - page (integer, 可选): 页码，默认值为 1
+    - page_size (integer, 可选): 每页大小，默认值为 20，最大值为 100
+    
+    响应:
+    - 成功返回用户列表
+    - 失败返回错误信息
+    """
     data = await UserService.list(
         is_active=is_active, is_banned=is_banned,
         keyword=keyword, page=page, page_size=page_size,
@@ -72,6 +86,16 @@ async def ban_user(
     reason: str = Query(..., min_length=1),
     current_user: UserResponse = Depends(require_admin),
 ):
+    """
+    封禁用户接口
+    
+    查询参数:
+    - reason (string, 必填): 封禁原因，最小长度1字符
+    
+    响应:
+    - 成功返回用户ID和状态
+    - 失败返回错误信息
+    """
     ok = await UserService.ban_user(user_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
@@ -85,6 +109,16 @@ async def unban_user(
     reason: Optional[str] = Query(None),
     current_user: UserResponse = Depends(require_admin),
 ):
+    """
+    解封用户接口
+    
+    查询参数:
+    - reason (string, 可选): 解封原因
+    
+    响应:
+    - 成功返回用户ID和状态
+    - 失败返回错误信息
+    """
     ok = await UserService.unban_user(user_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
@@ -100,6 +134,16 @@ async def ban_shop(
     reason: str = Query(..., min_length=1),
     current_user: UserResponse = Depends(require_admin),
 ):
+    """
+    封禁店铺接口
+    
+    查询参数:
+    - reason (string, 必填): 封禁原因，最小长度1字符
+    
+    响应:
+    - 成功返回店铺ID和状态
+    - 失败返回错误信息
+    """
     ok = await ShopService.ban_shop(shop_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="店铺不存在")
@@ -113,6 +157,16 @@ async def unban_shop(
     reason: Optional[str] = Query(None),
     current_user: UserResponse = Depends(require_admin),
 ):
+    """
+    解封店铺接口
+    
+    查询参数:
+    - reason (string, 可选): 解封原因
+    
+    响应:
+    - 成功返回店铺ID和状态
+    - 失败返回错误信息
+    """
     ok = await ShopService.unban_shop(shop_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="店铺不存在")
@@ -130,6 +184,19 @@ async def list_feedbacks(
     page_size: int = Query(20, ge=1, le=100),
     current_user: UserResponse = Depends(require_admin),
 ):
+    """
+    反馈列表接口
+    
+    查询参数:
+    - type (string, 可选): 类型，可选值为 "complaint" 或 "edit_request"
+    - status (string, 可选): 状态，可选值为 "pending"、"approved"、"rejected"
+    - page (integer, 可选): 页码，默认值为 1
+    - page_size (integer, 可选): 每页大小，默认值为 20，最大值为 100
+    
+    响应:
+    - 成功返回反馈列表
+    - 失败返回错误信息
+    """
     data = await FeedbackService.list(type=type, status=status, page=page, page_size=page_size)
     return ResponseModel.success(data=data)
 

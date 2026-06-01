@@ -35,7 +35,8 @@ INSERT INTO dict_data (dict_type_id, name, sort_order) VALUES
 (2, '泰山区', 2),
 (2, '启林区', 3),
 (2, '六一区', 4),
-(2, '校外', 5)
+(2, '校外', 5),
+(2, '主校区', 6)
 ON DUPLICATE KEY UPDATE name = name;
 
 -- 就餐方式数据
