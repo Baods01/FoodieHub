@@ -7,7 +7,7 @@
 
 ## 概述
 
-activity_dao 提供 Activities 表的访问。Activity 的自动生成机制见 `services/activity_signals.py`（占位），DAO 层仅提供基础 CRUD。
+activity_dao 提供 Activities 表的访问。
 
 ---
 
@@ -15,11 +15,21 @@ activity_dao 提供 Activities 表的访问。Activity 的自动生成机制见 
 
 | 方法 | 参数 | 返回 | 说明 |
 |:---|:---|:---|:---|
-| `get_by_id(activity_id)` | | `Optional[Activities]` | |
-| `list_by_user(user_id, page, page_size)` | | `dict` | ⭐ 用户主页时间线，按时间倒序 |
-| `create(user_id, type, target_id, target_type, content, shop_id)` | 后三可选 | `Activities` | ⭐ 创建一条动态 |
-| `delete(activity_id)` | | `bool` | 软删除 |
-| `clear_by_user(user_id)` | | `int` | 用户注销时清理 |
+| `get_by_id(activity_id)` | `int` | `Optional[Activities]` | 按 ID 查询单条动态 |
+| `list_by_user(user_id, page, page_size)` | `page`/`page_size` 默认 1/20 | `dict` | ⭐ 用户动态时间线，按时间倒序，含 `select_related('shop')` |
+| `create(user_id, type, target_id, target_type, content, shop_id)` | `content`/`shop_id` 可选 | `Activities` | ⭐ 创建一条动态 |
+| `delete(activity_id)` | `int` | `bool` | 软删除 |
+| `clear_by_user(user_id)` | `int` | `int` | 用户注销时清理，返回删除数量 |
+
+**`list_by_user` 返回格式：**
+```python
+{
+    "items": [Activities, ...],
+    "total": 50,
+    "page": 1,
+    "page_size": 20
+}
+```
 
 ---
 
@@ -32,7 +42,7 @@ from dao import ActivityDAO
 await ActivityDAO.create(
     user_id=user.id, type="rating",
     target_id=shop_id, target_type="shop",
-    content=f"评分了店铺（4星）", shop_id=shop_id,
+    content="评分了店铺（4星）", shop_id=shop_id,
 )
 ```
 
@@ -40,5 +50,6 @@ await ActivityDAO.create(
 
 ## 注意事项
 
-1. **`list_by_user` 带 `prefetch_related('shop')`**，可直接访问 `item.shop.name` 用于前端跳转。
-2. **动态自动生成尚未实现**，详见 `services/activity_signals.py` 占位文件。
+1. **`list_by_user` 带 `select_related('shop')`**，可直接访问 `item.shop.name` 用于前端跳转。
+2. **动态自动生成由 Service 层在对应操作后显式调用 `create`**（如评论后、评分后），非自动触发。
+3. `type` 取值约定：`comment`、`rating`、`favorite`、`question`、`answer`。
