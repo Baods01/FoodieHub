@@ -40,6 +40,7 @@ export interface ShopFilter {
   keyword?: string;
   category_ids?: number[];
   district_ids?: number[];
+  dining_method_ids?: number[];
   min_rating?: number;
   sort_by?: string;
   sort_order?: string;
@@ -78,6 +79,7 @@ export async function fetchShops(filter: ShopFilter): Promise<{ items: ShopCardD
     keyword: filter.keyword || undefined,
     category_ids: filter.category_ids?.length ? filter.category_ids.join(',') : undefined,
     district_ids: filter.district_ids?.length ? filter.district_ids.join(',') : undefined,
+    dining_method_ids: filter.dining_method_ids?.length ? filter.dining_method_ids.join(',') : undefined,
     min_rating: filter.min_rating,
     sort_by: filter.sort_by || 'favorite_count',
     sort_order: filter.sort_order || 'desc',

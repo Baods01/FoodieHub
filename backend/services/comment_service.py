@@ -8,16 +8,33 @@ class CommentService:
     """评论业务逻辑"""
 
     @staticmethod
-    async def create(shop_id: int, user_id: int, content: str) -> dict:
+    async def create(shop_id: int, user_id: int, content: str, image_id: Optional[int] = None) -> dict:
         c = await CommentDAO.create(shop_id, user_id, content)
         await ShopsDAO.sync_comment_count(shop_id)
+
+        # 将图片的 entity_id 修正为评论 ID（上传时 entity_id 为 shop_id，需要更正）
+        if image_id:
+            from dao.image_dao import ImageDAO
+            img = await ImageDAO.get_by_id(image_id)
+            if img and img.entity_type == "shop_comment" and img.entity_id == shop_id:
+                await ImageDAO.update(image_id, entity_id=c.id)
+
         await c.fetch_related("user")
         user = c.user
+
+        # 重新获取更正后的图片 URL
+        image_url = None
+        if image_id:
+            img = await ImageDAO.get_by_id(image_id)
+            if img:
+                image_url = img.url
+
         return {
             "id": c.id,
             "shop_id": c.shop_id,
             "user": {"id": user.id, "username": user.username, "avatar": user.avatar} if user else None,
             "content": c.content,
+            "image": image_url,
             "like_count": 0,
             "reply_count": 0,
             "created_at": c.created_at.isoformat(),
@@ -26,17 +43,22 @@ class CommentService:
     @staticmethod
     async def list_by_shop(shop_id: int, page: int = 1, page_size: int = 20, user_id: Optional[int] = None) -> dict:
         result = await CommentDAO.list_by_shop(shop_id, page=page, page_size=page_size)
+        from dao.image_dao import ImageDAO
         items = []
         for c in result["items"]:
             user = c.user
             has_liked = False
             if user_id is not None:
                 has_liked = await LikeDAO.is_liked(user_id, "shop_comment", c.id)
+            # 获取评论图片
+            imgs = await ImageDAO.get_by_entity("shop_comment", c.id)
+            image_url = imgs[0].url if imgs else None
             items.append({
                 "id": c.id,
                 "shop_id": c.shop_id,
                 "user": {"id": user.id, "username": user.username, "avatar": user.avatar} if user else None,
                 "content": c.content,
+                "image": image_url,
                 "like_count": c.like_count,
                 "reply_count": c.reply_count,
                 "has_liked": has_liked,

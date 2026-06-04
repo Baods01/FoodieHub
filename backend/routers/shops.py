@@ -34,6 +34,7 @@ async def search_shops(
     keyword: Optional[str] = Query(None),
     category_ids: Optional[List[int]] = Query(None),
     district_ids: Optional[List[int]] = Query(None),
+    dining_method_ids: Optional[List[int]] = Query(None),
     min_rating: Optional[float] = Query(None, ge=0, le=5),
     sort_by: str = Query("favorite_count", pattern="^(created_at|average_rating|view_count|favorite_count)$"),
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
@@ -44,6 +45,7 @@ async def search_shops(
     user_id = current_user.id if current_user else None
     result = await ShopService.search(
         keyword=keyword, category_ids=category_ids, district_ids=district_ids,
+        dining_method_ids=dining_method_ids,
         min_rating=min_rating, sort_by=sort_by, sort_order=sort_order,
         page=page, page_size=page_size, user_id=user_id,
     )

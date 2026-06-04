@@ -218,7 +218,7 @@ export default function NotificationsPage() {
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm ${item.is_read ? 'text-gray-500' : 'text-gray-800 font-medium'}`}>
-                          {item.content}
+                          {item.type === 'announcement' ? item.title : item.content}
                         </p>
                         {item.type === 'announcement' && item.title && (
                           <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{item.content}</p>

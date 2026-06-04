@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDebounce } from '../hooks/useDebounce';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { fetchShops } from '../api/shops';
-import { fetchDictData } from '../api/dictionary';
+import { fetchDictDataWithId } from '../api/dictionary';
 import type { ShopCardData, SortOption } from '../types/shop';
 import { filterConfigs } from '../config/filters';
 import AnnouncementBanner from '../components/shop/AnnouncementBanner';
@@ -17,9 +17,9 @@ import { ErrorState } from '../components/ui/ErrorState';
 interface FilterState {
   keyword: string;
   sort: string;
-  category: string;
-  area: string;
-  diningMethods: string[];
+  category: string;       // 存储品类 DictData ID
+  area: string;           // 存储区域 DictData ID
+  diningMethods: string[]; // 存储就餐方式 DictData ID 列表
   page: number;
 }
 
@@ -58,13 +58,20 @@ export function HomePage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isError, setIsError] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  // filterOptions: 下拉选项的显示名列表
   const [filterOptions, setFilterOptions] = useState<Record<string, string[]>>({});
+  // optionsMap: 名称→ID 映射，用于将选中名称转为 ID
+  const [optionsMap, setOptionsMap] = useState<Record<string, Record<string, number>>>({});
 
   useEffect(() => {
-    // 从配置动态获取所有字典选项
-    filterConfigs.forEach((cfg) => {
-      fetchDictData(cfg.dictType).then((items) => {
-        setFilterOptions((prev) => ({ ...prev, [cfg.dictType]: (items ?? []).map((i) => i.name) }));
+    // 从配置动态获取所有字典选项（同时获取 ID 和名称）
+    filterConfigs.forEach(async (cfg) => {
+      const items = await fetchDictDataWithId(cfg.dictType);
+      setFilterOptions((prev) => ({ ...prev, [cfg.dictType]: (items ?? []).map((i) => i.name) }));
+      setOptionsMap((prev) => {
+        const map: Record<string, number> = {};
+        (items ?? []).forEach((i) => { map[i.name] = i.id; });
+        return { ...prev, [cfg.dictType]: map };
       });
     });
   }, []);
@@ -80,9 +87,26 @@ export function HomePage() {
     }
     setIsError(false);
 
-    const currentFilter = { ...filter, keyword: debouncedKeyword } as any;
+    // 将筛选名称转换为 ID（category_ids / district_ids 期望的是 ID 列表）
+    const categoryIds = filter.category ? [parseInt(filter.category, 10)] : undefined;
+    const districtIds = filter.area ? [parseInt(filter.area, 10)] : undefined;
+    // diningMethods 存储的是 ID 字符串列表
+    const diningMethodIds = filter.diningMethods.length > 0
+      ? filter.diningMethods.map((id) => parseInt(id, 10))
+      : undefined;
 
-    fetchShops(currentFilter)
+    const requestFilter = {
+      keyword: debouncedKeyword || undefined,
+      category_ids: categoryIds,
+      district_ids: districtIds,
+      dining_method_ids: diningMethodIds,
+      sort_by: filter.sort,
+      sort_order: 'desc',
+      page: filter.page,
+      page_size: 20,
+    };
+
+    fetchShops(requestFilter)
       .then((result: any) => {
         const items: ShopCardData[] = result.items || [];
         if (isLoadMore) {
@@ -90,7 +114,8 @@ export function HomePage() {
         } else {
           setShops(items);
         }
-        setHasMore(items.length < (result.total || 0));
+        // 当返回的条目数小于 page_size 时，说明已无更多数据
+        setHasMore(items.length >= 20);
       })
       .catch(() => {
         setIsError(true);
@@ -99,7 +124,7 @@ export function HomePage() {
         setIsLoading(false);
         setIsLoadingMore(false);
       });
-  }, [debouncedKeyword, filter.sort, filter.category, filter.area, filter.page]);
+  }, [debouncedKeyword, filter.sort, filter.category, filter.area, filter.diningMethods, filter.page]);
 
   const handleLoadMore = useCallback(() => {
     if (!isLoadingMore && hasMore) {
@@ -112,12 +137,27 @@ export function HomePage() {
   const handleRetry = useCallback(() => {
     setIsLoading(true);
     setIsError(false);
-    const currentFilter = { ...filter, keyword: debouncedKeyword } as any;
-    fetchShops(currentFilter)
+    const categoryIds = filter.category ? [parseInt(filter.category, 10)] : undefined;
+    const districtIds = filter.area ? [parseInt(filter.area, 10)] : undefined;
+    const diningMethodIds = filter.diningMethods.length > 0
+      ? filter.diningMethods.map((id) => parseInt(id, 10))
+      : undefined;
+
+    const requestFilter = {
+      keyword: debouncedKeyword || undefined,
+      category_ids: categoryIds,
+      district_ids: districtIds,
+      dining_method_ids: diningMethodIds,
+      sort_by: filter.sort,
+      sort_order: 'desc',
+      page: 1,
+      page_size: 20,
+    };
+    fetchShops(requestFilter)
       .then((result: any) => {
         const items: ShopCardData[] = result.items || [];
         setShops(items);
-        setHasMore(items.length < (result.total || 0));
+        setHasMore(items.length >= 20);
       })
       .catch(() => {
         setIsError(true);
@@ -147,9 +187,9 @@ export function HomePage() {
             filterConfigs={filterConfigs}
             filterOptions={filterOptions}
             filterValues={{
-              category: filter.category,
-              location_type: filter.area,
-              dining_method: filter.diningMethods,
+              '品类': filter.category,
+              '区域': filter.area,
+              '就餐方式': filter.diningMethods,
             }}
             onSortChange={(s: any) => dispatch({ type: 'SET_SORT' as any, payload: s })}
             onFilterChange={(dictType, value) => {

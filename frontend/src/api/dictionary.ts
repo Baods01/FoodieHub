@@ -30,3 +30,14 @@ export async function fetchDictData(typeName: string): Promise<DictItem[]> {
   });
   return res.data.data ?? [];
 }
+
+/**
+ * 按类型名称查询字典数据（包含完整信息，含 id）
+ * 用于将字典名称转换为 ID
+ */
+export async function fetchDictDataWithId(typeName: string): Promise<{ id: number; name: string }[]> {
+  const res = await apiClient.get<ApiResponse<{ id: number; name: string }[]>>('/dict/data', {
+    params: { type_name: typeName },
+  });
+  return res.data.data ?? [];
+}

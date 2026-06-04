@@ -22,7 +22,7 @@ export function QuestionInput({
   const [content, setContent] = useState('');
 
   const titleValid = title.length >= TITLE_MIN && title.length <= TITLE_MAX;
-  const contentValid = content.length >= CONTENT_MIN && content.length <= CONTENT_MAX;
+  const contentValid = (content.length === 0 || (content.length >= CONTENT_MIN && content.length <= CONTENT_MAX));
   const canSubmit = titleValid && contentValid && !isSubmitting;
 
   const handleSubmit = () => {
@@ -77,7 +77,7 @@ export function QuestionInput({
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="详细描述你的问题（5-200字）"
+          placeholder="详细描述你的问题（选填，5-200字）"
           maxLength={CONTENT_MAX + 10}
           rows={3}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 resize-none"

@@ -47,3 +47,4 @@ await ViewHistoryDAO.clear_by_user(user_id=user.id)
 1. **`upsert` 行为**：同一用户对同一店铺再次浏览时，更新 `viewed_at` 时间而非创建新记录，保证历史列表不重复。
 2. **`list_by_user` 含 `select_related('shop')`**，可直接访问 `item.shop.name`、`item.shop.id` 等店铺信息。
 3. **浏览历史用于"最近浏览"功能**，与"浏览量统计"（`shops_dao.increment_view_count`）是两个独立模块。
+4. **`delete` 为软删除**：设置 `is_active=False`，配合 `list_by_user` 的 `is_active=True` 过滤条件实现假删除。

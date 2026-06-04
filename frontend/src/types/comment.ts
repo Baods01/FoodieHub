@@ -8,10 +8,10 @@ export interface Comment {
   reply_count: number;
   has_liked: boolean;
   created_at: string;
+  /** 评论附带图片URL（后端 single image 字段） */
+  image?: string | null;
   /** 本地乐观更新用：回复列表 */
   replies?: CommentReply[];
-  /** 本地乐观更新用：评论图片 */
-  images?: string[];
 }
 
 /** 评论回复 — 对齐后端 ReplyData */

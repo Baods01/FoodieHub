@@ -15,8 +15,8 @@ CommentService 提供评论区的完整操作：一级评论 CRUD、二级回复
 
 | 方法 | 参数 | 返回 | 说明 |
 |:---|:---|:---|:---|
-| `create(shop_id, user_id, content)` | | `dict` | 发表评论 |
-| `list_by_shop(shop_id, page, page_size)` | | `dict` | ⭐ 某店铺的评论列表 |
+| `create(shop_id, user_id, content, image_id)` | image_id 可选 | `dict` | ⭐ 发表评论（支持附带一张图片） |
+| `list_by_shop(shop_id, page, page_size)` | | `dict` | ⭐ 某店铺的评论列表（含图片） |
 | `list_by_user(user_id, page, page_size)` | | `dict` | 某用户的评论列表 |
 | `update(comment_id, content)` | | `Optional[dict]` | 更新评论 |
 | `delete(comment_id)` | | `bool` | 删除评论 |
@@ -27,16 +27,26 @@ CommentService 提供评论区的完整操作：一级评论 CRUD、二级回复
 
 ---
 
+## 评论图片说明
+
+一级评论可附带一张图片，流程如下：
+
+1. **前端上传**：用户选图后调用 `POST /images/upload`，entity_type=`"shop_comment"`，entity_id 传 `shop_id`（临时）
+2. **后端修正**：评论创建成功后，`CommentService.create` 会调用 `ImageDAO.update(image_id, entity_id=comment_id)` 将图片绑定到评论
+3. **列表返回**：`list_by_shop` 调用 `ImageDAO.get_by_entity("shop_comment", comment_id)` 取图片 URL
+
+---
+
 ## 典型用法
 
 ```python
-# 发表评论
-c = await CommentService.create(shop_id, user.id, "好吃！")
+# 发表评论（含图片）
+c = await CommentService.create(shop_id, user.id, "好吃！", image_id=123)
 
 # 获取评论列表
 comments = await CommentService.list_by_shop(shop_id)
 for c in comments["items"]:
-    replies = await CommentService.list_replies(c.id)
+    img_url = c.get("image")  # 评论图片
 
 # 点赞
 result = await CommentService.toggle_like(user.id, comment_id)

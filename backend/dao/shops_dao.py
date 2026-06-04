@@ -35,6 +35,7 @@ class ShopsDAO:
         keyword: Optional[str] = None,
         category_ids: Optional[List[int]] = None,
         district_ids: Optional[List[int]] = None,
+        dining_method_ids: Optional[List[int]] = None,
         min_rating: Optional[float] = None,
         sort_by: str = "favorite_count",
         sort_order: str = "desc",
@@ -71,6 +72,16 @@ class ShopsDAO:
             else:
                 return []
 
+        # 就餐方式筛选
+        if dining_method_ids:
+            shop_ids = await DictRel.filter(
+                entity_type="shop", dict_data_id__in=dining_method_ids, is_active=True
+            ).values_list("entity_id", flat=True)
+            if shop_ids:
+                qs = qs.filter(id__in=shop_ids)
+            else:
+                return []
+
         # 最低评分筛选
         if min_rating is not None:
             qs = qs.filter(average_rating__gte=min_rating)
@@ -86,6 +97,7 @@ class ShopsDAO:
         keyword: Optional[str] = None,
         category_ids: Optional[List[int]] = None,
         district_ids: Optional[List[int]] = None,
+        dining_method_ids: Optional[List[int]] = None,
         min_rating: Optional[float] = None,
     ) -> int:
         """统计搜索条件下的店铺总数。"""
@@ -103,6 +115,12 @@ class ShopsDAO:
         if district_ids:
             shop_ids = await DictRel.filter(
                 entity_type="shop", dict_data_id__in=district_ids, is_active=True
+            ).values_list("entity_id", flat=True)
+            qs = qs.filter(id__in=shop_ids) if shop_ids else qs.filter(id__in=[])
+
+        if dining_method_ids:
+            shop_ids = await DictRel.filter(
+                entity_type="shop", dict_data_id__in=dining_method_ids, is_active=True
             ).values_list("entity_id", flat=True)
             qs = qs.filter(id__in=shop_ids) if shop_ids else qs.filter(id__in=[])
 

@@ -50,7 +50,7 @@ class ViewHistoryDAO:
         if not record:
             return False
         record.is_active = False
-        await record.save()
+        await record.save(update_fields=["is_active", "updated_at"])
         return True
 
     @staticmethod

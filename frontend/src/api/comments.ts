@@ -8,6 +8,7 @@ export interface CommentData {
   shop_id: number;
   user: { id: number; username: string; avatar: string | null } | null;
   content: string;
+  image?: string | null;
   like_count: number;
   reply_count: number;
   has_liked: boolean;
@@ -55,8 +56,8 @@ export async function fetchComments(shopId: number, page = 1, pageSize = 20): Pr
   return res.data.data;
 }
 
-export async function postComment(shopId: number, content: string): Promise<any> {
-  const res = await apiClient.post<ApiResponse<any>>(`/shops/${shopId}/comments`, { content });
+export async function postComment(shopId: number, content: string, imageId?: number): Promise<any> {
+  const res = await apiClient.post<ApiResponse<any>>(`/shops/${shopId}/comments`, { content, image_id: imageId });
   return res.data.data;
 }
 

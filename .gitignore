@@ -40,6 +40,10 @@ dist-ssr
 *.sln
 *.sw?
 
+# Images (keep .gitkeep)
+backend/static/images/*
+!.gitkeep
+
 # vibe coding
 CLAUDE.md
 .claude

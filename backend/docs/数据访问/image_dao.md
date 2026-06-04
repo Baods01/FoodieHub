@@ -70,3 +70,5 @@ await ImageDAO.clear_entity_images("shop", shop_id)
 1. **entity_type 取值约定**：`"shop"`、`"menu_item"`、`"shop_comment"`（不要用旧 `"comment"`，旧模型已删除）
 2. **封面图规则**：`get_first_by_entity` 按 id 升序取第一张，即最早上传的那张。如果业务需要"最新上传为封面"，需在 Service 层调 `get_by_entity` 后取最后一张。
 3. **`clear_entity_images` 不验证实体是否存在**，调用方需确保在正确的时机调用（如实体删除后）。
+4. **评论图片**：一级评论配图通过 `ImageDAO.get_by_entity("shop_comment", comment_id)` 获取，每个评论最多一张。
+5. **entity_id 修正时机**：评论图片上传时 entity_id 传入的是 shop_id，评论创建成功后需调用 `ImageDAO.update(image_id, entity_id=comment_id)` 将图片关联到评论。

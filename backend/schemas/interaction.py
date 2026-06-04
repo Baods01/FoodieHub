@@ -19,6 +19,7 @@ class InteractionUserBrief(BaseModel):
 class CommentCreate(BaseModel):
     """创建一级评论"""
     content: str = Field(min_length=1, max_length=2000, description="评论内容")
+    image_id: Optional[int] = Field(default=None, description="附带图片ID（可选，上传后返回）")
 
 
 class CommentResponse(BaseModel):
@@ -27,6 +28,7 @@ class CommentResponse(BaseModel):
     shop_id: int
     user: Optional[InteractionUserBrief] = Field(default=None, description="评论作者")
     content: str
+    image: Optional[str] = Field(default=None, description="评论图片URL")
     like_count: int
     reply_count: int
     has_liked: bool = Field(default=False, description="当前用户是否已点赞")

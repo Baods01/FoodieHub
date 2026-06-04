@@ -57,6 +57,7 @@ class ShopService:
         keyword: Optional[str] = None,
         category_ids: Optional[List[int]] = None,
         district_ids: Optional[List[int]] = None,
+        dining_method_ids: Optional[List[int]] = None,
         min_rating: Optional[float] = None,
         sort_by: str = "favorite_count",
         sort_order: str = "desc",
@@ -66,13 +67,15 @@ class ShopService:
     ) -> dict:
         shops = await ShopsDAO.search(
             keyword=keyword, category_ids=category_ids,
-            district_ids=district_ids, min_rating=min_rating,
+            district_ids=district_ids, dining_method_ids=dining_method_ids,
+            min_rating=min_rating,
             sort_by=sort_by, sort_order=sort_order,
             page=page, page_size=page_size,
         )
         total = await ShopsDAO.count(
             keyword=keyword, category_ids=category_ids,
-            district_ids=district_ids, min_rating=min_rating,
+            district_ids=district_ids, dining_method_ids=dining_method_ids,
+            min_rating=min_rating,
         )
 
         # 用户收藏列表
