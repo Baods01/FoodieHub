@@ -15,7 +15,9 @@ HistoryService 将 LogDAO 返回的浏览日志（OperationLog 记录）与 Shop
 
 | 方法 | 参数 | 返回 | 说明 |
 |:---|:---|:---|:---|
-| `get_view_history(user_id, page, page_size)` | | `dict` | ⭐ 用户浏览历史，附带 shop_name / shop_cover |
+| `get_view_history(user_id, page, page_size)` | | `dict` | 用户浏览历史，附带 shop_name / shop_cover |
+| `delete(history_id)` | `int` | `bool` | 删除单条历史记录，软删除（is_active=False） |
+| `clear(user_id)` | `int` | `int` | 清空用户全部历史记录，返回删除数量 |
 
 ---
 

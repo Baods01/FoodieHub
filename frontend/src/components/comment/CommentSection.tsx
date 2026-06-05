@@ -98,9 +98,9 @@ export function CommentSection({
   };
 
   /** Post a new top-level comment */
-  const handleSubmitComment = (content: string) => {
+  const handleSubmitComment = (content: string, imageId?: number) => {
     setIsSubmitting(true);
-    postComment(shopId, content)
+    postComment(shopId, content, imageId)
       .then((newComment) => {
         setComments((prev) => [newComment, ...prev]);
       })
@@ -180,6 +180,8 @@ export function CommentSection({
         isSubmitting={isSubmitting}
         isLoggedIn={isLoggedIn}
         onLoginPrompt={onLoginPrompt}
+        entityType="shop_comment"
+        entityId={shopId}
       />
 
       {/* First load skeleton */}

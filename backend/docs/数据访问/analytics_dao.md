@@ -7,7 +7,7 @@
 
 ## 概述
 
-analytics_dao 提供管理后台所需的聚合统计数据。复杂聚合使用 raw SQL（WITH RECURSIVE CTE、标量子查询等），不包含业务语义（不出现"品类""区域"等词汇）。
+analytics_dao 提供管理后台所需的聚合统计数据。复杂聚合使用 raw SQL，不包含业务语义（不出现"品类""区域"等词汇）。
 
 ---
 
@@ -17,8 +17,8 @@ analytics_dao 提供管理后台所需的聚合统计数据。复杂聚合使用
 
 | 方法 | 参数 | 返回 | 说明 |
 |:---|:---|:---|:---|
-| `get_overview()` | — | `dict` | ⭐ 平台概览：一条 SQL 6 个子查询 |
-| `get_daily_trends(days)` | 默认 7 | `list[dict]` | ⭐ 每日趋势：WITH RECURSIVE CTE + 多表 LEFT JOIN |
+| `get_overview()` | — | `dict` | ⭐ 平台概览：一条 SQL 多个子查询 |
+| `get_daily_trends(days)` | 默认 7，最大 30 | `list[dict]` | ⭐ 每日趋势：WITH RECURSIVE CTE + 多表 LEFT JOIN |
 
 **`get_overview` 返回：**
 ```python

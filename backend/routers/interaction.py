@@ -21,17 +21,7 @@ async def create_comment(
     data: CommentCreate,
     current_user: UserResponse = Depends(require_login),
 ):
-    """
-    发表评论接口
-    
-    请求参数 (CommentCreate):
-    - content (string, 必填): 评论内容，长度1-2000字符
-    
-    响应:
-    - 成功返回评论信息
-    - 失败返回错误信息
-    """
-    result = await CommentService.create(shop_id, current_user.id, data.content)
+    result = await CommentService.create(shop_id, current_user.id, data.content, data.image_id)
     await LogService.log(action="create_comment", operator=current_user, target_type="shop", target_id=shop_id)
     return ResponseModel.success(data=result, message="评论成功")
 
@@ -265,13 +255,25 @@ async def toggle_like(
     try:
         result = await LikeService.toggle(current_user.id, data.entity_type, data.entity_id)
         # 点赞时通知内容作者
-        if result.get("is_liked") and data.entity_type in ("shop_comment", "question_answer"):
+        if result.get("is_liked") and data.entity_type in ("shop_comment", "comment_reply", "shop_question", "question_answer"):
             from services.message_service import MessageService
             recipient_id = None
             shop_id = None
             if data.entity_type == "shop_comment":
                 from dao.comment_dao import CommentDAO
                 entity = await CommentDAO.get_by_id(data.entity_id)
+                recipient_id = entity.user_id if entity else None
+                shop_id = entity.shop_id if entity else None
+            elif data.entity_type == "comment_reply":
+                from dao.comment_dao import CommentDAO
+                entity = await CommentDAO.get_reply_by_id(data.entity_id)
+                recipient_id = entity.user_id if entity else None
+                if entity:
+                    comment = await CommentDAO.get_by_id(entity.comment_id)
+                    shop_id = comment.shop_id if comment else None
+            elif data.entity_type == "shop_question":
+                from dao.question_dao import QuestionDAO
+                entity = await QuestionDAO.get_by_id(data.entity_id)
                 recipient_id = entity.user_id if entity else None
                 shop_id = entity.shop_id if entity else None
             elif data.entity_type == "question_answer":
@@ -282,10 +284,11 @@ async def toggle_like(
                     question = await QuestionDAO.get_by_id(entity.question_id)
                     shop_id = question.shop_id if question else None
             if recipient_id and recipient_id != current_user.id and shop_id:
+                notif_type = "like_comment" if data.entity_type in ("shop_comment", "comment_reply") else "like_answer"
                 await MessageService.create_notification(
                     recipient_id=recipient_id,
                     sender_id=current_user.id,
-                    type="like_comment" if data.entity_type == "shop_comment" else "like_answer",
+                    type=notif_type,
                     title="新的赞",
                     content=f"{current_user.username} 赞了你的内容",
                     related_entity_type="shop",

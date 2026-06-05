@@ -122,18 +122,16 @@ export function CommentCard({ comment, onLike, onReply }: CommentCardProps) {
         {comment.content}
       </p>
 
-      {/* Images grid: max 3, grid-cols-3 gap-1 */}
-      {(comment.images?.length ?? 0) > 0 && (
-        <div className="mt-2 grid max-w-xs grid-cols-3 gap-1">
-          {(comment.images?.slice(0, 3) ?? []).map((img, idx) => (
-            <div key={idx} className="aspect-square overflow-hidden rounded-lg">
-              <img
-                src={img}
-                alt={`评论图片 ${idx + 1}`}
-                className="h-full w-full object-cover"
-              />
-            </div>
-          ))}
+      {/* Images grid: single image */}
+      {comment.image && (
+        <div className="mt-2">
+          <div className="max-w-xs overflow-hidden rounded-lg">
+            <img
+              src={comment.image}
+              alt="评论图片"
+              className="h-full w-full object-cover"
+            />
+          </div>
         </div>
       )}
 

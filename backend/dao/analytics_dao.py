@@ -44,7 +44,7 @@ class AnalyticsDAO:
                     (SELECT COUNT(*) FROM shop_questions    WHERE is_active = 1) +
                     (SELECT COUNT(*) FROM question_answers  WHERE is_active = 1)            AS total_comments,
                 (SELECT COUNT(*) FROM shop_questions     WHERE is_active = 1)                    AS total_questions,
-                (SELECT COUNT(*) FROM complaints         WHERE status = 'pending' AND is_active = 1) AS pending_complaints,
+                (SELECT COUNT(*) FROM feedbacks WHERE type = "complaint" AND status = 'pending' AND is_active = 1) AS pending_complaints,
                 (SELECT COUNT(*) FROM feedbacks WHERE type = "edit_request" AND status = 'pending' AND is_active = 1) AS pending_edits,
                 (SELECT ROUND(AVG(average_rating), 1)
                  FROM shops
@@ -208,11 +208,11 @@ class AnalyticsDAO:
     @staticmethod
     async def get_pending_counts() -> dict:
         """待处理工单数。"""
-        pending_complaints = await Complaints.filter(
-            status="pending", is_active=True,
+        pending_complaints = await Feedback.filter(
+            type="complaint", status="pending", is_active=True,
         ).count()
-        pending_edits = await ShopEditRequests.filter(
-            status="pending", is_active=True,
+        pending_edits = await Feedback.filter(
+            type="edit_request", status="pending", is_active=True,
         ).count()
         return {
             "pending_complaints": pending_complaints,
