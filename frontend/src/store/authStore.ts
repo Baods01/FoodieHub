@@ -14,6 +14,7 @@ interface AuthState {
   userGender: string | null;
   userCreatedAt: string;
   initialized: boolean;
+  unreadCount: number;
 
   /** 登录成功：存 token + 设用户信息 */
   login: (token: string, user: UserInfo) => void;
@@ -29,6 +30,9 @@ interface AuthState {
 
   /** 编辑资料后更新本地用户信息 */
   updateProfile: (data: { avatar?: string | null; bio?: string | null; gender?: string | null }) => void;
+
+  /** 设置未读消息数 */
+  setUnreadCount: (count: number) => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -43,6 +47,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   userGender: null,
   userCreatedAt: '',
   initialized: false,
+  unreadCount: 0,
 
   login: (token, user) => {
     localStorage.setItem('foodiehub_token', token);
@@ -79,6 +84,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAdmin: () => {
     return get().userRole === 1;
   },
+
+  setUnreadCount: (count) => set({ unreadCount: count }),
 
   updateProfile: (data) => {
     const updates: Partial<AuthState> = {};
