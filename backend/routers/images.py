@@ -2,7 +2,7 @@
 images.py — 图片上传与查询路由
 """
 
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, Query
 from typing import Optional
 from pathlib import Path
 import uuid
@@ -63,3 +63,32 @@ async def upload_image(
     )
 
     return ResponseModel.success(data={"id": img.id, "url": url}, message="上传成功")
+
+
+@router.get("", response_model=ResponseModel, summary="按实体类型获取图片列表")
+async def list_images_by_entity(
+    entity_type: str = Query(..., description="实体类型，如 'shop'"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(50, ge=1, le=200, description="每页数量"),
+    order: str = Query("random", pattern="^(random|newest)$", description="排序方式：random=随机，newest=最新"),
+):
+    """
+    按实体类型获取图片列表
+    
+    查询参数:
+    - entity_type (string, 必填): 实体类型，如 'shop'
+    - page (int, 可选): 页码，默认 1
+    - page_size (int, 可选): 每页数量，默认 50，最大 200
+    - order (string, 可选): 排序方式，random=随机，newest=最新，默认 random
+    
+    响应:
+    - 成功返回图片列表
+    - 失败返回错误信息
+    """
+    data = await ImageDAO.list_by_entity_type(
+        entity_type=entity_type,
+        page=page,
+        page_size=page_size,
+        order=order,
+    )
+    return ResponseModel.success(data=data, message="获取成功")
