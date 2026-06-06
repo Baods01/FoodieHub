@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { MapPin, Camera, Check, X, Loader2 } from 'lucide-react';
 import { fetchDictData } from '../api/dictionary';
 import { createShop } from '../api/uploadShop';
+import { uploadImage } from '../api/upload';
 import type { DictItem } from '../api/dictionary';
 import { Header } from '../components/layout/Header';
 import { useAuthStore } from '../store/authStore';
@@ -27,6 +28,7 @@ export default function UploadShopPage() {
   const [area, setArea] = useState('');
   const [dining, setDining] = useState<string[]>([]);
   const [cover, setCover] = useState<string | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);  // 保留 File 对象用于上传
 
   // 状态
   const [loading, setLoading] = useState(true);
@@ -50,9 +52,17 @@ export default function UploadShopPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setCoverFile(file);  // 保存 File 对象用于后续上传
     const reader = new FileReader();
     reader.onload = () => setCover(reader.result as string);
     reader.readAsDataURL(file);
+  };
+
+  // 移除封面图片
+  const handleRemoveCover = () => {
+    setCover(null);
+    setCoverFile(null);
+    if (fileRef.current) fileRef.current.value = '';
   };
 
   // 切换就餐方式
@@ -84,10 +94,16 @@ export default function UploadShopPage() {
       const areaCode = nameToId(areas, area);
       const diningCodes: number[] = dining.map((d) => nameToId(diningMethods, d)).filter(Boolean) as unknown as number[];
 
+      // Step 1: 先创建店铺（获得 shop.id）
       const result = await createShop({
         name: name.trim(),
         dict_data_ids: [...[catCode, areaCode].filter(Boolean), ...diningCodes] as number[],
       });
+
+      // Step 2: 如果有封面图片，上传并绑定到店铺
+      if (coverFile) {
+        await uploadImage(coverFile, 'shop', result.id);
+      }
 
       navigate(`/shop/${result.id}`);
     } catch {
@@ -233,7 +249,7 @@ export default function UploadShopPage() {
                       <img src={cover} alt="封面预览" className="w-full h-full object-cover" />
                       <button
                         type="button"
-                        onClick={() => { setCover(null); if (fileRef.current) fileRef.current.value = ''; }}
+                        onClick={handleRemoveCover}
                         className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
                       >
                         <X size={14} />
