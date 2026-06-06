@@ -4,6 +4,10 @@ const apiClient = axios.create({
   baseURL: '/api',
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
+  // 数组序列化使用 FastAPI 期望的 repeat 模式: ?ids=1&ids=2 而非 ?ids[]=1&ids[]=2
+  paramsSerializer: {
+    indexes: null, // 不添加索引（即不生成 ids[0]=1）
+  },
 });
 
 // 请求拦截器：自动注入 JWT

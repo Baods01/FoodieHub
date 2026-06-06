@@ -87,12 +87,17 @@ export function HomePage() {
     }
     setIsError(false);
 
-    // 将筛选名称转换为 ID（category_ids / district_ids 期望的是 ID 列表）
-    const categoryIds = filter.category ? [parseInt(filter.category, 10)] : undefined;
-    const districtIds = filter.area ? [parseInt(filter.area, 10)] : undefined;
-    // diningMethods 存储的是 ID 字符串列表
+    // 将筛选名称转换为 ID（从 optionsMap 中查找）
+    const categoryIds = filter.category
+      ? [optionsMap['品类']?.[filter.category]].filter(Boolean) as number[]
+      : undefined;
+    const districtIds = filter.area
+      ? [optionsMap['区域']?.[filter.area]].filter(Boolean) as number[]
+      : undefined;
     const diningMethodIds = filter.diningMethods.length > 0
-      ? filter.diningMethods.map((id) => parseInt(id, 10))
+      ? filter.diningMethods
+          .map((name) => optionsMap['就餐方式']?.[name])
+          .filter((id): id is number => id !== undefined)
       : undefined;
 
     const requestFilter = {
@@ -137,10 +142,16 @@ export function HomePage() {
   const handleRetry = useCallback(() => {
     setIsLoading(true);
     setIsError(false);
-    const categoryIds = filter.category ? [parseInt(filter.category, 10)] : undefined;
-    const districtIds = filter.area ? [parseInt(filter.area, 10)] : undefined;
+    const categoryIds = filter.category
+      ? [optionsMap['品类']?.[filter.category]].filter(Boolean) as number[]
+      : undefined;
+    const districtIds = filter.area
+      ? [optionsMap['区域']?.[filter.area]].filter(Boolean) as number[]
+      : undefined;
     const diningMethodIds = filter.diningMethods.length > 0
-      ? filter.diningMethods.map((id) => parseInt(id, 10))
+      ? filter.diningMethods
+          .map((name) => optionsMap['就餐方式']?.[name])
+          .filter((id): id is number => id !== undefined)
       : undefined;
 
     const requestFilter = {
@@ -165,7 +176,7 @@ export function HomePage() {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [filter, debouncedKeyword]);
+  }, [filter, debouncedKeyword, optionsMap]);
 
   return (
     <div className="space-y-6">
