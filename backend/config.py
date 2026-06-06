@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # ——— 数据库 ———
-    DATABASE_URL: str = "mysql://root:@localhost:3306/foodiehub_db"
+    DATABASE_URL: str = "mysql://root:@localhost:3306/foodiehub"
 
     # ——— JWT ———
     JWT_SECRET_KEY: str = "change-me-in-production"

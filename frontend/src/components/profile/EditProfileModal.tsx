@@ -16,7 +16,7 @@ interface EditProfileModalProps {
 
 export default function EditProfileModal({ open, onClose, onSaved, initial }: EditProfileModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [avatarUrl, setAvatarUrl] = useState(initial.avatar ?? '');
+  const [avatarUrl] = useState(initial.avatar ?? '');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState(initial.avatar ?? '');
   const [bio, setBio] = useState(initial.bio ?? '');
