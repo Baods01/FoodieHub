@@ -41,7 +41,7 @@ dist-ssr
 *.sw?
 
 # Images (keep .gitkeep)
-
+backend/static/images/*
 !.gitkeep
 
 # vibe coding
