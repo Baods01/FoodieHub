@@ -1,23 +1,57 @@
 import { useState, useRef } from 'react';
-import { Image, Loader2 } from 'lucide-react';
+import { Image, Loader2, Trash2 } from 'lucide-react';
 import { AlbumLightbox } from './AlbumLightbox';
 import { uploadImage } from '../../api/upload';
+import { deleteImage } from '../../api/images';
+import type { ImageItem } from '../../types/shop';
 
 interface AlbumSectionProps {
-  images: string[];
+  images: ImageItem[];
   shopId: number;
   isLoggedIn: boolean;
+  currentUserId?: number;
+  isAdmin?: boolean;
   onUpload?: () => void;
+  onDelete?: () => void;
   maxCount?: number;
   onViewAll?: () => void;
 }
 
-export function AlbumSection({ images, shopId, isLoggedIn, onUpload, maxCount = 6, onViewAll }: AlbumSectionProps) {
+export function AlbumSection({
+  images,
+  shopId,
+  isLoggedIn,
+  currentUserId,
+  isAdmin,
+  onUpload,
+  onDelete,
+  maxCount = 6,
+  onViewAll,
+}: AlbumSectionProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const previewImages = onViewAll ? images.slice(0, maxCount) : images;
+
+  const handleDelete = async (imageId: number) => {
+    if (!window.confirm('确定要删除这张图片吗？')) return;
+    setDeletingId(imageId);
+    try {
+      await deleteImage(imageId);
+      onDelete?.();
+    } catch {
+      // error is handled by api client interceptors
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const canDelete = (img: ImageItem) => {
+    if (!isLoggedIn) return false;
+    return img.uploader_id === currentUserId || isAdmin;
+  };
 
   return (
     <section>
@@ -66,19 +100,39 @@ export function AlbumSection({ images, shopId, isLoggedIn, onUpload, maxCount = 
       ) : (
         /* Grid */
         <div className="grid grid-cols-3 gap-2">
-          {previewImages.map((src, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setLightboxIndex(i)}
-              className="aspect-square rounded-lg overflow-hidden bg-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-400"
-            >
-              <img
-                src={src}
-                alt={`相册图片 ${i + 1}`}
-                className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-              />
-            </button>
+          {previewImages.map((img, i) => (
+            <div key={img.id} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group">
+              <button
+                type="button"
+                onClick={() => setLightboxIndex(i)}
+                className="w-full h-full focus:outline-none focus:ring-2 focus:ring-orange-400"
+              >
+                <img
+                  src={img.url}
+                  alt={`相册图片 ${i + 1}`}
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                />
+              </button>
+              {/* Delete button */}
+              {canDelete(img) && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(img.id);
+                  }}
+                  disabled={deletingId === img.id}
+                  className="absolute top-1 right-1 p-1.5 rounded-md bg-black/50 text-white hover:bg-red-500 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                  title="删除图片"
+                >
+                  {deletingId === img.id ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={14} />
+                  )}
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -99,9 +153,16 @@ export function AlbumSection({ images, shopId, isLoggedIn, onUpload, maxCount = 
       {/* Lightbox */}
       {lightboxIndex !== null && (
         <AlbumLightbox
-          images={images}
+          images={previewImages.map((img) => img.url)}
           initialIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
+          deletable={canDelete(previewImages[lightboxIndex])}
+          onDelete={() => {
+            const img = previewImages[lightboxIndex];
+            if (img) handleDelete(img.id);
+            setLightboxIndex(null);
+          }}
+          isDeleting={deletingId === previewImages[lightboxIndex]?.id}
         />
       )}
     </section>

@@ -27,6 +27,9 @@ async def create_shop(
         return ResponseModel.success(data=shop, message="店铺创建成功")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        # 兜底捕获非 ValueError 的其他异常，避免返回纯文本 500
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"创建失败: {str(e)}")
 
 
 @router.get("/shops", response_model=ResponseModel, summary="搜索店铺")

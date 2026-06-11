@@ -30,6 +30,7 @@ class ImageResponse(BaseModel):
     height: Optional[int] = Field(default=None, description="图片高度（像素）")
     mime_type: Optional[str] = Field(default=None, description="MIME 类型")
     extra: Optional[dict] = Field(default=None, description="扩展信息")
+    uploader_id: Optional[int] = Field(default=None, description="上传者用户ID")
     created_at: datetime = Field(description="上传时间")
 
     class Config:
