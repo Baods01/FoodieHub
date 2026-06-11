@@ -17,11 +17,3 @@ export async function uploadImage(
   });
   return res.data.data;
 }
-
-/** 获取首页轮播图列表（按实体类型聚合） */
-export async function fetchBannerImages(): Promise<{ id: number; url: string }[]> {
-  const res = await apiClient.get<ApiResponse<{ items: { id: number; url: string }[] }>>('/images', {
-    params: { entity_type: 'shop', page: 1, page_size: 50, order: 'random' },
-  });
-  return res.data.data.items ?? [];
-}

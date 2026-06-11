@@ -101,6 +101,7 @@ class ImageBriefResponse(BaseModel):
     """图片简略响应（店铺详情/列表用）"""
     id: int = Field(description="图片ID")
     url: str = Field(description="图片URL")
+    uploader_id: Optional[int] = Field(default=None, description="上传者用户ID")
 
     class Config:
         from_attributes = True

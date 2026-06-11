@@ -5,6 +5,7 @@ import { fetchQuestions, postQuestion, postAnswer } from '../../api/questions';
 import { Skeleton } from '../ui/Skeleton';
 import { QuestionInput } from './QuestionInput';
 import { QuestionCard } from './QuestionCard';
+import { useAuthStore } from '../../store/authStore';
 
 interface QASectionProps {
   shopId: number;
@@ -21,6 +22,8 @@ export function QASection({ shopId, isLoggedIn, onLoginPrompt, maxCount = 3, onV
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { userId, isAdmin } = useAuthStore();
 
   const loadQuestions = useCallback(async (pageNum: number) => {
     setIsLoading(true);
@@ -73,6 +76,20 @@ export function QASection({ shopId, isLoggedIn, onLoginPrompt, maxCount = 3, onV
     } catch (err: any) {
       console.error('回答失败:', err?.response?.data || err);
     }
+  };
+
+  const handleDeleteQuestion = (questionId: number) => {
+    setQuestions((prev) => prev.filter((q) => q.id !== questionId));
+  };
+
+  const handleDeleteAnswer = (answerId: number) => {
+    setQuestions((prev) =>
+      prev.map((q) => ({
+        ...q,
+        answers: q.answers?.filter((a) => a.id !== answerId),
+        answerCount: q.answerCount && q.answerCount > 0 ? q.answerCount - 1 : 0,
+      })),
+    );
   };
 
   const handleLoadMore = () => {
@@ -128,7 +145,15 @@ export function QASection({ shopId, isLoggedIn, onLoginPrompt, maxCount = 3, onV
         <>
           <div className="space-y-3">
             {questions.slice(0, onViewAll ? maxCount : undefined).map((q) => (
-              <QuestionCard key={q.id} question={q} onReply={handleReply} />
+              <QuestionCard
+                key={q.id}
+                question={q}
+                onReply={handleReply}
+                currentUserId={userId}
+                isAdmin={isAdmin()}
+                onDeleteQuestion={handleDeleteQuestion}
+                onDeleteAnswer={handleDeleteAnswer}
+              />
             ))}
           </div>
 

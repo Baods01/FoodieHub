@@ -13,7 +13,7 @@ import { useAuthStore } from '../../store/authStore';
 
 export function Header() {
   const navigate = useNavigate();
-  const { isLoggedIn, userName, userAvatar, unreadCount, logout } = useAuthStore();
+  const { isLoggedIn, userName, userAvatar, logout } = useAuthStore();
 
   const handleLogout = () => {
     logout();
@@ -24,7 +24,7 @@ export function Header() {
     { label: '个人中心', icon: User, to: '/profile' },
     { label: '收藏夹', icon: Heart, to: '/favorites' },
     { label: '浏览历史', icon: Clock, to: '/history' },
-    { label: '消息通知', icon: Bell, to: '/notifications', badge: unreadCount },
+    { label: '消息通知', icon: Bell, to: '/notifications' },
   ];
 
   return (
@@ -80,12 +80,7 @@ export function Header() {
                         }`}
                       >
                         <item.icon size={16} />
-                        <span className="flex-1">{item.label}</span>
-                        {(item as any).badge > 0 && (
-                          <span className="bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                            {(item as any).badge > 99 ? '99+' : (item as any).badge}
-                          </span>
-                        )}
+                        {item.label}
                       </Link>
                     )}
                   </Menu.Item>

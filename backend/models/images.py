@@ -20,6 +20,7 @@ class Images(BaseModel):
     height = fields.IntField(null=True, description="图片高度（像素）")
     mime_type = fields.CharField(max_length=50, null=True, description="MIME 类型，如 image/jpeg")
     extra = fields.JSONField(null=True, description="扩展字段，存储 alt 文本等业务自定义信息")
+    uploader_id = fields.IntField(null=True, description="上传者用户ID")
 
     class Meta:
         table = "images"

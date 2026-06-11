@@ -1,8 +1,8 @@
 """
-images.py — 图片上传与查询路由
+images.py — 图片上传、查询与删除路由
 """
 
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, Query
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, Path as PathParam
 from typing import Optional
 from pathlib import Path
 import uuid
@@ -10,6 +10,7 @@ import os
 
 from schemas.common import ResponseModel
 from schemas.users import UserResponse
+from schemas.images import ImageResponse
 from dao.image_dao import ImageDAO
 from utils.auth import require_login
 
@@ -43,7 +44,7 @@ async def upload_image(
     if len(contents) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"文件过大（{len(contents)}），最大 {MAX_FILE_SIZE} bytes",
+            detail="文件过大，最大支持 10MB",
         )
 
     # 保存文件
@@ -60,35 +61,44 @@ async def upload_image(
         entity_id=entity_id,
         file_size=len(contents),
         mime_type=file.content_type,
+        uploader_id=current_user.id,
     )
 
     return ResponseModel.success(data={"id": img.id, "url": url}, message="上传成功")
 
 
-@router.get("", response_model=ResponseModel, summary="按实体类型获取图片列表")
-async def list_images_by_entity(
-    entity_type: str = Query(..., description="实体类型，如 'shop'"),
-    page: int = Query(1, ge=1, description="页码"),
-    page_size: int = Query(50, ge=1, le=200, description="每页数量"),
-    order: str = Query("random", pattern="^(random|newest)$", description="排序方式：random=随机，newest=最新"),
+@router.delete("/{image_id}", response_model=ResponseModel, summary="删除图片")
+async def delete_image(
+    image_id: int = PathParam(..., description="图片ID"),
+    current_user: UserResponse = Depends(require_login),
 ):
     """
-    按实体类型获取图片列表
-    
-    查询参数:
-    - entity_type (string, 必填): 实体类型，如 'shop'
-    - page (int, 可选): 页码，默认 1
-    - page_size (int, 可选): 每页数量，默认 50，最大 200
-    - order (string, 可选): 排序方式，random=随机，newest=最新，默认 random
-    
-    响应:
-    - 成功返回图片列表
-    - 失败返回错误信息
+    删除指定图片。
+
+    权限校验：仅图片上传者或管理员可删除。
+    删除时自动清理该图片的多态关联记录（DictRel）。
     """
-    data = await ImageDAO.list_by_entity_type(
-        entity_type=entity_type,
-        page=page,
-        page_size=page_size,
-        order=order,
-    )
-    return ResponseModel.success(data=data, message="获取成功")
+    img = await ImageDAO.get_by_id(image_id)
+    if not img:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="图片不存在或已被删除",
+        )
+
+    # 权限校验：上传者或管理员可删除
+    if img.uploader_id != current_user.id and current_user.role != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权删除该图片",
+        )
+
+    # 级联删除（含 DictRel 清理）
+    await ImageDAO.delete(image_id)
+
+    # 删除本地文件
+    if img.url and img.url.startswith("/static/images/"):
+        file_path = BASE_DIR / img.url.lstrip("/")
+        if file_path.exists():
+            os.remove(file_path)
+
+    return ResponseModel.success(message="删除成功")

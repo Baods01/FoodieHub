@@ -5,7 +5,6 @@ image_dao.py — 图片数据访问层
 多态关联（entity_type + entity_id），不跨表 JOIN。
 """
 
-import random
 from typing import Optional, List
 from models.images import Images
 
@@ -29,6 +28,7 @@ class ImageDAO:
         height: Optional[int] = None,
         mime_type: Optional[str] = None,
         extra: Optional[dict] = None,
+        uploader_id: Optional[int] = None,
     ) -> Images:
         return await Images.create(
             url=url,
@@ -39,6 +39,7 @@ class ImageDAO:
             height=height,
             mime_type=mime_type,
             extra=extra,
+            uploader_id=uploader_id,
         )
 
     @staticmethod
@@ -53,9 +54,13 @@ class ImageDAO:
 
     @staticmethod
     async def delete(id: int) -> bool:
+        """软删除图片，并清理多态关联记录（DictRel）。返回是否成功。"""
         obj = await Images.get_or_none(id=id, is_active=True)
         if not obj:
             return False
+        # 级联清理 DictRel（图片可能被打标签）
+        from dao.dict_dao import DictRelDAO
+        await DictRelDAO.clear_entity_dicts("image", id)
         obj.is_active = False
         await obj.save()
         return True
@@ -85,38 +90,3 @@ class ImageDAO:
             entity_type=entity_type, entity_id=entity_id, is_active=True
         ).update(is_active=False)
         return count
-
-    # ==================== 首页轮播图 ====================
-
-    @staticmethod
-    async def list_by_entity_type(
-        entity_type: str,
-        page: int = 1,
-        page_size: int = 50,
-        order: str = "random",
-    ) -> dict:
-        """
-        按实体类型获取图片列表，支持随机排序。
-        用于首页轮播图等聚合展示场景。
-        """
-        qs = Images.filter(entity_type=entity_type, is_active=True)
-
-        total = await qs.count()
-
-        # 全部查出并在 Python 层做排序/随机（数据量小，性能无影响）
-        all_items = await qs.all()
-
-        if order == "random":
-            random.shuffle(all_items)
-        else:
-            all_items.sort(key=lambda i: i.created_at, reverse=True)
-
-        offset = (page - 1) * page_size
-        items = all_items[offset:offset + page_size]
-
-        return {
-            "items": [{"id": i.id, "url": i.url} for i in items],
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-        }

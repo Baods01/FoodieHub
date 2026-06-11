@@ -360,6 +360,7 @@ rels = await DictRel.filter(entity_type='shop', entity_id=shop_id).prefetch_rela
 | height | INT (NULL) | 图片高度（像素） |
 | mime_type | VARCHAR(50) (NULL) | MIME 类型，如 `image/jpeg` |
 | extra | JSON (NULL) | 扩展字段，用于存储 alt 文本等业务自定义信息 |
+| uploader_id | INT (NULL) | 上传者用户ID |
 
 **索引：** `(entity_type, entity_id)` — 按实体查询其全部图片。
 
@@ -634,7 +635,7 @@ class BaseModel(TimestampMixin, SoftDeleteMixin, Model):
 | activities | ✅ | ✅ | 新增 shop_id 字段 |
 | favorites | ✅ | ✅ | |
 | messages | ✅ | ✅ | |
-| images | ✅ | ✅ | 新增 file_size/width/height/mime_type |
+| images | ✅ | ✅ | 新增 file_size/width/height/mime_type/uploader_id |
 | feedbacks | ✅ | ✅ | 统一反馈工单，type 区分 complaint / edit_request |
 | content_likes | ✅ | ✅ | 新增，多态点赞表 |
 | operation_logs | ✅ | ✅ | 新增，统一日志表 |

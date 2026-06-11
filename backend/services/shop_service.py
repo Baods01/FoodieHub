@@ -14,6 +14,15 @@ class ShopService:
         dict_data_ids: Optional[List[int]] = None,
         menu_items: Optional[List[dict]] = None,
     ) -> ShopResponse:
+        # 检查同名店铺是否已存在（仅检查未被软删除的）
+        try:
+            existing = await ShopsDAO.get_by_name(name)
+        except Exception:
+            # 数据库查询异常时视为名称不存在，让后续逻辑兜底
+            existing = None
+        if existing:
+            raise ValueError("该店铺名称已存在")
+
         shop = await ShopsDAO.create(name=name)
 
         # 打标签
@@ -319,7 +328,7 @@ class ShopService:
             merged_into_id=shop.merged_into_id,
             is_banned=shop.is_banned,
             menu_items=menu_items,
-            images=[ImageBriefResponse(id=i.id, url=i.url) for i in imgs],
+            images=[ImageBriefResponse(id=i.id, url=i.url, uploader_id=i.uploader_id) for i in imgs],
             is_favorited=is_fav,
             user_rating=user_rating,
             created_at=shop.created_at,

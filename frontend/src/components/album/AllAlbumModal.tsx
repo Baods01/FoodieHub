@@ -1,16 +1,44 @@
 import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { X } from 'lucide-react';
+import { X, Trash2, Loader2 } from 'lucide-react';
 import { AlbumLightbox } from './AlbumLightbox';
+import { deleteImage } from '../../api/images';
+import type { ImageItem } from '../../types/shop';
 
 interface AllAlbumModalProps {
-  images: string[];
+  images: ImageItem[];
   isOpen: boolean;
   onClose: () => void;
+  currentUserId?: number;
+  isAdmin?: boolean;
+  onDelete?: () => void;
 }
 
-export default function AllAlbumModal({ images, isOpen, onClose }: AllAlbumModalProps) {
+export default function AllAlbumModal({
+  images,
+  isOpen,
+  onClose,
+  currentUserId,
+  isAdmin,
+  onDelete,
+}: AllAlbumModalProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const canDelete = (img: ImageItem) => {
+    return img.uploader_id === currentUserId || isAdmin;
+  };
+
+  const handleDelete = async (imageId: number) => {
+    if (!window.confirm('确定要删除这张图片吗？')) return;
+    setDeletingId(imageId);
+    try {
+      await deleteImage(imageId);
+      onDelete?.();
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <>
@@ -68,19 +96,39 @@ export default function AllAlbumModal({ images, isOpen, onClose }: AllAlbumModal
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {images.map((src, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setLightboxIndex(i)}
-                          className="aspect-square rounded-lg overflow-hidden bg-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-400"
-                        >
-                          <img
-                            src={src}
-                            alt={`相册图片 ${i + 1}`}
-                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                          />
-                        </button>
+                      {images.map((img, i) => (
+                        <div key={img.id} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group">
+                          <button
+                            type="button"
+                            onClick={() => setLightboxIndex(i)}
+                            className="w-full h-full focus:outline-none focus:ring-2 focus:ring-orange-400"
+                          >
+                            <img
+                              src={img.url}
+                              alt={`相册图片 ${i + 1}`}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                            />
+                          </button>
+                          {/* Delete button */}
+                          {canDelete(img) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(img.id);
+                              }}
+                              disabled={deletingId === img.id}
+                              className="absolute top-1 right-1 p-1.5 rounded-md bg-black/50 text-white hover:bg-red-500 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                              title="删除图片"
+                            >
+                              {deletingId === img.id ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <Trash2 size={14} />
+                              )}
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
@@ -94,9 +142,16 @@ export default function AllAlbumModal({ images, isOpen, onClose }: AllAlbumModal
       {/* Lightbox */}
       {lightboxIndex !== null && (
         <AlbumLightbox
-          images={images}
+          images={images.map((img) => img.url)}
           initialIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
+          deletable={canDelete(images[lightboxIndex])}
+          onDelete={() => {
+            const img = images[lightboxIndex];
+            if (img) handleDelete(img.id);
+            setLightboxIndex(null);
+          }}
+          isDeleting={deletingId === images[lightboxIndex]?.id}
         />
       )}
     </>

@@ -25,8 +25,10 @@ class ShopsDAO:
 
     @staticmethod
     async def get_by_name(name: str) -> Optional[Shops]:
-        """精确匹配名称（含别名模糊匹配，用于查重）。"""
-        return await Shops.get_or_none(name=name, is_active=True)
+        """精确匹配名称（含别名模糊匹配，用于查重）。
+        使用 filter().first() 而非 get_or_none()，避免数据库存在多条同名记录时抛出 MultipleObjectsReturned。
+        """
+        return await Shops.filter(name=name, is_active=True).first()
 
     # ==================== Shops：搜索列表 ====================
 

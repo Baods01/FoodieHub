@@ -1,14 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogPanel, DialogBackdrop } from '@headlessui/react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Trash2, Loader2 } from 'lucide-react';
 
 interface AlbumLightboxProps {
   images: string[];
   initialIndex: number;
   onClose: () => void;
+  deletable?: boolean;
+  onDelete?: () => void;
+  isDeleting?: boolean;
 }
 
-export function AlbumLightbox({ images, initialIndex, onClose }: AlbumLightboxProps) {
+export function AlbumLightbox({
+  images,
+  initialIndex,
+  onClose,
+  deletable,
+  onDelete,
+  isDeleting,
+}: AlbumLightboxProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
   const goPrev = useCallback(() => {
@@ -81,6 +91,19 @@ export function AlbumLightbox({ images, initialIndex, onClose }: AlbumLightboxPr
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-black/50 text-white text-sm">
               {currentIndex + 1} / {total}
             </div>
+          )}
+
+          {/* Delete button */}
+          {deletable && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={isDeleting}
+              className="absolute bottom-6 right-6 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/80 text-white hover:bg-red-600 transition-colors disabled:opacity-60"
+            >
+              {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              <span>{isDeleting ? '删除中...' : '删除'}</span>
+            </button>
           )}
         </DialogPanel>
       </div>

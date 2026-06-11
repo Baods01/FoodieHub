@@ -2,10 +2,9 @@ import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, MessageSquare, ThumbsUp, Megaphone } from 'lucide-react';
 import { Dialog, Transition } from '@headlessui/react';
-import { fetchNotifications, fetchUnreadCount, markAsRead } from '../api/notifications';
+import { fetchNotifications, markAsRead } from '../api/notifications';
 import type { NotificationItem, NotifType } from '../types/notification';
 import { getNotifRoute } from '../types/notification';
-import { useAuthStore } from '../store/authStore';
 import { ErrorState } from '../components/ui/ErrorState';
 
 // ====== 类型配置 ======
@@ -60,8 +59,6 @@ function ListSkeleton() {
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
-  const setUnreadCount = useAuthStore((s) => s.setUnreadCount);
-  const getCurrentUnread = () => useAuthStore.getState().unreadCount;
   const [all, setAll] = useState<NotificationItem[]>([]);
   const [activeTab, setActiveTab] = useState<NotifType>('reply_comment');
   const [loading, setLoading] = useState(true);
@@ -77,11 +74,7 @@ export default function NotificationsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    // 进入通知页 → 拉取真实未读数，同步 Header 红点
-    fetchUnreadCount().then((count) => setUnreadCount(count)).catch(() => {});
-    load();
-  }, [load, setUnreadCount]);
+  useEffect(() => { load(); }, [load]);
 
   // 各分类计数
   const typeMatch = (item: NotificationItem, tab: NotifType): boolean => {
@@ -111,8 +104,6 @@ export default function NotificationsPage() {
     if (!item.is_read) {
       markAsRead([item.id]);
       setAll((prev) => prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n)));
-      // 同步减少 Header 红点全局未读数
-      setUnreadCount(Math.max(0, getCurrentUnread() - 1));
     }
 
     if (item.type === 'announcement' || item.type === 'feedback_result') {
