@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     CORS_ALLOW_METHODS: List[str] = ["*"]
     CORS_ALLOW_HEADERS: List[str] = ["*"]
 
-    # ——— Aerich / Tortoise ORM 配置（动态构建，避免连接串写两遍） ———
+    # Aerich / Tortoise ORM 配置
     @property
     def TORTOISE_ORM(self) -> Dict[str, Any]:
         return {
