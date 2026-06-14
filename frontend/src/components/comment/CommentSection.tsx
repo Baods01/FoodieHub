@@ -8,6 +8,7 @@ import {
 } from '../../api/comments';
 import { CommentInput } from './CommentInput';
 import { CommentCard } from './CommentCard';
+import { useAuthStore } from '../../store/authStore';
 
 interface CommentSectionProps {
   shopId: number;
@@ -52,6 +53,8 @@ export function CommentSection({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isError, setIsError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { userId, isAdmin } = useAuthStore();
 
   /** Fetch a page and merge into state */
   const loadComments = useCallback(
@@ -161,6 +164,22 @@ export function CommentSection({
       });
   };
 
+  /** Delete a comment */
+  const handleDeleteComment = (commentId: number) => {
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+  };
+
+  /** Delete a reply */
+  const handleDeleteReply = (replyId: number) => {
+    setComments((prev) =>
+      prev.map((c) => ({
+        ...c,
+        replies: c.replies?.filter((r) => r.id !== replyId),
+        reply_count: c.reply_count > 0 ? c.reply_count - 1 : 0,
+      })),
+    );
+  };
+
   /** Retry after error */
   const handleRetry = () => {
     setPage(1);
@@ -227,6 +246,10 @@ export function CommentSection({
                 comment={comment}
                 onLike={handleLike}
                 onReply={handleReply}
+                currentUserId={userId}
+                isAdmin={isAdmin()}
+                onDelete={handleDeleteComment}
+                onDeleteReply={handleDeleteReply}
               />
             ))}
         </div>

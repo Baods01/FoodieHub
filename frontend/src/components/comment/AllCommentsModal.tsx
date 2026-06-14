@@ -5,6 +5,7 @@ import type { Comment } from '../../types/comment';
 import { fetchComments, postComment, toggleLike, postReply } from '../../api/comments';
 import { CommentInput } from './CommentInput';
 import { CommentCard } from './CommentCard';
+import { useAuthStore } from '../../store/authStore';
 
 interface AllCommentsModalProps {
   shopId: number;
@@ -27,6 +28,8 @@ export default function AllCommentsModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { userId, isAdmin } = useAuthStore();
 
   const loadComments = useCallback(
     (pageNum: number, append: boolean) => {
@@ -115,6 +118,20 @@ export default function AllCommentsModal({
     } catch {
       // silently fail
     }
+  };
+
+  const handleDeleteComment = (commentId: number) => {
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+  };
+
+  const handleDeleteReply = (replyId: number) => {
+    setComments((prev) =>
+      prev.map((c) => ({
+        ...c,
+        replies: c.replies?.filter((r) => r.id !== replyId),
+        reply_count: c.reply_count > 0 ? c.reply_count - 1 : 0,
+      })),
+    );
   };
 
   const handleLoadMore = () => {
@@ -216,6 +233,10 @@ export default function AllCommentsModal({
                             comment={comment}
                             onLike={handleLike}
                             onReply={handleReply}
+                            currentUserId={userId}
+                            isAdmin={isAdmin()}
+                            onDelete={handleDeleteComment}
+                            onDeleteReply={handleDeleteReply}
                           />
                         </div>
                       ))}

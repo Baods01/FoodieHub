@@ -38,6 +38,8 @@ export function ShopDetailPage() {
   const [menuUploadOpen, setMenuUploadOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const currentUserId = useAuthStore((s) => s.userId) ?? undefined;
+  const isAdmin = useAuthStore((s) => s.isAdmin)();
   const shopId = Number(id);
 
   useEffect(() => {
@@ -195,10 +197,13 @@ export function ShopDetailPage() {
 
       <SectionCard>
         <AlbumSection
-          images={shop.images.map(i => i.url)}
+          images={shop.images}
           shopId={shop.id}
           isLoggedIn={isLoggedIn}
+          currentUserId={currentUserId}
+          isAdmin={isAdmin}
           onUpload={handleRefresh}
+          onDelete={handleRefresh}
           maxCount={6}
           onViewAll={() => setAlbumModalOpen(true)}
         />
@@ -227,9 +232,12 @@ export function ShopDetailPage() {
       />
 
       <AllAlbumModal
-        images={shop.images.map(i => i.url)}
+        images={shop.images}
         isOpen={albumModalOpen}
         onClose={() => setAlbumModalOpen(false)}
+        currentUserId={currentUserId}
+        isAdmin={isAdmin}
+        onDelete={handleRefresh}
       />
 
       <MenuUploadModal

@@ -70,7 +70,11 @@ export async function deleteComment(commentId: number): Promise<void> {
   await apiClient.delete(`/comments/${commentId}`);
 }
 
-// ============ 回复接口 ============
+export async function deleteReply(replyId: number): Promise<void> {
+  await apiClient.delete(`/replies/${replyId}`);
+}
+
+// ============ 问答接口 ============
 
 export async function fetchReplies(commentId: number): Promise<ReplyData[]> {
   const res = await apiClient.get<ApiResponse<ReplyData[]>>(`/comments/${commentId}/replies`);
@@ -110,6 +114,14 @@ export async function postAnswer(questionId: number, content: string, replyToUse
     params: { content, reply_to_user_id: replyToUserId },
   });
   return res.data.data;
+}
+
+export async function deleteQuestion(questionId: number): Promise<void> {
+  await apiClient.delete(`/questions/${questionId}`);
+}
+
+export async function deleteAnswer(answerId: number): Promise<void> {
+  await apiClient.delete(`/answers/${answerId}`);
 }
 
 // ============ 点赞接口 ============

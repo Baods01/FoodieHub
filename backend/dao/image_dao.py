@@ -29,6 +29,7 @@ class ImageDAO:
         height: Optional[int] = None,
         mime_type: Optional[str] = None,
         extra: Optional[dict] = None,
+        uploader_id: Optional[int] = None,
     ) -> Images:
         return await Images.create(
             url=url,
@@ -39,6 +40,7 @@ class ImageDAO:
             height=height,
             mime_type=mime_type,
             extra=extra,
+            uploader_id=uploader_id,
         )
 
     @staticmethod
@@ -53,9 +55,13 @@ class ImageDAO:
 
     @staticmethod
     async def delete(id: int) -> bool:
+        """软删除图片，并清理多态关联记录（DictRel）。返回是否成功。"""
         obj = await Images.get_or_none(id=id, is_active=True)
         if not obj:
             return False
+        # 级联清理 DictRel（图片可能被打标签）
+        from dao.dict_dao import DictRelDAO
+        await DictRelDAO.clear_entity_dicts("image", id)
         obj.is_active = False
         await obj.save()
         return True

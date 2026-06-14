@@ -53,6 +53,12 @@ async def update_comment(
 
 @router.delete("/comments/{comment_id}", response_model=ResponseModel, summary="删除评论")
 async def delete_comment(comment_id: int, current_user: UserResponse = Depends(require_login)):
+    from dao.comment_dao import CommentDAO
+    comment = await CommentDAO.get_by_id(comment_id)
+    if not comment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="评论不存在")
+    if comment.user_id != current_user.id and current_user.role != 1:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除此评论")
     ok = await CommentService.delete(comment_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="评论不存在")
@@ -111,6 +117,12 @@ async def list_replies(comment_id: int, current_user: UserResponse = Depends(get
 
 @router.delete("/replies/{reply_id}", response_model=ResponseModel, summary="删除回复")
 async def delete_reply(reply_id: int, current_user: UserResponse = Depends(require_login)):
+    from dao.comment_dao import CommentDAO
+    reply = await CommentDAO.get_reply_by_id(reply_id)
+    if not reply:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="回复不存在")
+    if reply.user_id != current_user.id and current_user.role != 1:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除此回复")
     ok = await CommentService.delete_reply(reply_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="回复不存在")
@@ -169,6 +181,12 @@ async def update_question(
 
 @router.delete("/questions/{question_id}", response_model=ResponseModel, summary="删除问题")
 async def delete_question(question_id: int, current_user: UserResponse = Depends(require_login)):
+    from dao.question_dao import QuestionDAO
+    question = await QuestionDAO.get_by_id(question_id)
+    if not question:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="问题不存在")
+    if question.user_id != current_user.id and current_user.role != 1:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除此问题")
     ok = await QuestionService.delete(question_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="问题不存在")
@@ -227,6 +245,12 @@ async def list_answers(question_id: int, current_user: UserResponse = Depends(ge
 
 @router.delete("/answers/{answer_id}", response_model=ResponseModel, summary="删除回答")
 async def delete_answer(answer_id: int, current_user: UserResponse = Depends(require_login)):
+    from dao.question_dao import QuestionDAO
+    answer = await QuestionDAO.get_answer_by_id(answer_id)
+    if not answer:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="回答不存在")
+    if answer.user_id != current_user.id and current_user.role != 1:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权删除此回答")
     ok = await QuestionService.delete_answer(answer_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="回答不存在")

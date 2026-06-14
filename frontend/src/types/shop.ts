@@ -43,6 +43,7 @@ export interface MenuItem {
 export interface ImageItem {
   id: number;
   url: string;
+  uploader_id?: number;
 }
 
 /** 店铺详情数据 — 对齐后端 ShopResponse */

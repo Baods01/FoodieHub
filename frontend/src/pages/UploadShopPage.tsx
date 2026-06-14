@@ -48,10 +48,18 @@ export default function UploadShopPage() {
     });
   }, []);
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   // 图片上传
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > MAX_FILE_SIZE) {
+      setErrors({ ...errors, cover: '图片文件过大，最大支持 10MB' });
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
+    setErrors({ ...errors, cover: '' });
     setCoverFile(file);  // 保存 File 对象用于后续上传
     const reader = new FileReader();
     reader.onload = () => setCover(reader.result as string);
@@ -89,6 +97,8 @@ export default function UploadShopPage() {
     setErrors({});
     setSubmitting(true);
 
+    let createdShopId: number | null = null;
+
     try {
       const catCode = nameToId(categories, category);
       const areaCode = nameToId(areas, area);
@@ -99,6 +109,12 @@ export default function UploadShopPage() {
         name: name.trim(),
         dict_data_ids: [...[catCode, areaCode].filter(Boolean), ...diningCodes] as number[],
       });
+      createdShopId = result.id;
+
+      // Step 2: 如果有封面图片，上传并绑定到店铺
+      if (coverFile) {
+        await uploadImage(coverFile, 'shop', result.id);
+      }
 
       // Step 2: 如果有封面图片，上传并绑定到店铺
       if (coverFile) {
@@ -106,8 +122,36 @@ export default function UploadShopPage() {
       }
 
       navigate(`/shop/${result.id}`);
-    } catch {
-      setErrors({ submit: '分享失败，请重试' });
+    } catch (err: unknown) {
+      // 如果图片上传失败且店铺已创建，回滚删除店铺
+      if (createdShopId !== null) {
+        try {
+          const { deleteShopApi } = await import('../api/shops');
+          await deleteShopApi(createdShopId);
+        } catch {
+          // 回滚失败不影响错误提示
+        }
+      }
+      // 解析后端错误信息（从 axios response 的 detail 字段提取）
+      const axiosErr = err as any;
+      // 调试日志：在浏览器控制台查看完整错误对象
+      if (import.meta.env.DEV) {
+        console.error('createShop 错误详情:', {
+          status: axiosErr?.response?.status,
+          data: axiosErr?.response?.data,
+          message: axiosErr?.message,
+        });
+      }
+      // 尝试多种方式提取后端错误信息
+      const errDetail = axiosErr?.response?.data?.detail || axiosErr?.response?.data?.message;
+      const errMsg = typeof errDetail === 'string' && errDetail
+        ? errDetail
+        : (err instanceof Error ? err.message : '分享失败，请重试');
+      if (/文件过大|10MB|过大/.test(errMsg)) {
+        setErrors({ submit: '封面图片过大，最大支持 10MB，请重新选择', cover: '图片文件过大，最大支持 10MB' });
+      } else {
+        setErrors({ submit: errMsg });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -235,7 +279,7 @@ export default function UploadShopPage() {
                 {/* 封面图片 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    封面图片 <span className="text-gray-400 font-normal">（选填）</span>
+                    封面图片 <span className="text-gray-400 font-normal">（选填，最大 10MB）</span>
                   </label>
                   <input
                     ref={fileRef}
@@ -270,9 +314,10 @@ export default function UploadShopPage() {
                     >
                       <Camera size={28} />
                       <span className="text-sm">点击上传封面图片</span>
-                      <span className="text-xs">建议尺寸 16:9</span>
+                      <span className="text-xs">建议尺寸 16:9，支持 JPG/PNG/WebP，最大 10MB</span>
                     </button>
                   )}
+                  {errors.cover && <p className="text-red-500 text-xs mt-1 animate-fade-in">{errors.cover}</p>}
                 </div>
 
                 {/* 提交错误 */}

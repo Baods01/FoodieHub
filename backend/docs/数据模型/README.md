@@ -1,3 +1,19 @@
+# 文档更新日志
+此文档更新日志章节记录每次操作所解决的问题，只追加不修改。
+
+## 更新日期：2026-06-05
+### 更新摘要
+根据后端 models/ 目录的实际模型代码，同步更新 README.md 文档，使各章节与实际表结构一致。
+
+### 更新详情
+- **文件组织**：`governance.py` 描述由旧 `Complaints / ShopEditRequests` 更新为 `Feedback`；新增 `history.py`（ViewHistory）条目至目录树和职能划分表；历史删除文件表补充 `shop_edit_requests.py`
+- **全景关系图**：`Complaints`→`Feedback`、`ShopEditRequests`→移除、`ShopDictRel`→`DictRel`；新增 `ViewHistory` 关系线（用户侧+店铺侧）
+- **新增 Section 7.2 ViewHistory**：完整描述 `ViewHistory` 表的字段、唯一约束、继承 BaseModel 及设计说明
+- **治理模块重写**（Section 9）：由旧 `Complaints` 表 + `ShopEditRequests` 表的两节内容，替换为统一的 `Feedback` 单表模型（8字段 + 2索引 + 5条设计说明）
+- **迁移状态表**：`feedbacks` 加入活跃行；`complaints`/`shop_edit_requests` 移入已删除区；新增 `view_history` 行
+- **字段修正**：OperationLog.target_type 示例值 `complaint`→`feedback`；Shops.comment_count 描述 `评论数`→`讨论数`
+
+
 # 食探社 — 数据模型说明文档
 
 > 面向：后端开发人员
@@ -71,7 +87,9 @@ models/
   shops.py          店铺模块（Shops / Menu / Ratings）
   images.py         图片模块（Images）
   interaction.py    互动模块（ShopComments / CommentReplies / ShopQuestions / QuestionAnswers / ContentLikes）
-  governance.py     治理模块（Complaints / ShopEditRequests）
+  interaction.py    互动模块（ShopComments / CommentReplies / ShopQuestions / QuestionAnswers / ContentLikes）
+  history.py        浏览历史（ViewHistory）
+  governance.py     治理模块（Feedback）
   logs.py           日志模块（OperationLog）
 ```
 
@@ -85,7 +103,8 @@ models/
 | 资产底座 | `shops.py` | 店铺、菜单、评分 |
 | 资源文件 | `images.py` | 图片（多态关联） |
 | 用户互动 | `interaction.py` | 评论、回复、提问、回答 |
-| 治理审核 | `governance.py` | 举报、勘误反馈 |
+| 浏览历史 | `history.py` | 浏览记录（独立表） |
+| 治理审核 | `governance.py` | 统一反馈工单 |
 | 审计追踪 | `logs.py` | 统一操作日志 |
 
 ### 2.2 删除/合并的历史文件
@@ -93,8 +112,9 @@ models/
 | 旧文件 | 去向 |
 |:---|:---|
 | `bans.py` | 已删除。Bans表取消，`is_banned` 字段移至 Users/Shops，封禁历史由 OperationLog 记录 |
-| `complaints.py` | 已删除。内容移入 `governance.py`，ComplaintHandlers 表合并入 Complaints |
-| `reviews.py` | 已删除。ShopEditRequests 移入 `governance.py` |
+| `complaints.py` | 已删除。内容合并入 `governance.py` 的统一 Feedback 表 |
+| `reviews.py` | 已删除。内容合并入 `governance.py` 的统一 Feedback 表 |
+| `shop_edit_requests.py` | 已删除。内容合并入 `governance.py` 的统一 Feedback 表 |
 | `admin_logs.py` | 已删除。合并入统一 OperationLog |
 
 ---
@@ -105,24 +125,24 @@ models/
 Users ──┬── Activities      (user行为时间线)
          ├── Favorites       (user ↔ shop，多对多)
          ├── Messages        (recipient/sender)
+         ├── ViewHistory     (user浏览记录)
          ├── ShopComments    (一级评论作者)
          ├── CommentReplies  (二级回复作者)
          ├── ShopQuestions   (一级问题作者)
          ├── QuestionAnswers (二级回答作者)
-         ├── Complaints      (举报发起者 / 处理者 admin)
-         └── ShopEditRequests(勘误提交者 / 审核者 admin)
+         └── Feedback        (反馈工单提交者)
 
-Shops ──┬── ShopDictRel → DictData → DictTypes   (标签体系，多对多)
+Shops ──┬── DictRel → DictData → DictTypes   (标签体系，多对多)
          ├── Menu           (菜单项)
          ├── Ratings        (评分，user+shop唯一约束)
          ├── Favorites      (被收藏)
+         ├── ViewHistory    (浏览记录)
          ├── ShopComments   (一级评论归属)
          ├── CommentReplies (经评论归属店铺)
          ├── ShopQuestions  (一级问题归属)
          ├── QuestionAnswers(经问题归属店铺)
          ├── Activities     (动态关联店铺，前端跳转用)
-         ├── Complaints     (被举报实体，多态)
-         ├── ShopEditRequests(待修改店铺)
+         ├── Feedback       (被反馈实体，多态)
          └── Shops.merged_into (自引用，店铺合并)
 ```
 
@@ -275,7 +295,7 @@ rels = await DictRel.filter(entity_type='shop', entity_id=shop_id).prefetch_rela
 | name | VARCHAR(100) | 店铺名称 |
 | view_count | INT (default=0) | 浏览量（冗余字段） |
 | favorite_count | INT (default=0) | 收藏数（冗余字段） |
-| comment_count | INT (default=0) | 评论数（冗余字段） |
+| comment_count | INT (default=0) | 讨论数（冗余字段） |
 | average_rating | FLOAT (default=0.0) | 平均评分（冗余字段） |
 | aliases | JSON | 别名列表，如 `["老店名", "曾用名"]` |
 | merged_into | FK → Shops (NULL, 自引用) | 合并后目标店铺ID |
@@ -340,6 +360,7 @@ rels = await DictRel.filter(entity_type='shop', entity_id=shop_id).prefetch_rela
 | height | INT (NULL) | 图片高度（像素） |
 | mime_type | VARCHAR(50) (NULL) | MIME 类型，如 `image/jpeg` |
 | extra | JSON (NULL) | 扩展字段，用于存储 alt 文本等业务自定义信息 |
+| uploader_id | INT (NULL) | 上传者用户ID |
 
 **索引：** `(entity_type, entity_id)` — 按实体查询其全部图片。
 
@@ -364,6 +385,24 @@ comment.is_active = False
 await comment.save()
 await Images.filter(entity_type='shop_comment', entity_id=comment.id).update(is_active=False)
 ```
+
+### 7.2 ViewHistory — 浏览历史表
+
+| 字段 | 类型 | 说明 |
+|:---|:---|:---|
+| user | FK → Users | 浏览用户 |
+| shop | FK → Shops | 被浏览店铺 |
+| viewed_at | Datetime (auto_now) | 最近浏览时间 |
+
+**唯一约束：** `(user_id, shop_id)` — 每个用户-店铺对只有一条记录，重复访问时 `viewed_at` 自动更新。
+**索引：** 通过唯一约束覆盖。
+
+**设计说明：**
+
+- 独立于 `OperationLog`（审计日志），专用于前端"我的浏览记录"功能。
+- 继承 BaseModel，拥有 `id`、`created_at`、`updated_at`、`is_active` 字段。`(user_id, shop_id)` 的 `unique_together` 约束保证每个用户-店铺对只有一条记录，重复访问仅更新 `viewed_at`，不产生新行。
+- `viewed_at` 使用 `auto_now=True`，每次访问自动刷新。
+- 软删除（`is_active=False`）表示用户主动清除浏览记录。
 
 ---
 
@@ -466,9 +505,9 @@ ShopComments(id=1) "这家店不错"
 
 ### 9.1 设计说明
 
-治理模块采用统一的 **"工单"模式**：用户提交 → 管理员审核 → 结果通知。
+治理模块将旧 `Complaints`（举报）与 `ShopEditRequests`（勘误）合并为一张统一的 **Feedback** 表，通过 `type` 字段区分业务类型。
 
-与 ShopEditRequests 保持一致的设计规范：
+统一的 **"工单"模式**：用户提交 → 管理员审核 → 结果通知。
 
 | 状态 | 含义 |
 |:---|:---|
@@ -476,69 +515,31 @@ ShopComments(id=1) "这家店不错"
 | `approved` | 已通过（触发相应业务操作） |
 | `rejected` | 已驳回（附驳回理由） |
 
-### 9.2 Complaints — 举报表
+### 9.2 Feedback — 统一反馈工单表
 
 | 字段 | 类型 | 说明 |
 |:---|:---|:---|
 | id | INT PK | 自增主键 |
-| user | FK → Users | 举报发起用户 |
-| complainant_type | VARCHAR(32) | 被举报内容类型：`comment` / `shop` / `image` |
-| complainant_id | INT | 被举报内容ID |
-| reason_code | VARCHAR(50) | 举报原因编码，来自 DictData 字典 |
-| description | TEXT (NULL) | 补充说明 |
-| status | VARCHAR(20) | `pending` / `approved` / `rejected` |
+| user | FK → Users | 提交用户（反馈发起者） |
+| type | VARCHAR(20) | 反馈类型：`complaint`（举报） / `edit_request`（勘误） |
+| target_type | VARCHAR(20) | 反馈对象类型：`shop` / `comment` / `image` |
+| target_id | INT | 被反馈对象ID |
+| reason | FK → DictData | 反馈原因（字典数据，前端可选值由 `/dict/data?type_name=反馈原因` 提供） |
+| description | TEXT (NULL) | 用户填写的补充描述 |
+| status | VARCHAR(20) default=`pending` | 审核状态：`pending` / `approved` / `rejected` |
 | admin | FK → Users (NULL) | 处理管理员 |
-| action | VARCHAR(50) (NULL) | 处理动作：`delete_comment` / `ban_shop` / `remove_image` / `dismiss` |
-| result_description | TEXT (NULL) | 处理结果描述/备注 |
 
-**索引：** `(complainant_type, complainant_id)` — 查询某个实体的所有举报记录。
-
-**设计说明：**
-
-- `complainant_type + complainant_id` 采用多态关联（同 Images 模式），无 FK 约束，级联删除在 DAO 层处理。
-- `action` 由管理员选择，决定了 Service 层实际执行的操作（删除评论 / 封禁店铺 / 移除图片）。
-- 原来的 ComplaintHandlers 表已合并至此表。本课程设计场景中，一个举报只需要一次处理，不需要多条处理历史。
-
-### 9.3 ShopEditRequests — 店铺勘误/重复反馈表
-
-| 字段 | 类型 | 说明 |
-|:---|:---|:---|
-| id | INT PK | 自增主键 |
-| shop | FK → Shops | 待修改的店铺 |
-| user | FK → Users | 提交用户 |
-| proposed_data | JSON | 提议修改的内容（格式见下方） |
-| status | VARCHAR(20) | `pending` / `approved` / `rejected` |
-| admin | FK → Users (NULL) | 审核管理员 |
-
-**索引：** `(status, created_at)` — 管理员查询待处理列表。
-
-**`proposed_data` JSON 格式：**
-
-**勘误类型（type=correction）：**
-```json
-{
-  "type": "correction",
-  "changes": {
-    "name": "新店铺名",
-    "area": {"dict_data_id": 10},
-    "category": {"dict_data_id": 3}
-  },
-  "reason": "这家店改名了"
-}
-```
-
-**重复类型（type=merge）：**
-```json
-{
-  "type": "merge",
-  "candidate_shop_ids": [1, 3, 5],
-  "reason": "这三家其实是同一家店的不同分店"
-}
-```
+**索引：**
+- `(status, created_at)` — 管理员按状态筛选待处理工单
+- `(target_type, target_id)` — 查询某个实体的全部反馈记录
 
 **设计说明：**
 
-`proposed_data` 使用 JSON 字段而非固定列，因为勘误和重复两种场景需要提交的数据结构完全不同。JSON 格式在 Service 层进行业务规则校验。
+- **单表统一**：`type` 字段区分举报和勘误，不再需要两张独立的表和完全不同的字段结构。
+- **原因字典化**：`reason` 通过 FK 引用 DictData，举报原因/勘误原因均可通过 DictTypes 管理，前端无需硬编码。
+- **描述文本**：原 Complaints 的 `description` 字段保留（补充说明），原 ShopEditRequests 的 `proposed_data` JSON 不再使用——改为纯文本描述 + 原因字典的组合。
+- **处理动作**：原 Complaints 的 `action` 字段已移除。审核通过（`approved`）后由 Service 层根据 `type` + `target_type` 自动判断执行（如 `complaint` + `comment` → 删除评论）。
+- **合并历史**：原 ComplaintHandlers 表（旧多步骤处理记录）已废弃，合并前的数据并入当前 Feedbacks 表。
 
 ---
 
@@ -552,7 +553,7 @@ ShopComments(id=1) "这家店不错"
 | operator | FK → Users (NULL) | 操作用户（未登录或系统操作时为 NULL） |
 | operator_name | VARCHAR(50) (NULL) | 操作时的用户名（冗余，用户删除后保留追溯能力） |
 | action | VARCHAR(50) | 操作动作。如 `view_shop` / `comment` / `ban_user` / `approve_edit` |
-| target_type | VARCHAR(50) | 操作对象类型。如 `shop` / `user` / `comment` / `complaint` |
+| target_type | VARCHAR(50) | 操作对象类型。如 `shop` / `user` / `comment` / `feedback` |
 | target_id | INT (NULL) | 操作对象ID |
 | detail | JSON (NULL) | 操作详情，可包含 before/after 快照、封禁原因等上下文 |
 | ip_address | VARCHAR(45) (NULL) | 客户端IP |
@@ -634,9 +635,8 @@ class BaseModel(TimestampMixin, SoftDeleteMixin, Model):
 | activities | ✅ | ✅ | 新增 shop_id 字段 |
 | favorites | ✅ | ✅ | |
 | messages | ✅ | ✅ | |
-| images | ✅ | ✅ | 新增 file_size/width/height/mime_type |
-| complaints | ✅ | ✅ | 新增 admin/action/result_description |
-| shop_edit_requests | ✅ | ✅ | |
+| images | ✅ | ✅ | 新增 file_size/width/height/mime_type/uploader_id |
+| feedbacks | ✅ | ✅ | 统一反馈工单，type 区分 complaint / edit_request |
 | content_likes | ✅ | ✅ | 新增，多态点赞表 |
 | operation_logs | ✅ | ✅ | 新增，统一日志表 |
 | shop_comments | ✅ | ✅ | 新增，一级评论 |
@@ -646,7 +646,10 @@ class BaseModel(TimestampMixin, SoftDeleteMixin, Model):
 | ~~comments~~ | ❌已删 | ❌已删 | 已拆分为 shop_comments + comment_replies |
 | ~~comments_likes~~ | ❌已删 | ❌已删 | 替换为 content_likes |
 | ~~user_behavior_logs~~ | ❌已删 | ❌已删 | 替换为 operation_logs |
-| ~~complaint_handlers~~ | ❌已删 | ❌已删 | 合并入 complaints |
+| ~~complaint_handlers~~ | ❌已删 | ❌已删 | 合并入 feedbacks |
+| view_history | ✅ | ✅ | 新增，浏览历史独立表 |
+| ~~complaints~~ | ❌已删 | ❌已删 | 替换为 feedbacks（type='complaint'） |
+| ~~shop_edit_requests~~ | ❌已删 | ❌已删 | 替换为 feedbacks（type='edit_request'） |
 | ~~bans~~ | ❌已删 | ❌已删 | 替换为 users/shops.is_banned |
 | ~~admin_operation_logs~~ | ❌已删 | ❌已删 | 替换为 operation_logs |
 
@@ -683,3 +686,5 @@ STATUS_PENDING            # pending
 STATUS_APPROVED           # approved
 STATUS_REJECTED           # rejected
 ```
+
+---

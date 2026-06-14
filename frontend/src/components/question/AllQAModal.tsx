@@ -5,6 +5,7 @@ import type { Question } from '../../types/question';
 import { fetchQuestions, postQuestion, postAnswer } from '../../api/questions';
 import { QuestionInput } from './QuestionInput';
 import { QuestionCard } from './QuestionCard';
+import { useAuthStore } from '../../store/authStore';
 
 interface AllQAModalProps {
   shopId: number;
@@ -27,6 +28,8 @@ export default function AllQAModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { userId, isAdmin } = useAuthStore();
 
   const loadQuestions = useCallback(
     async (pageNum: number) => {
@@ -91,6 +94,20 @@ export default function AllQAModal({
     } catch {
       // silently fail
     }
+  };
+
+  const handleDeleteQuestion = (questionId: number) => {
+    setQuestions((prev) => prev.filter((q) => q.id !== questionId));
+  };
+
+  const handleDeleteAnswer = (answerId: number) => {
+    setQuestions((prev) =>
+      prev.map((q) => ({
+        ...q,
+        answers: q.answers?.filter((a) => a.id !== answerId),
+        answerCount: q.answerCount && q.answerCount > 0 ? q.answerCount - 1 : 0,
+      })),
+    );
   };
 
   const handleLoadMore = () => {
@@ -198,7 +215,15 @@ export default function AllQAModal({
                 {!isLoading && !error && questions.length > 0 && (
                   <div className="space-y-3 p-4">
                     {questions.map((q) => (
-                      <QuestionCard key={q.id} question={q} onReply={handleReply} />
+                      <QuestionCard
+                        key={q.id}
+                        question={q}
+                        onReply={handleReply}
+                        currentUserId={userId}
+                        isAdmin={isAdmin()}
+                        onDeleteQuestion={handleDeleteQuestion}
+                        onDeleteAnswer={handleDeleteAnswer}
+                      />
                     ))}
                   </div>
                 )}
